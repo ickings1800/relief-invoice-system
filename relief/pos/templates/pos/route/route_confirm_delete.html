@@ -1,0 +1,23 @@
+{% extends 'pos/master/menu_nav.html' %}
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="column col-12">
+            <div class="empty">
+                <div class="empty-icon">
+                    <i class="icon icon-cross icon-3x"></i>
+                </div>
+                  <p class="empty-title h5">Delete Route</p>
+                    <p class="empty-subtitle">Are you sure you want to delete this route?</p>
+                  <div class="empty-action">
+                      <form action="{% url 'pos:route_delete' trip_pk=route.trip.id route_pk=route.id %}" method="post">
+                          {% csrf_token %}
+                          <a href="{% url 'pos:trip_detail' pk=route.trip.id %}" class="btn button-action">Back</a>
+                          <input type="submit" value="Confirm" class="btn btn-primary button-action" />
+                      </form>
+                  </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

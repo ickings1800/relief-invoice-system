@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select Customer</title>
+</head>
+<body>
+<h1>Select Customer</h1>
+<table style="width:100%">
+    <tr>
+        <th>Customer Name</th>
+        <th>Term</th>
+    </tr>
+
+    {% for customer in customer_list %}
+        <tr>
+            <td>
+                {{ customer.name }}
+            </td>
+            <td>{{ customer.term }}</td>
+        </tr>
+    {% endfor %}
+</table>
+</body>
+</html>

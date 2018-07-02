@@ -1,0 +1,22 @@
+{% load widget_tweaks %}
+{% if field|widget_type == "selectmultiple" or field|widget_type == "select" %}
+    {% render_field field class="form-select" placeholder=field.label %}
+{% elif field|widget_type == "checkboxinput" %}
+    <label class="form-checkbox" for="{{ field.auto_id }}">
+        {% render_field field class="form-checkbox" %}
+        <i class="form-icon"></i>
+        {{ field.label }}
+    </label>
+{% elif field|widget_type == "radioselect" %}
+{% for radio in field %}
+<div class="column col-12">
+    <label class="form-radio">
+    {{ radio.tag }}
+    <i class="form-icon"></i>{{ radio.choice_label }}
+    </label>
+</div>
+
+{% endfor %}
+{% else %}
+    {% render_field field class="form-input" placeholder=field.label %}
+{% endif %}

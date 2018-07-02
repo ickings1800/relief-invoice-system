@@ -1,0 +1,97 @@
+{% extends 'pos/master/menu_nav.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="column col-12">
+            <a href="{% url 'pos:trip_index' %}">Back</a>
+            <h2>{{ trip.date|date:"d M Y P" }}</h2>
+            <p>
+                Trip Notes:<br>
+                {% if trip.notes %}
+                {{ trip.notes }}
+                {% endif %}
+            </p>
+            <div>
+                <a class="btn btn-sm btn-primary my-2" href="{% url 'pos:trip_edit' pk=trip.id %}">
+                    <i class="icon icon-edit"></i>&nbsp;Edit
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="divider"></div>
+    <div class="columns">
+        {% for r in routes %}
+            {% if r.do_number != "" %}
+            <div class="card my-2 column col-12 sent">
+            {% else %}
+            <div class="card my-2 column col-12">
+            {% endif %}
+                <div class="card-header column col-12">
+                    <div class="columns">
+                        <div class="h6 column col-1">
+                            {{ r.index }}.
+                        </div>
+                        <div class="card-title h6 column col-8">
+                        {% if r.orderitem_set.all|length > 0 %}
+                            <p>
+                                {{ r.orderitem_set.first.customerproduct.customer.name }}
+                            </p>
+                        {% endif %}
+                        </div>
+                        <div class="text-bold text-error column col-3">
+                            <p class="float-right">{{ r.do_number }}</p>
+                        </div>
+                    </div>
+                    {% if r.note %}
+                    <div class="toast">
+                      {{ r.note }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                {% for oi in r.orderitem_set.all %}
+                <div class="tile tile-centered">
+                      <div class="tile-icon">
+                        <div class="example-tile-icon">
+                        <i class="icon icon-file centered"></i>
+                        </div>
+                      </div>
+                  <div class="tile-content">
+                    <div class="tile-title h6">{{ oi.customerproduct.product.name }}</div>
+                    <div class="tile-subtitle columns">
+                        <div class="column col-12">
+                            Order: {{ oi.quantity }}
+                        </div>
+                        <div class="column col-12">
+                            Driver: {{ oi.driver_quantity }}
+                        </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="divider"></div>
+                {% endfor %}
+                </div>
+                <div class="card-footer">
+               <a href="{% url 'pos:route_delete' trip_pk=r.trip.id route_pk=r.id %}">
+                    <i class="icon icon-delete"></i>
+                </a>
+                <a class="float-right" href="{% url 'pos:route_edit' pk=r.id %}">
+                    <i class="icon icon-edit"></i>
+                </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="divider"></div>
+    <div class="columns">
+        <h5 class="p-1">Add Customer</h5>
+        <form action="{% url 'pos:trip_detail' pk=trip.id %}" method="post">
+            {% csrf_token %}
+            {% include 'pos/master/create_form.html' with form=form %}
+            <input class="btn btn-primary" type="submit" value="Save">
+        </form>
+    </div>
+    </div>
+</div>
+{% endblock %}

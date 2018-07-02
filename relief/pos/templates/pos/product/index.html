@@ -1,0 +1,46 @@
+{% extends 'pos/master/menu_nav.html' %}
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="column col-3">
+            <h2>Products</h2>
+        </div>
+        <div class="column col-mr-auto"></div>
+        <div class="column col-3">
+            <a  href="{% url 'pos:product_create' %}" class="btn btn-primary btn-sm float-right button-action">
+                <i class="icon icon-plus"></i>&nbsp;Create
+            </a>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column col-12">
+            {% if product_list|length > 0 %}
+                <table class="table">
+                {% for product in product_list %}
+                <tr>
+                    <td>
+                        {{ product.name }}
+                    </td>
+                    <td>
+                        <a href="{% url 'pos:product_edit' pk=product.id %}">
+                            <i class="icon icon-edit float-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </table>
+            {% else %}
+                <div class="empty">
+                      <p class="empty-title h5">You have no products.</p>
+                        <p class="empty-subtitle">Click the button to create one.</p>
+                      <div class="empty-action">
+                            <a href="{% url 'pos:product_create' %}" class="btn btn-primary btn-sm button-action">
+                                <i class="icon icon-plus"></i>&nbsp;Create
+                            </a>
+                      </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

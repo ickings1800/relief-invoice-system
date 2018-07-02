@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trip Detail</title>
+</head>
+<body>
+<a href="{% url 'pos:trip_index'%}">Back</a>
+<h1>Trip Detail</h1>
+<p>Date: {{ trip.date|date:"d M Y Hi" }}</p>
+<p>
+    Employees:
+    {% for employee in trip.employees.all %}
+    {{ employee.name }}
+    {% endfor %}
+</p>
+<p>Trip Notes: {{ trip.notes }}</p>
+<a href="{% url 'pos:trip_edit' pk=trip.id %}">Edit Trip</a>
+<p>_______________________________________________</p>
+<p>Routes</p>
+<p>_______________________________________________</p>
+<h2>Add Customer</h2>
+<form action="{% url 'pos:trip_detail' pk=trip.id %}" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" id="add-customer">Add</button>
+</form>
+</body>
+</html>

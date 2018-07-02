@@ -1,0 +1,92 @@
+from django import forms
+from django.forms import inlineformset_factory
+from .models import Employee, Customer, Product, Trip, CustomerProduct, Route, OrderItem
+
+
+class EmployeeForm(forms.ModelForm):
+    class Meta:
+        model = Employee
+        fields = ['name']
+
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = ['name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term']
+
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ['name', 'specification']
+
+
+class TripForm(forms.Form):
+    date = forms.DateTimeField(
+        label="Date (DD/MM/YYYY HHMM)",
+        widget= forms.DateTimeInput(format="%d/%m/%Y %H%M"),
+        input_formats=["%d/%m/%Y %H%M"])
+    notes = forms.CharField(widget=forms.Textarea)
+    employees = forms.MultipleChoiceField(
+        choices=[(e.id, e.name) for e in Employee.objects.all()]
+    )
+
+    class Meta:
+        model = Trip
+        fields = ['date', 'notes', 'employees']
+
+
+class TripDetailForm(forms.Form):
+    customers = forms.ChoiceField(
+        choices=[(c.id, c.name) for c in Customer.objects.all()]
+    )
+    note_only = forms.BooleanField(
+        label='Note only',
+        widget=forms.CheckboxInput(),
+        required=False
+    )
+    note = forms.CharField(widget=forms.Textarea(), max_length=255, required=False)
+
+class TripDriverDetailForm(forms.Form):
+    customers = forms.ChoiceField(
+        choices=[(c.id, c.name) for c in Customer.objects.all()]
+    )
+
+class RouteForm(forms.ModelForm):
+    class Meta:
+        model = Route
+        fields = ['do_number', 'note']
+
+
+class DriverRouteForm(forms.ModelForm):
+    class Meta:
+        model = Route
+        fields = ['do_number']
+
+class CustomerProductCreateForm(forms.Form):
+    customer = forms.ChoiceField(
+        choices=[(c.id, c.name) for c in Customer.objects.all()]
+    )
+    product = forms.ChoiceField(
+        choices=[(p.id, p.name) for p in Product.objects.all()]
+    )
+    quote_price = forms.DecimalField(decimal_places=2)
+
+
+class CustomerProductUpdateForm(forms.Form):
+    customer = forms.CharField(widget=forms.TextInput(attrs={'readonly':'readonly'}))
+    product = forms.CharField(widget=forms.TextInput(attrs={'readonly':'readonly'}))
+    quote_price = forms.DecimalField(decimal_places=2)
+
+
+OrderItemFormSet = inlineformset_factory(Route,
+                                         OrderItem,
+                                         fields=('quantity','note','unit_price'),
+                                         extra=0,
+                                         can_delete=False)
+
+DriverOrderItemFormSet = inlineformset_factory(Route,
+                                         OrderItem,
+                                         fields=('driver_quantity',),
+                                         extra=0,
+                                         can_delete=False)

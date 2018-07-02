@@ -1,0 +1,20 @@
+{% extends 'pos/master/menu_nav.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="column col-12">
+            <a href="{% url 'pos:customerproduct_index' pk=customerproduct.customer.id %}">Back</a>
+            <h2>Edit CustomerProduct</h2>
+        </div>
+    </div>
+    <div class="columns">
+        <form action="{% url 'pos:customerproduct_edit' pk=customerproduct.id %}" method="post" novalidate>
+            {% csrf_token %}
+
+            {% include 'pos/master/create_form.html' with form=form %}
+            <input class="btn btn-primary" type="submit" value="Save">
+        </form>
+    </div>
+</div>
+{% endblock %}

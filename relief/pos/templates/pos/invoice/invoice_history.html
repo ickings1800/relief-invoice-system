@@ -1,0 +1,39 @@
+{% extends 'pos/master/menu_nav.html' %}
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="column col-3">
+            <h2>Invoices</h2>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column col-12">
+            {% if invoice_list|length > 0 %}
+                <table class="table">
+                {% for invoice in invoice_list %}
+                <tr>
+                    <td>
+                        {{ invoice.date_generated|date:"d/m/y" }}
+                    </td>
+                    <td>
+                        <a href="{% url 'pos:invoice_view' pk=invoice.pk %}">
+                            {{ invoice.route_set.all.0.orderitem_set.all.0.customerproduct.customer.name }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{% url 'pos:invoice_delete' pk=invoice.pk %}">
+                            <i class="icon icon-delete float-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </table>
+            {% else %}
+                <div class="empty">
+                      <p class="empty-title h2">You have no invoices.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

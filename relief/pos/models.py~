@@ -1,0 +1,99 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from .validators import date_within_year
+from django.db import models
+
+# Create your models here.
+
+
+class Company(models.Model):
+    name = models.CharField(max_length=255)
+    address = models.CharField(max_length=255)
+    postal_code = models.CharField(max_length=6)
+    tel_no = models.CharField(max_length=8)
+    business_no = models.CharField(max_length=10)
+    fax_no = models.CharField(max_length=8)
+
+
+class Employee(models.Model):
+    name = models.CharField(max_length=255)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
+
+    def __str__(self):
+        return self.name
+
+    
+class Trip(models.Model):
+    date = models.DateTimeField(validators=[date_within_year])
+    notes = models.CharField(max_length=255, null=True, blank=True)
+    employees = models.ManyToManyField(Employee, through='EmployeeTrip')
+
+
+class EmployeeTrip(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('employee', 'trip')
+
+
+class Customer(models.Model):
+    name = models.CharField(max_length=255)
+    address = models.CharField(max_length=255, null=True, blank=True)
+    postal_code = models.CharField(max_length=6, null=True, blank=True)
+    tel_no = models.CharField(max_length=8, null=True, blank=True)
+    fax_no = models.CharField(max_length=8, null=True, blank=True)
+    term = models.PositiveSmallIntegerField()
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=128)
+    specification = models.CharField(max_length=255, null=True, blank=True)
+
+
+class Invoice(models.Model):
+    date_generated = models.DateField(auto_now=True)
+    date_start = models.DateField(validators=[date_within_year])
+    date_end = models.DateField(validators=[date_within_year])
+    remark = models.CharField(max_length=255, null=True)
+    freshbooks_url = models.URLField(null=True)
+
+
+class Route(models.Model):
+    index = models.SmallIntegerField()
+    do_number = models.CharField(max_length=8, null=True, unique=True)
+    invoice = models.ForeignKey(Invoice, null=True, default=None, on_delete=models.SET_NULL)
+    trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
+
+
+class CustomerProduct(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quote_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
+
+    class Meta:
+        unique_together = ('customer', 'product')
+
+
+class OrderItem(models.Model):
+    quantity = models.PositiveSmallIntegerField()
+    note = models.CharField(max_length=255, null=True)
+    unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
+    customerproduct = models.ForeignKey(CustomerProduct, on_delete=models.CASCADE)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('route', 'customerproduct')
+
+
+class Packing(models.Model):
+    name = models.CharField(max_length=128)
+
+
+class Method(models.Model):
+    packing = models.ForeignKey(Packing, on_delete=models.CASCADE)
+    orderitem = models.ForeignKey(OrderItem, on_delete=models.CASCADE)
+    packing_quantity = models.PositiveSmallIntegerField()
+
+    class Meta:
+        unique_together = ('orderitem', 'packing')

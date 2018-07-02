@@ -1,0 +1,104 @@
+#mainmenu li a {
+    font-weight:600;
+    text-transform:uppercase;
+    font-size:.65rem;
+}
+
+.nav-item {
+    margin-top:1rem;
+    margin-left:1rem;
+}
+
+
+th {
+    text-align:left;
+}
+
+.button-action {
+    margin-top:0.25rem;
+}
+
+.form-button-action {
+    margin-top:1rem;
+    margin-bottom:1rem;
+}
+
+.off-canvas .off-canvas-content {
+    padding-top: 4rem;
+    padding-right: 1rem;
+    padding-bottom: 0;
+    padding-left: 1rem;
+}
+
+#hamburger {
+    position: fixed;
+    padding-top: 1.3rem;
+    padding-left: 1.5rem;
+    /* z-index above zero for hamburger to be clicked with absolute position. */
+    z-index:10;
+}
+
+.off-canvas {
+    height:100vh;
+}
+
+.panel {
+    height:85vh;
+}
+
+.icon-delete, .icon-cross {
+    color:indianred;
+}
+
+.empty {
+    margin:1rem;
+    background:white;
+}
+
+.form-spacing {
+    padding:0.1rem;
+}
+
+form {
+    width:100%;
+}
+
+.icon-check {
+    color:green;
+}
+
+.form-input-hint {
+    margin:0 0 0rem;
+}
+
+.form-label {
+margin:0.1rem;
+}
+
+.icon-edit {
+    color:lightgrey;
+}
+
+.icon-edit:hover {
+color:grey;
+}
+
+.panel {
+    border:0;
+}
+
+.panel .panel-body {
+    padding:0;
+}
+
+.sent {
+background-color:#ffff89
+}
+
+ul {
+    list-style-type:none;
+}
+
+.invoice-table th {
+    border:none;
+}

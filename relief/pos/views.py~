@@ -1,0 +1,414 @@
+from django.db.models import F, Q
+from django.shortcuts import render, get_object_or_404
+from django.forms import formset_factory
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView
+from .models import Customer, Product, Employee, Trip, EmployeeTrip, CustomerProduct, Route, OrderItem
+from .forms import EmployeeForm, CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
+    CustomerProductUpdateForm, OrderItemFormSet, DriverOrderItemFormSet, OrderItemEditFormSet, RouteForm,  DriverRouteForm,\
+    TripDriverDetailForm, RouteCompareForm
+
+
+# Create your views here.
+
+class CustomerIndexView(ListView):
+    template_name = 'pos/customer/index.html'
+    context_object_name = 'customer_list'
+
+    def get_queryset(self):
+        return Customer.objects.all()
+
+
+class CustomerCreateView(CreateView):
+    model = Customer
+    template_name = 'pos/customer/create.html'
+    form_class = CustomerForm
+
+    def get_success_url(self):
+        return reverse('pos:customer_index')
+
+
+class CustomerEditView(UpdateView):
+    template_name = 'pos/customer/edit.html'
+    model = Customer
+    form_class = CustomerForm
+
+    def get_success_url(self):
+        return reverse('pos:customer_index')
+
+
+class ProductIndexView(ListView):
+    template_name = 'pos/product/index.html'
+    context_object_name = 'product_list'
+
+    def get_queryset(self):
+        return Product.objects.all()
+
+
+class ProductCreateView(CreateView):
+    model = Product
+    template_name = 'pos/product/create.html'
+    form_class = ProductForm
+
+    def get_success_url(self):
+        return reverse('pos:product_index')
+
+
+class ProductEditView(UpdateView):
+    model = Product
+    template_name = 'pos/product/edit.html'
+    form_class = ProductForm
+
+    def get_success_url(self):
+        return reverse('pos:product_index')
+
+
+class EmployeeIndexView(ListView):
+    template_name = 'pos/employee/index.html'
+    context_object_name = 'employee_list'
+
+    def get_queryset(self):
+        return Employee.objects.all()
+
+
+class EmployeeCreateView(CreateView):
+    model = Employee
+    template_name = 'pos/employee/create.html'
+    form_class = EmployeeForm
+
+    def get_success_url(self):
+        return reverse('pos:employee_index')
+
+
+class EmployeeEditView(UpdateView):
+    model = Employee
+    template_name = 'pos/employee/edit.html'
+    form_class = EmployeeForm
+
+    def get_success_url(self):
+        return reverse('pos:employee_index')
+
+
+class TripIndexView(ListView):
+    template_name = 'pos/trip/index.html'
+    context_object_name = 'trip_list'
+
+    def get_queryset(self):
+        return Trip.objects.all()
+
+
+class TripCreateView(FormView):
+    template_name = 'pos/trip/create.html'
+    form_class = TripForm
+
+    def form_valid(self, form):
+        trip = Trip.objects.create(
+            date=form.cleaned_data['date'],
+            notes=form.cleaned_data['notes']
+        )
+        trip.save()
+        employee_select = form.cleaned_data['employees']
+        for es in employee_select:
+            trip_employee = Employee.objects.get(id=int(es))
+            if trip_employee:
+                EmployeeTrip.objects.create(employee=trip_employee, trip=trip)
+        return HttpResponseRedirect(reverse('pos:trip_index'))
+
+    def get_success_url(self):
+        return reverse('pos:trip_index')
+
+
+class TripDetailView(FormView):
+    model = Trip
+    template_name = 'pos/trip/detail.html'
+    form_class = TripDetailForm
+
+    def get_context_data(self, **kwargs):
+        trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
+        routes = trip.route_set.all()
+        [r.orderitem_set.all() for r in routes]
+
+        context = super(TripDetailView, self).get_context_data(**kwargs)
+        context['trip'] = trip
+        context['routes'] = routes
+        return context
+
+    def form_valid(self, form):
+        if form.is_valid():
+            note_only = form.cleaned_data['note_only']
+            note = form.cleaned_data['note']
+            trip = Trip.objects.get(pk=self.kwargs['pk'])
+            route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
+            route_indexes = [r.index for r in route_list]
+            route = Route(index=max(route_indexes) + 1, trip=trip, note=note)
+            route.save()
+
+            if not note_only:
+                customer_id = form.cleaned_data['customers']
+                customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+
+                for cp in customerproducts:
+                    orderitem = OrderItem(customerproduct=cp, route=route, unit_price=cp.quote_price)
+                    orderitem.save()
+
+        return super(TripDetailView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
+
+
+class TripDriverDetailView(TripDetailView):
+    template_name = 'pos/trip/driverdetail.html'
+    form_class = TripDriverDetailForm
+
+    def form_valid(self, form):
+        trip = Trip.objects.get(pk=self.kwargs['pk'])
+        route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
+        route_indexes = [r.index for r in route_list]
+        route = Route(index=max(route_indexes) + 1, trip=trip)
+        route.save()
+        customer_id = form.cleaned_data['customers']
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+
+        for cp in customerproducts:
+            orderitem = OrderItem(customerproduct=cp, route=route, unit_price=cp.quote_price)
+            orderitem.save()
+
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse('pos:trip_driver_detail', kwargs={'pk':self.kwargs['pk']})
+
+
+class TripEditView(FormView):
+    template_name = 'pos/trip/edit.html'
+    form_class = TripForm
+
+    def get_context_data(self, **kwargs):
+        self.trip = Trip.objects.get(pk=self.kwargs['pk'])
+        context = super(TripEditView, self).get_context_data(**kwargs)
+        context['trip'] = self.trip
+        return context
+
+    def get_initial(self):
+        self.trip = Trip.objects.get(pk=self.kwargs['pk'])
+        initial = super(TripEditView, self).get_initial()
+        initial['date'] = self.trip.date
+        initial['notes'] = self.trip.notes
+        initial['employees'] = [e.employee_id for e in EmployeeTrip.objects.filter(trip_id=self.trip.id)]
+        return initial
+
+    def form_valid(self, form):
+        trip_date = form.cleaned_data['date']
+        trip_notes = form.cleaned_data['notes']
+        trip_employees = form.cleaned_data['employees']
+        trip_pk = self.kwargs['pk']
+
+        trip = get_object_or_404(Trip, pk=trip_pk)
+        trip.date = trip_date
+        trip.notes = trip_notes
+        trip.save()
+
+        employee_trips = EmployeeTrip.objects.filter(trip_id=trip.id)
+        [et.delete() for et in employee_trips]
+
+        for te in trip_employees:
+            EmployeeTrip.objects.create(trip_id=trip.id, employee_id = int(te))
+
+        return super(TripEditView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse('pos:trip_index')
+
+
+class TripDeleteView(DeleteView):
+    template_name = 'pos/trip/trip_confirm_delete.html'
+    model = Trip
+
+    def get_object(self, queryset=None):
+        return Trip.objects.get(pk=self.kwargs['pk'])
+
+    def delete(self, request, *args, **kwargs):
+        id =self.kwargs['pk']
+        trip = get_object_or_404(Trip, pk=id)
+        trip_employees = EmployeeTrip.objects.filter(trip_id=trip.id)
+        for te in trip_employees:
+            te.delete()
+        return super(TripDeleteView, self).delete(request)
+
+    def get_success_url(self):
+        return reverse('pos:trip_index')
+
+
+class RouteEditView(UpdateView):
+    model = Route
+    template_name = 'pos/route/edit.html'
+    form_class = RouteForm
+
+    def get_context_data(self, **kwargs):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        oi_formset = OrderItemFormSet(instance=route)
+        context = super().get_context_data(**kwargs)
+        context['route'] = route
+        context['orderitems'] = oi_formset
+        return context
+
+    def form_valid(self, form):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        oi_formset = OrderItemFormSet(self.request.POST, instance=route)
+        if oi_formset.is_valid() and form.is_valid():
+            for oi_form in oi_formset:
+                oi_form.save()
+            form.save()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        return reverse('pos:trip_detail', kwargs={'pk':route.trip.id})
+
+
+class RouteDriverEditView(UpdateView):
+    model = Route
+    form_class = DriverRouteForm
+    template_name = 'pos/route/driveredit.html'
+
+    def get_context_data(self, **kwargs):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        oi_formset = DriverOrderItemFormSet(instance=route)
+        context = super().get_context_data(**kwargs)
+        context['route'] = route
+        context['orderitems'] = oi_formset
+        return context
+
+    def form_valid(self, form):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        driveroi_formset = DriverOrderItemFormSet(self.request.POST, instance=route)
+        if driveroi_formset.is_valid() and form.is_valid():
+            for oi_form in driveroi_formset:
+                oi = oi_form.save(commit=False)
+                form_driver_quantity = oi_form.cleaned_data['driver_quantity']
+                instance_expected_quantity = oi.quantity
+                initial_driver_quantity = oi_form.initial['driver_quantity']
+                #  if driver did not delivery same amount, final quantity will default to NULL for comparison.
+                #  when expected and actual quantities are zero, final quantity will also be set.
+
+                if initial_driver_quantity != form_driver_quantity:
+                    oi.final_quantity = None  #  driver has changed the quantity
+
+                if form_driver_quantity == instance_expected_quantity:
+                    oi.final_quantity = form_driver_quantity
+                oi.save()
+
+            form.save()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        route = get_object_or_404(Route, pk=self.kwargs['pk'])
+        return reverse('pos:trip_driver_detail', kwargs={'pk':route.trip.id})
+
+
+def RouteCompareView(request):
+    template_name = 'pos/route/routecompare.html'
+
+    if request.method == 'POST':
+        oi_formset = OrderItemEditFormSet(request.POST)
+        if oi_formset.is_valid():
+            oi_formset.save()
+        else:
+            return render(request, template_name, {'orderitems_set':oi_formset})
+
+    queryset = OrderItem.objects.filter(final_quantity=None)
+    oi_formset = OrderItemEditFormSet(queryset=queryset)
+    return render(request, template_name, {'orderitems_set': oi_formset})
+
+
+
+class RouteDeleteView(DeleteView):
+    model = Route
+    template_name = 'pos/route/route_confirm_delete.html'
+
+    def get_object(self, queryset=None):
+        route = get_object_or_404(Route, pk=self.kwargs['route_pk'])
+        return route
+
+    def delete(self, request, *args, **kwargs):
+        super(RouteDeleteView, self).delete(request, args, kwargs)
+        route_list = Route.objects.filter(trip_id=self.kwargs['trip_pk'])
+        for i in range(len(route_list)):
+            route_list[i].index = i+1
+            route_list[i].save()
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['trip_pk']})
+
+
+class CustomerProductListView(ListView):
+    template_name = 'pos/customerproduct/index.html'
+    context_object_name = 'customerproduct_list'
+
+    def get_queryset(self):
+        customer = self.kwargs['cust_pk']
+        return CustomerProduct.objects.filter(customer_id=customer)
+
+
+class CustomerProductCreateView(FormView):
+    template_name = 'pos/customerproduct/create.html'
+    form_class = CustomerProductCreateForm
+
+    def form_valid(self, form):
+        customer_data = int(form.cleaned_data['customer'])
+        product_data = int(form.cleaned_data['product'])
+        quote = form.cleaned_data['quote_price']
+
+        customerproduct_exists = CustomerProduct.objects.filter(customer_id=customer_data, product_id=product_data)
+        if len(customerproduct_exists) > 0:
+            form.add_error('product', "CustomerProduct already exists.")
+            return self.render_to_response(self.get_context_data(form=form))
+        else:
+            customer = get_object_or_404(Customer, pk=customer_data)
+            product = get_object_or_404(Product, pk=product_data)
+            CustomerProduct.objects.create(customer_id=customer_data, product_id=product_data, quote_price=quote)
+            return HttpResponseRedirect(reverse('pos:customerproduct_index', kwargs={'cust_pk':customer_data}))
+
+
+class CustomerProductUpdateView(FormView):
+    template_name = 'pos/customerproduct/edit.html'
+    form_class = CustomerProductUpdateForm
+
+    def get_context_data(self, **kwargs):
+        customerproduct_id = self.kwargs['pk']
+        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
+        context = super(CustomerProductUpdateView, self).get_context_data(**kwargs)
+        context['customerproduct'] = customerproduct
+        return context
+
+    def get_initial(self):
+        customerproduct_id = self.kwargs['pk']
+        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
+        initial = super(CustomerProductUpdateView, self).get_initial()
+        initial['customer'] = customerproduct.customer.name
+        initial['product'] = customerproduct.product.name
+        initial['quote_price'] = customerproduct.quote_price
+        return initial
+
+    def form_valid(self, form):
+        customerproduct_id = self.kwargs['pk']
+        quote_price = float(form.cleaned_data['quote_price'])
+        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
+        customerproduct.quote_price = quote_price
+        customerproduct.save()
+        return super(CustomerProductUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        customerproduct_id = self.kwargs['pk']
+        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
+        customer_id = customerproduct.customer.id
+        return reverse('pos:customerproduct_index', kwargs={'cust_pk':customer_id})
+
+
+def InvoiceCustomerSelectView(request):
+    template_name = 'pos/invoice/invoice_select_customer.html'
+
+    if request.method == 'GET':
