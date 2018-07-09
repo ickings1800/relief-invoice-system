@@ -47,6 +47,8 @@ class Invoice(models.Model):
     net_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     net_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     total_incl_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
+    invoice_year = models.IntegerField(null=True, blank=False)
+    invoice_number = models.IntegerField(null=True, blank=False)
 
 
 class Route(models.Model):
