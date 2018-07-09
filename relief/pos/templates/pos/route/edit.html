@@ -40,13 +40,9 @@
                         {{ oi_form.instance.customerproduct.product.name }}
                         </div>
                         <div class="tile-subtitle columns">
-                            <div class="column col-3 col-xs-12">
+                            <div class="column col-6 col-xs-12">
                                 <label class="form-label">{{ oi_form.quantity.label }}</label>
                                 {% render_field oi_form.quantity class="form-input" placeholder=oi_form.quantity.label %}
-                            </div>
-                            <div class="column col-3 col-xs-12">
-                                <label class="form-label">{{ oi_form.unit_price.label }}</label>
-                                {% render_field oi_form.unit_price class="form-input" placeholder=oi_form.instance.unit_price %}
                             </div>
                             <div class="column col-6 col-xs-12">
                                 <label class="form-label">{{ oi_form.note.label }}</label>
