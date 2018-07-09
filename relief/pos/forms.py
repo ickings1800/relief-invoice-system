@@ -92,20 +92,12 @@ class InvoiceOrderItemForm(forms.Form):
         super(InvoiceOrderItemForm, self).__init__(*args, **kwargs)
         self.fields['do_number'].initial = do_number
         for oi in orderitems:
-            if oi.quantity == oi.driver_quantity:
-                self.fields[oi.customerproduct.product.name] = ModelIntegerField(pk=oi.pk,
-                                                                                 model=OrderItem,
-                                                                                 instance=oi,
-                                                                                 initial=oi.quantity,
-                                                                                 min_value=0,
-                                                                                 max_value=32767)
-            else:
-                self.fields[oi.customerproduct.product.name] = ModelIntegerField(pk=oi.pk,
-                                                                                 model=OrderItem,
-                                                                                 instance=oi,
-                                                                                 initial=oi.driver_quantity,
-                                                                                 min_value=0,
-                                                                                 max_value=32767)
+            self.fields[oi.customerproduct.product.name] = ModelIntegerField(pk=oi.pk,
+                                                                             model=OrderItem,
+                                                                             instance=oi,
+                                                                             initial=oi.quantity,
+                                                                             min_value=0,
+                                                                             max_value=32767)
 
 
 class InvoiceAddOrderForm(forms.Form):
