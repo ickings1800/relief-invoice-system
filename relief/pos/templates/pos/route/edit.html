@@ -17,14 +17,8 @@
                     {{ route.orderitem_set.first.customerproduct.customer.name }}
                 {% endif %}
                 </div>
-                <div class="column col-4">
+                <div class="column col-8">
                     {% render_field form.note rows="1" cols="20" class="float-right form-input" placeholder=form.note.label %}
-                </div>
-                <div class="column col-2">
-                    <label class="form-label float-right text-error">{{ form.do_number.label|upper }}</label>
-                </div>
-                <div class=" column col-2">
-                {% render_field form.do_number class="float-right form-input" placeholder=form.do_number.label|upper %}
                 </div>
             </div>
 
