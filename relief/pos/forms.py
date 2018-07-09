@@ -101,14 +101,15 @@ class InvoiceOrderItemForm(forms.Form):
 
 
 class InvoiceAddOrderForm(forms.Form):
-    do_number = forms.CharField(max_length=8, label="D/O")
+    do_number = forms.CharField(max_length=8, label="D/O", required=False)
 
     def __init__(self, *args, trips, customerproducts, **kwargs):
         super(InvoiceAddOrderForm, self).__init__(*args, **kwargs)
         for cp in customerproducts:
             self.fields[cp.product.name] = forms.IntegerField(label='quantity',
                                                               min_value=0,
-                                                              max_value=32767)
+                                                              max_value=32767,
+                                                              required=False)
 
         self.fields['date'] = forms.ChoiceField(choices=[(t.id, datetime.strftime(t.date,"%d/%m/%Y %H:%M")) for t in trips])
 
