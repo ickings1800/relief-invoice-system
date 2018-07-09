@@ -354,10 +354,7 @@ def InvoiceDateRangeView(request, pk):
                 row['date'] = route.trip.date
                 row['id'] = route.id
                 for oi in route.orderitem_set.all():
-                    if oi.quantity == oi.driver_quantity:
-                        row[oi.customerproduct.id] = oi.quantity
-                    else:
-                        row[oi.customerproduct.id] = oi.driver_quantity
+                    row[oi.customerproduct.id] = oi.quantity
                 routes_display.append(row)
             return render(request, template_name, {'date_form': date_form,
                                                    'customer': customer,
