@@ -9,7 +9,7 @@ from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, Customer
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm
 from django.db.models import Max
-from datetime import datetime
+from datetime import datetime, date
 
 # Create your views here.
 
@@ -463,6 +463,14 @@ def InvoiceOrderAssignView(request, pk):
             invoice.original_total = original_total
             invoice.net_gst = gst
             invoice.total_incl_gst = net_total + gst
+            if invoice.gst > 0:
+                invoice.invoice_year = int(date.strftime(date.today(), '%Y'))
+                invoice_num_max = Invoice.objects.all().aggregate(Max('invoice_number'))
+                # this condition only occurs on the first invoice (with gst) created.
+                if invoice_num_max.get('invoice_number__max') is None:
+                    invoice.invoice_number = 0
+                else:
+                    invoice.invoice_number = invoice_num_max.get('invoice_number__max') + 1
             invoice.save()
             return HttpResponseRedirect(reverse('pos:invoice_view', kwargs={'pk':invoice.pk}))
         else:

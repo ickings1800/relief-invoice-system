@@ -50,6 +50,9 @@ class Invoice(models.Model):
     invoice_year = models.IntegerField(null=True, blank=False)
     invoice_number = models.IntegerField(null=True, blank=False)
 
+    class Meta:
+        unique_together = ('invoice_year', 'invoice_number')
+
 
 class Route(models.Model):
     index = models.SmallIntegerField()

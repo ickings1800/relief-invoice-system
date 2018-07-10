@@ -5,7 +5,7 @@
 <div class="container">
     <div class="columns py-2">
         <div class="columns column col-12">
-            <div class="column col-9">
+            <div class="column col-7">
                 <ul>
                     <li class="text-bold">{{ company.name }}</li>
                     <li>{{ company.address }}</li>
@@ -14,17 +14,37 @@
                     <li>FAX: {{ company.fax_no }}</li>
                 </ul>
             </div>
-            <div class="column col-3">
-                <table class="table invoice-table">
-                    <tr>
-                        <td style="border:none;">INVOICE NO:</td>
-                        <td style="border:none;">{{ invoice.pk }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">DATE: </td>
-                        <td style="border:none;">{{ invoice.date_generated }}</td>
-                    </tr>
-                </table>
+            <div class="columns col-5">
+                <div class="col-12">
+                    <ul class="columns float-right col-12">
+                        <li class="column col-6">
+                            <b>Invoice Number:</b>
+                        </li>
+                        <li class="column col-6">
+                            {% if invoice.invoice_year is not None %}
+                            {{ invoice.invoice_year }}
+                            {% endif %}
+                            {% if invoice.invoice_number is not None %}
+                            <!-- 4 leading zeroes display only in template. -->
+                            {{ invoice.invoice_number|stringformat:"04d" }}
+                            {% endif %}
+                        </li>
+                        <li class="column col-6">
+                            <b>Date Generated:</b>
+                        </li>
+                        <li class="column col-6">
+                            {{ invoice.date_generated }}
+                        </li>
+                        <li class="column col-6">
+                            <b>Date From:</b>
+                        </li>
+                        <li class="column col-6">{{ invoice.start_date }}</li>
+                        <li class="column col-6">
+                            <b>Date To:</b>
+                        </li>
+                        <li class="column col-6">{{ invoice.end_date }}</li>
+                    </ul>
+                </div>
             </div>
         </div>
         <div class="column col-12">
@@ -108,8 +128,8 @@
             <label class="form-label">{{ invoice_form.remark.label }}</label>
             {% render_field invoice_form.remark class="form-input" %}
         </div>
-        <div class="column col-4"></div>
-        <div class="column col-3">
+        <div class="column col-2"></div>
+        <div class="column col-5">
             <form action="{% url 'pos:invoice_view' pk=invoice.id %}" method="post">
                 <div class="columns">
                     <div class="column col-4">
