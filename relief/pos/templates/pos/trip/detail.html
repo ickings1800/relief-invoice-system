@@ -63,6 +63,11 @@
                         <div class="column col-12">
                             Order: {{ oi.quantity }}
                         </div>
+                        {% if oi.note is not None %}
+                        <div class="column col-12">
+                            <b>NOTE: {{ oi.note }}</b>
+                        </div>
+                        {% endif %}
                     </div>
                   </div>
                 </div>
