@@ -1,8 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Customer, Product, Trip, Route, OrderItem, Invoice
+from .models import Customer, Product, Trip, Route, OrderItem, Invoice, Packing
 from datetime import datetime
-
 
 
 class CustomerForm(forms.ModelForm):
@@ -133,10 +132,26 @@ class InvoiceForm(forms.ModelForm):
         self.fields['total_incl_gst'].label = 'TOTAL (GST)'
 
 
+class OrderItemForm(forms.ModelForm):
+    def __init__(self, packing, *args, **kwargs):
+        super(OrderItemForm, self).__init__(*args, **kwargs)
+        for method in packing:
+            self.fields[method] = forms.IntegerField(min_value=1, required=False)
+            if self.instance.packing:
+                self.fields[method].initial = self.instance.packing[method]
+
+    def save(self, packing, commit=True):
+        self.instance.packing = {method: self.cleaned_data.get(method) for method in packing}
+        super(OrderItemForm, self).save()
+
+    class Meta:
+        model = OrderItem
+        fields = ['quantity', 'note']
+
 
 OrderItemFormSet = inlineformset_factory(Route,
                                          OrderItem,
-                                         fields=('quantity','note'),
+                                         form=OrderItemForm,
                                          extra=0,
                                          can_delete=False)
 

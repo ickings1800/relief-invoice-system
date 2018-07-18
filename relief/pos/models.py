@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from .validators import date_within_year
+from django.contrib.postgres.fields import JSONField
 from django.db import models
+from enum import Enum
 
 # Create your models here.
 
@@ -78,19 +80,18 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     customerproduct = models.ForeignKey(CustomerProduct, on_delete=models.CASCADE)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    packing = JSONField(null=True)
 
     class Meta:
         unique_together = ('route', 'customerproduct')
 
 
-class Packing(models.Model):
-    name = models.CharField(max_length=128)
-
-
-class Method(models.Model):
-    packing = models.ForeignKey(Packing, on_delete=models.CASCADE)
-    orderitem = models.ForeignKey(OrderItem, on_delete=models.CASCADE)
-    packing_quantity = models.PositiveSmallIntegerField()
-
-    class Meta:
-        unique_together = ('orderitem', 'packing')
+class Packing(Enum):
+    GREEN_BASKET = "GREEN B'KET"
+    GREEN_WB = "GREEN W/B"
+    JPN_BASKET = "JAPAN B'KET"
+    JPN_WB = "JAPAN W/B"
+    BLANK_WB = "BLANK W/B"
+    PRESS_BOX = "PRESS BOX"
+    PRESS_BASKET = "PRESS B'KET"
+    FORTUNE_BASKET = "FORTUNE B'KET"

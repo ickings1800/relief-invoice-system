@@ -1,3 +1,10 @@
+/* Disable the number spinner increment for number input types. */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 #mainmenu li a {
     font-weight:600;
     text-transform:uppercase;
@@ -92,7 +99,7 @@ color:grey;
 }
 
 .sent {
-background-color:#ffff89
+background-color:#ffffcc;
 }
 
 ul {
@@ -101,4 +108,32 @@ ul {
 
 .invoice-table th {
     border:none;
+}
+
+.packing {
+    font-size:12px;
+    font-weight:600;
+    table-layout:fixed;
+}
+
+.packing td {
+    padding: 0rem 0.1rem;
+    border-bottom:0;
+    text-align:center;
+}
+
+.packing th {
+    padding: 0rem 0.1rem;
+    border-bottom:0;
+    text-align:center;
+}
+
+.orderitem-row {
+    margin:0
+}
+
+.route {
+    margin-top:0.3rem;
+    margin-left:0;
+    margin-right:0;
 }

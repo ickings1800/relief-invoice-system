@@ -1,15 +1,15 @@
 from django.db.models import F, Q
 from django.shortcuts import render, get_object_or_404
-from django.forms import modelformset_factory
 from django.urls import reverse
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect
 from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
+from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company, Packing
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm
 from django.db.models import Max
 from datetime import datetime, date
+from collections import defaultdict
 
 # Create your views here.
 
@@ -120,10 +120,24 @@ class TripDetailView(FormView):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
         routes = trip.route_set.all().order_by('index')
         [r.orderitem_set.all() for r in routes]
+        packing = [key.value for key in Packing]
+        packing_sum_ddict = defaultdict(int)
+
+        for r in routes:
+            for oi in r.orderitem_set.all():
+                if oi.packing:
+                    for method, value in oi.packing.items():
+                        if oi.packing.get(method):
+                            packing_sum_ddict[method] += value
+
+        packing_sum = {k: v for k, v in packing_sum_ddict.items()}
+        print(packing_sum)
 
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
         context['routes'] = routes
+        context['packing'] = packing
+        context['packing_sum'] = packing_sum
         return context
 
     def form_valid(self, form):
@@ -155,16 +169,16 @@ class TripEditView(FormView):
     form_class = TripForm
 
     def get_context_data(self, **kwargs):
-        self.trip = Trip.objects.get(pk=self.kwargs['pk'])
+        trip = Trip.objects.get(pk=self.kwargs['pk'])
         context = super(TripEditView, self).get_context_data(**kwargs)
-        context['trip'] = self.trip
+        context['trip'] = trip
         return context
 
     def get_initial(self):
-        self.trip = Trip.objects.get(pk=self.kwargs['pk'])
+        trip = Trip.objects.get(pk=self.kwargs['pk'])
         initial = super(TripEditView, self).get_initial()
-        initial['date'] = self.trip.date
-        initial['notes'] = self.trip.notes
+        initial['date'] = trip.date
+        initial['notes'] = trip.notes
         return initial
 
     def form_valid(self, form):
@@ -202,18 +216,22 @@ class RouteEditView(UpdateView):
 
     def get_context_data(self, **kwargs):
         route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        oi_formset = OrderItemFormSet(instance=route)
+        packing = [key.value for key in Packing]
+        oi_formset = OrderItemFormSet(instance=route, form_kwargs={'packing': packing})
+        #  Read JSON and output to packing table.
         context = super().get_context_data(**kwargs)
         context['route'] = route
         context['orderitems'] = oi_formset
+        context['packing'] = packing
         return context
 
     def form_valid(self, form):
         route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        oi_formset = OrderItemFormSet(self.request.POST, instance=route)
+        packing = [key.value for key in Packing]
+        oi_formset = OrderItemFormSet(self.request.POST, instance=route, form_kwargs={'packing': packing})
         if oi_formset.is_valid() and form.is_valid():
             for oi_form in oi_formset:
-                oi_form.save()
+                oi_form.save(packing)
             form.save()
         return super().form_valid(form)
 
