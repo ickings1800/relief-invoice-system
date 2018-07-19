@@ -6,7 +6,7 @@ from django.views.generic import ListView, CreateView, UpdateView, FormView, Del
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company, Packing
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
-    InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm
+    InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
 from django.db.models import Max
 from datetime import datetime, date
 from collections import defaultdict
@@ -207,6 +207,48 @@ class TripDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse('pos:trip_index')
+
+
+def TripArrangementView(request, pk):
+    trip = get_object_or_404(Trip, pk=pk)
+    template_name = 'pos/trip/arrange.html'
+    packing = [key.value for key in Packing]
+    packing_sum_ddict = defaultdict(int)
+    route_arrange = trip.route_set.all().order_by('index')
+
+    for r in route_arrange:
+        for oi in r.orderitem_set.all():
+            if oi.packing:
+                for method, value in oi.packing.items():
+                    if oi.packing.get(method):
+                        packing_sum_ddict[method] += value
+
+    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
+
+    context = {'trip': trip,
+               'packing': packing,
+               'packing_sum': packing_sum,
+               'errors': []}
+
+    if request.method == 'POST':
+        arrange_formset = RouteArrangementFormSet(request.POST)
+        context['arrange_formset'] = arrange_formset
+        if arrange_formset.is_valid():
+            order_index = [r.cleaned_data['index'] for r in arrange_formset.forms]
+            index_range = [i+1 for i in range(len(arrange_formset))]
+            valid_range = all(elem in order_index for elem in index_range)
+            if not valid_range:
+                context['errors'].append("Numbering not in sequence.")
+                return render(request, template_name, context)
+
+            arrange_formset.save()
+            return HttpResponseRedirect(reverse('pos:trip_detail', kwargs={'pk': pk}))
+
+        return render(request, template_name, context)
+
+    arrange_formset = RouteArrangementFormSet(queryset=route_arrange)
+    context['arrange_formset'] = arrange_formset
+    return render(request, template_name, context)
 
 
 class RouteEditView(UpdateView):

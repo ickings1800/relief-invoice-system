@@ -28,6 +28,8 @@ urlpatterns=[
     path('trips/edit/<int:pk>/', views.TripEditView.as_view(), name='trip_edit'),
     #  /pos/trips/delete/<pk>/
     path('trips/delete/<int:pk>/', views.TripDeleteView.as_view(), name='trip_delete'),
+    #  /pos/trips/arrange/<pk>/
+    path('trips/arrange/<int:pk>/', views.TripArrangementView, name='trip_arrange'),
     #  /pos/route/customer/<int:pk>/
     path('route/customer/<int:pk>/', views.CustomerRouteView.as_view(), name='route_customer'),
     #  /pos/route/edit/<pk>/

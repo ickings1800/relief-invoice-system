@@ -1,5 +1,5 @@
 from django import forms
-from django.forms import inlineformset_factory
+from django.forms import inlineformset_factory, modelformset_factory, ValidationError
 from .models import Customer, Product, Trip, Route, OrderItem, Invoice, Packing
 from datetime import datetime
 
@@ -14,6 +14,12 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ['name', 'specification']
+
+
+class RouteArrangementForm(forms.ModelForm):
+    class Meta:
+        model = Route
+        fields = ['index']
 
 
 class TripForm(forms.Form):
@@ -155,4 +161,5 @@ OrderItemFormSet = inlineformset_factory(Route,
                                          extra=0,
                                          can_delete=False)
 
+RouteArrangementFormSet = modelformset_factory(Route, RouteArrangementForm, extra=0)
 
