@@ -11,6 +11,7 @@ from django.db.models import Max
 from datetime import datetime, date
 from collections import defaultdict
 
+
 # Create your views here.
 
 class CustomerIndexView(ListView):
@@ -162,6 +163,31 @@ class TripDetailView(FormView):
 
     def get_success_url(self):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
+
+
+def print_trip_detail(request, pk):
+    template_name = 'pos/trip/print_detail.html'
+    trip = get_object_or_404(Trip, pk=pk)
+    routes = trip.route_set.all().order_by('index')
+    [r.orderitem_set.all() for r in routes]
+    packing = [key.value for key in Packing]
+    packing_sum_ddict = defaultdict(int)
+
+    for r in routes:
+        for oi in r.orderitem_set.all():
+            if oi.packing:
+                for method, value in oi.packing.items():
+                    if oi.packing.get(method):
+                        packing_sum_ddict[method] += value
+
+    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
+
+    context = {}
+    context['trip'] = trip
+    context['routes'] = routes
+    context['packing'] = packing
+    context['packing_sum'] = packing_sum
+    return render(request, template_name, context)
 
 
 class TripEditView(FormView):

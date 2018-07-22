@@ -24,6 +24,8 @@ urlpatterns=[
     path('trips/create/', views.TripCreateView.as_view(), name='trip_create'),
     #  /pos/trips/detail/<int:pk>/
     path('trips/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
+    #  /pos/trips/detail/<int:pk>/print
+    path('trips/detail/<int:pk>/print/', views.print_trip_detail, name='print_trip_detail'),
     #  /pos/trips/edit/<pk>/
     path('trips/edit/<int:pk>/', views.TripEditView.as_view(), name='trip_edit'),
     #  /pos/trips/delete/<pk>/
