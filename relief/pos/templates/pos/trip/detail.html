@@ -16,6 +16,9 @@
                 <a class="btn btn-sm btn-primary my-2" href="{% url 'pos:trip_edit' pk=trip.id %}">
                     <i class="icon icon-edit"></i>&nbsp;Edit
                 </a>
+                <a class="btn btn-sm btn-primary my-2 float-right" href="{% url 'pos:print_trip_detail' pk=trip.id %}">
+                    Print
+                </a>
             </div>
         </div>
 

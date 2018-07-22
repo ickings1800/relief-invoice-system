@@ -15,7 +15,7 @@
                 </ul>
             </div>
             <div class="columns col-5">
-                <div class="col-12">
+                <div class="column col-12">
                     <ul class="columns float-right col-12">
                         <li class="column col-6">
                             <b>Invoice Number:</b>
@@ -44,6 +44,12 @@
                         </li>
                         <li class="column col-6">{{ invoice.end_date }}</li>
                     </ul>
+                </div>
+                <div class="column col-12">
+                    <a class="btn btn-sm btn-primary my-2 float-right"
+                       href="{% url 'pos:invoice_view' pk=invoice.id %}?print=true">
+                    Print
+                    </a>
                 </div>
             </div>
         </div>
