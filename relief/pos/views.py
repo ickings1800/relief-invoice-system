@@ -592,9 +592,10 @@ class InvoiceHistoryView(ListView):
         return Invoice.objects.all()
 
 
-
 def InvoiceSingleView(request, pk):
     template_name = 'pos/invoice/invoice_single_view.html'
+    if request.GET.get('print'):
+        template_name = 'pos/invoice/invoice_single_view_print.html'
     invoice_id = pk
     invoice = get_object_or_404(Invoice, id=invoice_id)
     company_info = get_object_or_404(Company, id=1)
