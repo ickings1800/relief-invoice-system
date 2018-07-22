@@ -30,7 +30,7 @@ class Customer(models.Model):
     tel_no = models.CharField(max_length=8, null=True, blank=True)
     fax_no = models.CharField(max_length=8, null=True, blank=True)
     term = models.PositiveSmallIntegerField()
-    gst = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
+    gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
 
 
 class Product(models.Model):
@@ -44,7 +44,7 @@ class Invoice(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     minus = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
-    gst = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
+    gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
     original_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     net_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     net_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
