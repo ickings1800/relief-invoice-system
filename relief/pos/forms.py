@@ -122,7 +122,14 @@ class InvoiceAddOrderForm(forms.Form):
 class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
-        fields = ['original_total', 'minus', 'net_total', 'gst', 'net_gst', 'total_incl_gst', 'remark']
+        fields = ['invoice_year',
+                  'invoice_number',
+                  'original_total',
+                  'minus',
+                  'net_total',
+                  'net_gst',
+                  'total_incl_gst',
+                  'remark']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -131,11 +138,18 @@ class InvoiceForm(forms.ModelForm):
         self.fields['minus'].label = 'MINUS'
         self.fields['net_total'].disabled = True
         self.fields['net_total'].label = 'NETT'
-        self.fields['gst'].label = 'GST ' + str(self.instance.gst) + '%'
-        self.fields['gst'].disabled = True
         self.fields['net_gst'].disabled = True
         self.fields['total_incl_gst'].disabled = True
         self.fields['total_incl_gst'].label = 'TOTAL (GST)'
+        self.fields['invoice_year'].required = False
+        self.fields['invoice_number'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        invoice_year = cleaned_data.get('invoice_year')
+        invoice_number = cleaned_data.get('invoice_number')
+        if (invoice_year is None) != (invoice_number is None):
+            raise forms.ValidationError("Invoice Year and Number cannot be empty.")
 
 
 class OrderItemForm(forms.ModelForm):

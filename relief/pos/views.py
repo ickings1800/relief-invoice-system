@@ -10,6 +10,7 @@ from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, Customer
 from django.db.models import Max
 from datetime import datetime, date
 from collections import defaultdict
+from decimal import Decimal
 
 
 # Create your views here.
@@ -596,38 +597,40 @@ def InvoiceSingleView(request, pk):
     template_name = 'pos/invoice/invoice_single_view.html'
     if request.GET.get('print'):
         template_name = 'pos/invoice/invoice_single_view_print.html'
+
     invoice_id = pk
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    company_info = get_object_or_404(Company, id=1)
-    routes = invoice.route_set.all()
-    customer = routes[0].orderitem_set.all()[0].customerproduct.customer
-    customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
-    rows_list = []
+    invoice_form = InvoiceForm(instance=invoice)
 
     if request.method == 'POST':
         invoice_form = InvoiceForm(request.POST)
         if invoice_form.is_valid():
-            minus = invoice_form.cleaned_data['minus']
-            gst = invoice_form.cleaned_data['gst']
-            remark = invoice_form.cleaned_data['remark']
+            minus = invoice_form.cleaned_data.get('minus')
+            remark = invoice_form.cleaned_data.get('remark')
+            invoice_year = invoice_form.cleaned_data.get('invoice_year')
+            invoice_number = invoice_form.cleaned_data.get('invoice_number')
 
-            original_total = invoice.original_total
-            net_total = original_total - minus
-            net_gst = gst * net_total
-            total_incl_gst = net_total + net_gst
+            gst = Decimal(invoice_form.instance.gst)
+            original_total = Decimal(invoice.original_total)
+            net_total = Decimal(original_total - minus)
+            net_gst = Decimal(gst * net_total)
+            total_incl_gst = Decimal(net_total + net_gst)
 
             invoice.remark = remark
             invoice.original_total = original_total
             invoice.net_total = net_total
             invoice.net_gst = net_gst
             invoice.total_incl_gst = total_incl_gst
+            invoice.invoice_year = invoice_year
+            invoice.invoice_number = invoice_number
             invoice.save()
-            return HttpResponseRedirect("")
-        else:
-            return render(request, template_name, {'company': company_info,
-                                                   'customer': customer,
-                                                   'invoice': invoice,
-                                                   'invoice_form': invoice_form})
+            return HttpResponseRedirect(request.path_info)
+
+    company_info = get_object_or_404(Company, id=1)
+    routes = invoice.route_set.all()
+    customer = routes[0].orderitem_set.all()[0].customerproduct.customer
+    customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
+    rows_list = []
 
     quantity = {cp.product.name:0 for cp in customerproducts}
     unit_price = {cp.product.name:0 for cp in customerproducts}
@@ -656,8 +659,6 @@ def InvoiceSingleView(request, pk):
 
     for cp in nett_amt.keys():
         nett_amt[cp] = quantity[cp] * unit_price[cp]
-
-    invoice_form = InvoiceForm(instance=invoice)
 
     return render(request, template_name, {'company':company_info,
                                            'customer':customer,
