@@ -22,6 +22,8 @@ urlpatterns=[
     path('trips/', views.TripIndexView.as_view(), name='trip_index'),
     #  /pos/trips/create
     path('trips/create/', views.TripCreateView.as_view(), name='trip_create'),
+    #  /pos/trips/copy/<int:pk>/
+    path('trips/copy/<int:pk>/', views.TripCopyView.as_view(), name='trip_copy'),
     #  /pos/trips/detail/<int:pk>/
     path('trips/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
     #  /pos/trips/detail/<int:pk>/print

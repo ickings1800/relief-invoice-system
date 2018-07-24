@@ -113,6 +113,47 @@ class TripCreateView(FormView):
         return reverse('pos:trip_index')
 
 
+class TripCopyView(FormView):
+    template_name = 'pos/trip/copy.html'
+    form_class = TripForm
+
+    def get_context_data(self, **kwargs):
+        trip_pk = self.kwargs.get('pk')
+        trip = get_object_or_404(Trip, pk=trip_pk)
+        context = super(TripCopyView, self).get_context_data(**kwargs)
+        context['trip'] = trip
+        return context
+
+    def form_valid(self, form):
+        new_trip = Trip.objects.create(
+            date=form.cleaned_data['date'],
+            notes=form.cleaned_data['notes']
+        )
+        new_trip.save()
+        trip_copy = self.kwargs.get('pk')
+        if trip_copy:
+            trip = get_object_or_404(Trip, pk=trip_copy)
+            for r in trip.route_set.all():
+                orderitems = [OrderItem(quantity=oi.quantity,
+                                        driver_quantity=0,
+                                        note=oi.note,
+                                        customerproduct=oi.customerproduct,
+                                        packing=oi.packing) for oi in r.orderitem_set.all()]
+                r.pk = None
+                r.do_number = ""
+                r.invoice = None
+                r.trip = new_trip
+                r.save()
+                for oi in orderitems:
+                    oi.route = r
+                    oi.pk = None
+                    oi.save()
+        return HttpResponseRedirect(reverse('pos:trip_index'))
+
+    def get_success_url(self):
+        return reverse('pos:trip_index')
+
+
 class TripDetailView(FormView):
     model = Trip
     template_name = 'pos/trip/detail.html'

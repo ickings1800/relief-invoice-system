@@ -18,10 +18,13 @@
                 <table class="table">
                     {% for trip in trip_list %}
                     <tr>
-                        <td class="column col-10">
+                        <td class="column col-9">
                             <a href="{% url 'pos:trip_detail' pk=trip.id %}">
                                 {{ trip.date|date:"D d M Y Hi"}}
                             </a>
+                        </td>
+                        <td class="column col-1">
+                            <a href="{% url 'pos:trip_copy' pk=trip.id %}">Copy</a>
                         </td>
                         <td class="column col-1">
                             <a href="{% url 'pos:trip_edit' pk=trip.id %}">
