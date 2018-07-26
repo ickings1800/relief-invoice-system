@@ -414,7 +414,7 @@ class CustomerProductCreateView(FormView):
             customer = get_object_or_404(Customer, pk=customer_data)
             product = get_object_or_404(Product, pk=product_data)
             CustomerProduct.objects.create(customer_id=customer_data, product_id=product_data, quote_price=quote)
-            return HttpResponseRedirect(reverse('pos:customerproduct_index', kwargs={'cust_pk':customer_data}))
+            return HttpResponseRedirect(reverse('pos:customerproduct_index', kwargs={'pk':customer_data}))
 
 
 class CustomerProductUpdateView(FormView):
