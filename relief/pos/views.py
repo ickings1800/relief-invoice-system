@@ -523,6 +523,8 @@ def InvoiceOrderAssignView(request, pk):
                 trip_id = add_form.cleaned_data['date']
                 trip = get_object_or_404(Trip, id=trip_id)
                 route_index_max = trip.route_set.all().aggregate(Max('index'))
+                if route_index_max is None:
+                    route_index_max = 0
                 route = Route(index=route_index_max.get('index__max') + 1, do_number=do_number, trip_id=trip.pk)
                 route.save()
                 request.session['route_select'].append(route.pk)
