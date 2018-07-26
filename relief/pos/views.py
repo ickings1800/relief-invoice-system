@@ -531,6 +531,8 @@ def InvoiceOrderAssignView(request, pk):
                 additional_order_fields = {}
                 for cp in customerproducts:
                     orderitem_quantity = add_form.cleaned_data[cp.product.name]
+                    if orderitem_quantity is None:
+                        orderitem_quantity = 0
                     orderitem = OrderItem(quantity=orderitem_quantity,
                                           customerproduct=cp,
                                           route=route)
