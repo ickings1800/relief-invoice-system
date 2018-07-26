@@ -190,7 +190,7 @@ class TripDetailView(FormView):
             trip = Trip.objects.get(pk=self.kwargs['pk'])
             route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
             route_indexes = [r.index for r in route_list]
-            route = Route(index=max(route_indexes) + 1, trip=trip, note=note)
+            route = Route(index=max(route_indexes, default=0) + 1, trip=trip, note=note)
             route.save()
 
             if not note_only:
