@@ -540,7 +540,7 @@ def InvoiceOrderAssignView(request, pk):
                     additional_order_fields[cp.product.name] = orderitem_quantity
 
 
-                additional_order = InvoiceOrderItemForm(prefix=str(route.id),
+                additional_order = InvoiceOrderItemForm(prefix=str(route.pk),
                                                         orderitems=route.orderitem_set.all(),
                                                         do_number=route.do_number)
                 for k,v in additional_order_fields.items():
