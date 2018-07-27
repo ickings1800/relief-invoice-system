@@ -35,9 +35,6 @@ class TripForm(forms.Form):
 
 
 class TripDetailForm(forms.Form):
-    customers = forms.ChoiceField(
-        choices=[(c.id, c.name) for c in Customer.objects.all()]
-    )
     note_only = forms.BooleanField(
         label='Note only',
         widget=forms.CheckboxInput(),
@@ -48,6 +45,12 @@ class TripDetailForm(forms.Form):
         max_length=255,
         required=False)
 
+    def __init__(self, *args, **kwargs):
+        super(TripDetailForm, self).__init__(*args, **kwargs)
+        self.fields['customers'] = forms.ChoiceField(
+            choices=[(c.id, c.name) for c in Customer.objects.all()]
+        )
+
 
 class RouteForm(forms.ModelForm):
     class Meta:
@@ -56,13 +59,16 @@ class RouteForm(forms.ModelForm):
 
 
 class CustomerProductCreateForm(forms.Form):
-    customer = forms.ChoiceField(
-        choices=[(c.id, c.name) for c in Customer.objects.all()], disabled=True
-    )
-    product = forms.ChoiceField(
-        choices=[(p.id, p.name) for p in Product.objects.all()]
-    )
     quote_price = forms.DecimalField(decimal_places=2)
+
+    def __init__(self, *args, **kwargs):
+        super(CustomerProductCreateForm, self).__init__(*args, **kwargs)
+        self.fields['customer'] = forms.ChoiceField(
+            choices=[(c.id, c.name) for c in Customer.objects.all()], disabled=True
+        )
+        self.fields['product'] = forms.ChoiceField(
+            choices=[(p.id, p.name) for p in Product.objects.all()]
+        )
 
 
 class CustomerProductUpdateForm(forms.Form):
