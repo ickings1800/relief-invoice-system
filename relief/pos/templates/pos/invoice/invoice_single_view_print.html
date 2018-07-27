@@ -98,7 +98,7 @@
                 <td>{{ r.date|date:"d M Y"  }}</td>
                 {% for cp in customerproducts %}
                 <td>
-                    {% if r|keyvalue:cp.product.name is not None %}
+                    {% if r|keyvalue:cp.product.name is not None and r|keyvalue:cp.product.name != 0%}
                     {{ r|keyvalue:cp.product.name }}
                     {% endif %}
                 </td>
