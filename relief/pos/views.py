@@ -8,7 +8,7 @@ from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, Customer
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
 from django.db.models import Max
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from collections import defaultdict
 from decimal import Decimal
 
@@ -464,8 +464,12 @@ def InvoiceDateRangeView(request, pk):
             date_form = InvoiceDateRangeForm(request.GET)
             date_start = datetime.strptime(date_start_string, "%d/%m/%Y")
             date_end = datetime.strptime(date_end_string, "%d/%m/%Y")
-            date_end_formatted =  datetime.strftime(date_end,'%Y-%m-%d')
-            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d')
+            #  date_start will start from exactly midnight by default
+            #  date_end will have to add timedelta because it will also end at exactly at midnight,
+            #  causing the last route order to not be included.
+            date_end += timedelta(hours=23, minutes=59, seconds=59)
+            date_end_formatted = datetime.strftime(date_end,'%Y-%m-%d %H:%M:%S')
+            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
             request.session['date_start'] = date_start_formatted
             request.session['date_end'] = date_end_formatted
 
@@ -508,7 +512,12 @@ def InvoiceOrderAssignView(request, pk):
     customerproducts = CustomerProduct.objects.filter(customer_id=pk)
     trip_start = request.session['date_start']
     trip_end = request.session['date_end']
-    trips = Trip.objects.filter(date__lte=trip_end, date__gte=trip_start)
+    parse_trip_start = datetime.strptime(trip_start, '%Y-%m-%d %H:%M:%S')
+    parse_trip_end = datetime.strptime(trip_end, '%Y-%m-%d %H:%M:%S')
+    trip_start_formatted = datetime.strftime(parse_trip_start, '%d/%m/%Y')
+    trip_end_formatted = datetime.strftime(parse_trip_end, '%d/%m/%Y')
+
+    trips = Trip.objects.filter(date__lte=parse_trip_end, date__gte=parse_trip_start)
     rows_list = []
     all_valid = True
     if request.method == 'POST':
@@ -575,7 +584,7 @@ def InvoiceOrderAssignView(request, pk):
                 all_valid = False
 
         if all_valid:
-            invoice = Invoice(gst=customer.gst, start_date=trip_start, end_date=trip_end)
+            invoice = Invoice(gst=customer.gst, start_date=parse_trip_start, end_date=parse_trip_end)
             invoice.save()
             original_total = 0
             for r in routes:
