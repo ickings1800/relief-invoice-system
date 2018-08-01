@@ -517,7 +517,7 @@ def InvoiceOrderAssignView(request, pk):
     trip_start_formatted = datetime.strftime(parse_trip_start, '%d/%m/%Y')
     trip_end_formatted = datetime.strftime(parse_trip_end, '%d/%m/%Y')
 
-    trips = Trip.objects.filter(date__lte=parse_trip_end, date__gte=parse_trip_start)
+    trips = Trip.objects.filter(date__lte=parse_trip_end, date__gte=parse_trip_start).order_by('date')
     rows_list = []
     all_valid = True
     if request.method == 'POST':
