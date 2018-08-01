@@ -603,7 +603,8 @@ def InvoiceOrderAssignView(request, pk):
                 route.save()
 
             net_total = original_total
-            gst = original_total * invoice.gst
+            # GST value is a whole number in model
+            gst = original_total * (invoice.gst/100)
             invoice.net_total = net_total
             invoice.original_total = original_total
             invoice.net_gst = gst
@@ -668,7 +669,7 @@ def InvoiceSingleView(request, pk):
             invoice_year = invoice_form.cleaned_data.get('invoice_year')
             invoice_number = invoice_form.cleaned_data.get('invoice_number')
 
-            gst = Decimal(invoice_form.instance.gst)
+            gst = Decimal(invoice_form.instance.gst/100)
             original_total = Decimal(invoice.original_total)
             net_total = Decimal(original_total - minus)
             net_gst = Decimal(gst * net_total)
