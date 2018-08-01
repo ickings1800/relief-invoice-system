@@ -68,16 +68,16 @@
                 </tr>
                 {% endfor %}
             </table>
-            <div class="column col-12 py-2">
-                <input class="btn btn-primary float-right" type="submit" value="Next">
-            </div>
             {% else %}
             {% if date_form.is_bound %}
             <div class="empty col-12">
-              <p class="empty-title h3">No available orders found between dates.</p>
+                <p class="empty-title h3">No available orders found between dates.</p>
             </div>
             {% endif %}
             {% endif %}
+            <div class="column col-12 py-2">
+                <input class="btn btn-primary float-right" type="submit" value="Next">
+            </div>
         </div>
     </form>
 </div>
