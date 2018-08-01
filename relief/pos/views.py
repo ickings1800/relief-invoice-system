@@ -662,7 +662,7 @@ def InvoiceSingleView(request, pk):
     invoice_form = InvoiceForm(instance=invoice)
 
     if request.method == 'POST':
-        invoice_form = InvoiceForm(request.POST)
+        invoice_form = InvoiceForm(request.POST, instance=invoice)
         if invoice_form.is_valid():
             minus = invoice_form.cleaned_data.get('minus')
             remark = invoice_form.cleaned_data.get('remark')
