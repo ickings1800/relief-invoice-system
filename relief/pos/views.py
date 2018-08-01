@@ -537,6 +537,10 @@ def InvoiceOrderAssignView(request, pk):
                 route = Route(index=route_index_max.get('index__max') + 1, do_number=do_number, trip_id=trip.pk)
                 route.save()
                 request.session['route_select'].append(route.pk)
+                # Append operations does not get saved to the object if this modified flag is not set.
+                # https://code.djangoproject.com/wiki/NewbieMistakes#Appendingtoalistinsessiondoesntwork
+                # See "Appending to a list in session doesn't work section
+                request.session.modified = True
                 additional_order_fields = {}
                 for cp in customerproducts:
                     orderitem_quantity = add_form.cleaned_data[cp.product.name]
