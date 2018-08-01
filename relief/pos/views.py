@@ -685,7 +685,7 @@ def InvoiceSingleView(request, pk):
             return HttpResponseRedirect(request.path_info)
 
     company_info = get_object_or_404(Company, id=1)
-    routes = invoice.route_set.all()
+    routes = invoice.route_set.all().order_by('trip__date')
     customer = routes[0].orderitem_set.all()[0].customerproduct.customer
     customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
     rows_list = []
