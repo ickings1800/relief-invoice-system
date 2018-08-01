@@ -94,7 +94,7 @@ class TripIndexView(ListView):
     context_object_name = 'trip_list'
 
     def get_queryset(self):
-        return Trip.objects.all()
+        return Trip.objects.all().order_by('-date')
 
 
 class TripCreateView(FormView):
