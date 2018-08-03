@@ -1,6 +1,6 @@
 from django import forms
-from django.forms import inlineformset_factory, modelformset_factory, ValidationError
-from .models import Customer, Product, Trip, Route, OrderItem, Invoice, Packing
+from django.forms import inlineformset_factory, modelformset_factory
+from .models import Customer, Product, Trip, Route, OrderItem, Invoice
 from datetime import datetime
 
 
@@ -28,10 +28,20 @@ class TripForm(forms.Form):
         widget= forms.DateTimeInput(format="%d/%m/%Y %H%M"),
         input_formats=["%d/%m/%Y %H%M"])
     notes = forms.CharField(widget=forms.Textarea, required=False)
+    packaging = forms.CharField(widget=forms.Textarea(attrs={'rows':1}),
+                                required=False,
+                                label="Packaging Methods (Separate with ,)")
 
     class Meta:
         model = Trip
         fields = ['date', 'notes']
+
+    def clean(self):
+        super(TripForm, self).clean()
+        packaging = [method.strip() for method in self.cleaned_data['packaging'].split(',')]
+        if len(packaging) > 8:
+            raise forms.ValidationError("Too many methods, must be less than eight")
+        self.cleaned_data['packaging'] = ",".join(packaging)
 
 
 class TripDetailForm(forms.Form):

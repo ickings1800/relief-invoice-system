@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 from .validators import date_within_year
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from enum import Enum
 
 # Create your models here.
 
@@ -17,10 +16,10 @@ class Company(models.Model):
     fax_no = models.CharField(max_length=8)
 
 
-    
 class Trip(models.Model):
     date = models.DateTimeField(validators=[date_within_year])
     notes = models.CharField(max_length=255, null=True, blank=True)
+    packaging_methods = models.CharField(max_length=255, null=True, blank=True)
 
 
 class Customer(models.Model):
@@ -80,18 +79,7 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     customerproduct = models.ForeignKey(CustomerProduct, on_delete=models.CASCADE)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
-    packing = JSONField(null=True)
+    packing = JSONField(null=True, blank=True)
 
     class Meta:
         unique_together = ('route', 'customerproduct')
-
-
-class Packing(Enum):
-    GREEN_BASKET = "GREEN B'KET"
-    GREEN_WB = "GREEN W/B"
-    JPN_BASKET = "JAPAN B'KET"
-    JPN_WB = "JAPAN W/B"
-    BLANK_WB = "BLANK W/B"
-    PRESS_BOX = "PRESS BOX"
-    PRESS_BASKET = "PRESS B'KET"
-    FORTUNE_BASKET = "FORTUNE B'KET"

@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company, Packing
+from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
@@ -21,6 +21,7 @@ class CustomerIndexView(ListView):
 
     def get_queryset(self):
         return Customer.objects.all()
+
 
 class CustomerDetailView(DetailView):
     model = Customer
@@ -104,7 +105,8 @@ class TripCreateView(FormView):
     def form_valid(self, form):
         trip = Trip.objects.create(
             date=form.cleaned_data['date'],
-            notes=form.cleaned_data['notes']
+            notes=form.cleaned_data['notes'],
+            packaging_methods=form.cleaned_data['packaging']
         )
         trip.save()
         return HttpResponseRedirect(reverse('pos:trip_index'))
@@ -124,10 +126,19 @@ class TripCopyView(FormView):
         context['trip'] = trip
         return context
 
+    def get_initial(self):
+        trip = Trip.objects.get(pk=self.kwargs['pk'])
+        initial = super(TripCopyView, self).get_initial()
+        initial['date'] = trip.date
+        initial['notes'] = trip.notes
+        initial['packaging'] = trip.packaging_methods
+        return initial
+
     def form_valid(self, form):
         new_trip = Trip.objects.create(
             date=form.cleaned_data['date'],
-            notes=form.cleaned_data['notes']
+            notes=form.cleaned_data['notes'],
+            packaging_methods=form.cleaned_data['packaging']
         )
         new_trip.save()
         trip_copy = self.kwargs.get('pk')
@@ -163,7 +174,9 @@ class TripDetailView(FormView):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
         routes = trip.route_set.all().order_by('index')
         [r.orderitem_set.all() for r in routes]
-        packing = [key.value for key in Packing]
+        packing = []
+        if trip.packaging_methods:
+            packing = [key for key in trip.packaging_methods.split(',')]
         packing_sum_ddict = defaultdict(int)
 
         for r in routes:
@@ -174,7 +187,6 @@ class TripDetailView(FormView):
                             packing_sum_ddict[method] += value
 
         packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-        print(packing_sum)
 
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
@@ -212,7 +224,9 @@ def print_trip_detail(request, pk):
     trip = get_object_or_404(Trip, pk=pk)
     routes = trip.route_set.all().order_by('index')
     [r.orderitem_set.all() for r in routes]
-    packing = [key.value for key in Packing]
+    packing = []
+    if trip.packaging_methods:
+        packing = [key for key in trip.packaging_methods.split(',')]
     packing_sum_ddict = defaultdict(int)
 
     for r in routes:
@@ -247,16 +261,19 @@ class TripEditView(FormView):
         initial = super(TripEditView, self).get_initial()
         initial['date'] = trip.date
         initial['notes'] = trip.notes
+        initial['packaging'] = trip.packaging_methods
         return initial
 
     def form_valid(self, form):
         trip_date = form.cleaned_data['date']
         trip_notes = form.cleaned_data['notes']
+        trip_packaging = form.cleaned_data['packaging']
         trip_pk = self.kwargs['pk']
 
         trip = get_object_or_404(Trip, pk=trip_pk)
         trip.date = trip_date
         trip.notes = trip_notes
+        trip.packaging_methods = trip_packaging
         trip.save()
 
         return super(TripEditView, self).form_valid(form)
@@ -280,7 +297,9 @@ class TripDeleteView(DeleteView):
 def TripArrangementView(request, pk):
     trip = get_object_or_404(Trip, pk=pk)
     template_name = 'pos/trip/arrange.html'
-    packing = [key.value for key in Packing]
+    packing = []
+    if trip.packaging_methods:
+        packing = [key for key in trip.packaging_methods.split(',')]
     packing_sum_ddict = defaultdict(int)
     route_arrange = trip.route_set.all().order_by('index')
 
@@ -326,7 +345,9 @@ class RouteEditView(UpdateView):
 
     def get_context_data(self, **kwargs):
         route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        packing = [key.value for key in Packing]
+        packing = []
+        if route.trip.packaging_methods:
+            packing = [key for key in route.trip.packaging_methods.split(',')]
         oi_formset = OrderItemFormSet(instance=route, form_kwargs={'packing': packing})
         #  Read JSON and output to packing table.
         context = super().get_context_data(**kwargs)
@@ -337,7 +358,9 @@ class RouteEditView(UpdateView):
 
     def form_valid(self, form):
         route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        packing = [key.value for key in Packing]
+        packing = []
+        if route.trip.packaging_methods:
+            packing = [key for key in route.trip.packaging_methods.split(',')]
         oi_formset = OrderItemFormSet(self.request.POST, instance=route, form_kwargs={'packing': packing})
         if oi_formset.is_valid() and form.is_valid():
             for oi_form in oi_formset:
