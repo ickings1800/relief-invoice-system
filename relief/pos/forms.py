@@ -45,11 +45,6 @@ class TripForm(forms.Form):
 
 
 class TripDetailForm(forms.Form):
-    note_only = forms.BooleanField(
-        label='Note only',
-        widget=forms.CheckboxInput(),
-        required=False
-    )
     note = forms.CharField(widget=forms.Textarea(
         attrs={'rows':4, 'columns':15}),
         max_length=255,

@@ -198,16 +198,15 @@ class TripDetailView(FormView):
 
     def form_valid(self, form):
         if form.is_valid():
-            note_only = form.cleaned_data['note_only']
             note = form.cleaned_data['note']
+            customer = form.cleaned_data['customer'].upper()
             trip = Trip.objects.get(pk=self.kwargs['pk'])
             route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
             route_indexes = [r.index for r in route_list]
             route = Route(index=max(route_indexes, default=0) + 1, trip=trip, note=note)
             route.save()
 
-            if not note_only:
-                customer = form.cleaned_data['customer'].upper()
+            if customer:
                 customer = get_object_or_404(Customer, name=customer)
                 customer_id = customer.pk
                 customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
