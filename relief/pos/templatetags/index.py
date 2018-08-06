@@ -7,4 +7,8 @@ def index(List, i):
 
 @register.filter
 def keyvalue(dict, key):
+    return dict[key]
+
+@register.filter
+def keyvalueget(dict, key):
     return dict.get(key)
