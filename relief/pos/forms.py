@@ -55,11 +55,8 @@ class TripDetailForm(forms.Form):
         max_length=255,
         required=False)
 
-    def __init__(self, *args, **kwargs):
-        super(TripDetailForm, self).__init__(*args, **kwargs)
-        self.fields['customers'] = forms.ChoiceField(
-            choices=[(c.id, c.name) for c in Customer.objects.all()]
-        )
+    customer = forms.CharField(widget=forms.TextInput(
+        attrs={'rows': 1}), required=False)
 
 
 class RouteForm(forms.ModelForm):

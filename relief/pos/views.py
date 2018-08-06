@@ -193,6 +193,7 @@ class TripDetailView(FormView):
         context['routes'] = routes
         context['packing'] = packing
         context['packing_sum'] = packing_sum
+        context['customers'] = Customer.objects.all()
         return context
 
     def form_valid(self, form):
@@ -206,7 +207,9 @@ class TripDetailView(FormView):
             route.save()
 
             if not note_only:
-                customer_id = form.cleaned_data['customers']
+                customer = form.cleaned_data['customer'].upper()
+                customer = get_object_or_404(Customer, name=customer)
+                customer_id = customer.pk
                 customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
 
                 for cp in customerproducts:
