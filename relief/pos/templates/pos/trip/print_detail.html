@@ -68,8 +68,8 @@
                         <tr>
                             {% for method in packing %}
                             <td>
-                                {% if oi.packing|keyvalue:method %}
-                                {{ oi.packing|keyvalue:method }}
+                                {% if oi.packing|keyvalueget:method %}
+                                {{ oi.packing|keyvalueget:method }}
                                 {% endif %}
                             </td>
                             {% endfor %}
@@ -102,8 +102,8 @@
                     <table class="table packing">
                         <tr>
                             {% for method in packing %}
-                            {% if packing_sum|keyvalue:method is not None %}
-                            <td>{{ packing_sum|keyvalue:method }}</td>
+                            {% if packing_sum|keyvalueget:method is not None %}
+                            <td>{{ packing_sum|keyvalueget:method }}</td>
                             {% else %}
                             <td>0</td>
                             {% endif %}
