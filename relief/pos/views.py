@@ -196,27 +196,6 @@ class TripDetailView(FormView):
         context['customers'] = Customer.objects.all()
         return context
 
-    def form_valid(self, form):
-        if form.is_valid():
-            note = form.cleaned_data['note']
-            customer = form.cleaned_data['customer'].upper()
-            trip = Trip.objects.get(pk=self.kwargs['pk'])
-            route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
-            route_indexes = [r.index for r in route_list]
-            route = Route(index=max(route_indexes, default=0) + 1, trip=trip, note=note)
-            route.save()
-
-            if customer:
-                customer = get_object_or_404(Customer, name=customer)
-                customer_id = customer.pk
-                customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
-
-                for cp in customerproducts:
-                    orderitem = OrderItem(customerproduct=cp, route=route)
-                    orderitem.save()
-
-        return super(TripDetailView, self).form_valid(form)
-
     def get_success_url(self):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
 

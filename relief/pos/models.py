@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
+from django.shortcuts import get_object_or_404
+
 from .validators import date_within_year
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -20,6 +23,21 @@ class Trip(models.Model):
     date = models.DateTimeField(validators=[date_within_year])
     notes = models.CharField(max_length=255, null=True, blank=True)
     packaging_methods = models.CharField(max_length=255, null=True, blank=True)
+
+    def create_route(self, note, customer=None):
+        route_list = Route.objects.filter(trip_id=self.pk)
+        route_indexes = [r.index for r in route_list]
+        route = Route.objects.create(index=max(route_indexes, default=0) + 1, trip=self, note=note)
+
+        if customer:
+            customer = get_object_or_404(Customer, name=customer)
+            customer_id = customer.pk
+            customer_products = CustomerProduct.objects.filter(customer_id=customer_id)
+
+            for cp in customer_products:
+                orderitem = OrderItem.objects.create(customerproduct=cp, route=route)
+
+        return route
 
 
 class Customer(models.Model):

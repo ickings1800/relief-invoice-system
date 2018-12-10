@@ -1,6 +1,8 @@
 from django.urls import path
 
+from .api import urls
 from . import views
+
 
 app_name = 'pos'
 urlpatterns=[
@@ -59,3 +61,5 @@ urlpatterns=[
     #  /pos/invoice/customer/<customer_pk>/
     path('invoice/customer/<int:pk>', views.InvoiceCustomerView.as_view(), name='invoice_customer'),
 ]
+
+urlpatterns += urls.urlpatterns
