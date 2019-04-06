@@ -3,9 +3,8 @@ from django.urls import path
 from .api import urls
 from . import views
 
-
 app_name = 'pos'
-urlpatterns=[
+urlpatterns = [
     #  /pos/customers/
     path('customers/', views.CustomerIndexView.as_view(), name='customer_index'),
     #  /pos/customers/create
@@ -25,15 +24,15 @@ urlpatterns=[
     #  /pos/trips/create
     path('trips/create/', views.TripCreateView.as_view(), name='trip_create'),
     #  /pos/trips/copy/<int:pk>/
-    path('trips/copy/<int:pk>/', views.TripCopyView.as_view(), name='trip_copy'),
+    path('trip/copy/<int:pk>/', views.TripCopyView.as_view(), name='trip_copy'),
     #  /pos/trips/detail/<int:pk>/
-    path('trips/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
+    path('trip/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
     #  /pos/trips/detail/<int:pk>/print
-    path('trips/detail/<int:pk>/print/', views.print_trip_detail, name='print_trip_detail'),
+    path('trip/detail/<int:pk>/print/', views.print_trip_detail, name='print_trip_detail'),
     #  /pos/trips/edit/<pk>/
-    path('trips/edit/<int:pk>/', views.TripEditView.as_view(), name='trip_edit'),
+    path('trip/edit/<int:pk>/', views.TripEditView.as_view(), name='trip_edit'),
     #  /pos/trips/delete/<pk>/
-    path('trips/delete/<int:pk>/', views.TripDeleteView.as_view(), name='trip_delete'),
+    path('trip/delete/<int:pk>/', views.TripDeleteView.as_view(), name='trip_delete'),
     #  /pos/trips/arrange/<pk>/
     path('trips/arrange/<int:pk>/', views.TripArrangementView, name='trip_arrange'),
     #  /pos/route/customer/<int:pk>/

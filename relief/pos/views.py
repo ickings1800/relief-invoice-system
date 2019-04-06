@@ -78,9 +78,7 @@ class CustomerRouteView(ListView):
 
     def get_queryset(self):
         customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer.pk)\
-                                .filter((Q(orderitem__quantity__gt=0) | Q(orderitem__driver_quantity__gt=0)))\
-            .distinct()
+        route_list = Route.get_customer_routes(customer.id)
         return route_list
 
     def get_context_data(self, **kwargs):
@@ -172,27 +170,8 @@ class TripDetailView(FormView):
 
     def get_context_data(self, **kwargs):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
-        routes = trip.route_set.all().order_by('index')
-        [r.orderitem_set.all() for r in routes]
-        packing = []
-        if trip.packaging_methods:
-            packing = [key for key in trip.packaging_methods.split(',')]
-        packing_sum_ddict = defaultdict(int)
-
-        for r in routes:
-            for oi in r.orderitem_set.all():
-                if oi.packing:
-                    for method, value in oi.packing.items():
-                        if oi.packing.get(method):
-                            packing_sum_ddict[method] += value
-
-        packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
-        context['routes'] = routes
-        context['packing'] = packing
-        context['packing_sum'] = packing_sum
         context['customers'] = Customer.objects.all()
         return context
 
@@ -363,11 +342,9 @@ class RouteDeleteView(DeleteView):
         return route
 
     def delete(self, request, *args, **kwargs):
+        trip_id = self.get_object().trip.pk
         super(RouteDeleteView, self).delete(request, args, kwargs)
-        route_list = Route.objects.filter(trip_id=self.kwargs['trip_pk'])
-        for i in range(len(route_list)):
-            route_list[i].index = i+1
-            route_list[i].save()
+        Trip.rearrange_trip_routes_after_delete(trip_id)
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
@@ -753,8 +730,7 @@ class InvoiceCustomerView(ListView):
     def get_queryset(self):
         customer_pk = self.kwargs['pk']
         customer = get_object_or_404(Customer, id=customer_pk)
-        invoices = Invoice.objects.filter(route__orderitem__customerproduct__customer_id=customer.pk)\
-            .distinct('pk')
+        invoices = Invoice.get_customer_invoices(customer.pk)
         return invoices
 
     def get_context_data(self, **kwargs):
