@@ -125,7 +125,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderItemUpdateDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ('driver_quantity', 'quantity', 'note', 'packing')
+        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing')
 
 
 class RouteDetailSerializer(serializers.ModelSerializer):

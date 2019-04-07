@@ -252,3 +252,10 @@ class InvoiceDelete(DestroyAPIView):
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
 
+
+@api_view(['GET'])
+def trip_packing_sum(request, pk):
+    if request.method == 'GET':
+        trip_id = pk
+        packing_sum = Trip.get_packing_sum(trip_id)
+        return Response(status=status.HTTP_200_OK, data=packing_sum)

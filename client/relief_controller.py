@@ -296,6 +296,7 @@ def get_detail_orderitem(orderitem_id):
     data = {}
     orderitem = requests.get('http://localhost:8000/pos/api/orderitem/{0}/'.format(orderitem_id))
     orderitem_json = orderitem.json()
+    data['id'] = orderitem_json.get('id')
     data['quantity'] = orderitem_json.get('quantity')
     data['note'] = orderitem_json.get('note')
     data['packing'] = orderitem_json.get('packing')
@@ -318,3 +319,8 @@ def arrange_route_trip(trip_id, id_arrangement):
     data['id_arrangement'] = id_arrangement
     r = requests.post('http://localhost:8000/pos/api/trips/{0}/routes/arrange/'.format(trip_id), data)
     return r
+
+
+def get_packing_sum(trip_id):
+    r = requests.get('http://localhost:8000/pos/api/trip/{0}/packingsum/'.format(trip_id))
+    return r.json()

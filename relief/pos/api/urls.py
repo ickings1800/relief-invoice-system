@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/trip/create/', api.TripCreate.as_view(), name='trip_create'),
     path('api/trip/update/<int:pk>/', api.TripUpdate.as_view(), name='trip_update'),
     path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
+    path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
     path('api/invoices/<int:pk>/delete/', api.InvoiceDelete.as_view(), name='invoice_delete'),
     path('api/invoices/', api.InvoiceList.as_view(), name='invoice_list'),
     path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),

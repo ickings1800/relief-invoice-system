@@ -7,7 +7,7 @@ from relief_controller import get_customer_data, get_product_data, get_trip_data
     update_trip_data, get_customer_detail_data, update_customer_data, get_customerproduct_data, \
     get_detail_customerproduct, post_customerproduct_data, update_customerproduct_data, get_customer_routes,\
     get_customer_invoices, delete_customer_invoice, get_all_invoices, get_trip_detail_list, post_route, delete_route,\
-    update_route, update_orderitem, get_detail_orderitem, get_detail_route
+    update_route, update_orderitem, get_detail_orderitem, get_detail_route, get_packing_sum
 
 
 class RELIEF_BUTTON_EVENT(Enum):
@@ -86,6 +86,7 @@ class RELIEF_VIEW_ELEMENTS(Enum):
     CUSTOMER_FAX_TEXT = 'CUSTOMER_FAX_TEXT'
     CUSTOMER_TERM_TEXT = 'CUSTOMER_TERM_TEXT'
     CUSTOMER_GST_TEXT = 'CUSTOMER_GST_TEXT'
+    ORDERITEM_QTY_TEXT = 'ORDERITEM_QTY_TEXT'
 
 
 def main():
@@ -765,7 +766,8 @@ def get_packing_method_headings_layout(trip_packaging_methods):
 
 def get_orderitem_quantity_row_layout(orderitem):
     layout = [sg.Text(orderitem.get('quantity'),
-              size=(8, 1)),
+              size=(8, 1),
+              key=str(RELIEF_VIEW_ELEMENTS.ORDERITEM_QTY_TEXT) + str(orderitem.get('id'))),
      sg.Text(orderitem.get('customerproduct'),
              key=str(RELIEF_INPUT_FIELDS.INPUT_ORDERITEM_QTY) + str(orderitem.get('id')),
              click_submits=True)]
@@ -802,7 +804,7 @@ def get_orderitem_packaging_column_input(orderitems, packing):
     packing_column.append([sg.Text(packing, auto_size_text=True, font=("Helvetica", 8))])
     for oi in orderitems:
         oi_packing = oi.get('packing')
-        key = packing
+        key = str(oi.get('id')) + packing
         if oi_packing:
             quantity = oi_packing.get(packing)
             if quantity:
@@ -821,15 +823,6 @@ def get_orderitem_packing_quantity(orderitem, packing):
         # return zero if key exists but value is none
         return packing_dict.get(packing, 0)
     return 0
-
-
-def get_orderitem_packing_sum(orderitem_set, trip_packaging_methods):
-    packing_column_sum = {k: 0 for k in trip_packaging_methods}
-    for oi in orderitem_set:
-        for packing in oi.get('packing').keys():
-            quantity = int(get_orderitem_packing_quantity(oi, packing))
-            packing_column_sum[packing] += quantity
-    return packing_column_sum
 
 
 def get_refresh_trip_detail_layout(trip_id, trip_detail):
@@ -876,7 +869,7 @@ def get_refresh_trip_detail_layout(trip_id, trip_detail):
 
     margin_left_column = [[sg.Text('')]]
     total_layout = [[sg.Column(margin_left_column, size=(45, 1))]]
-    packing_column_sum = get_orderitem_packing_sum(trip_orderitems_list, trip_packaging_methods)
+    packing_column_sum = get_packing_sum(trip_id)
 
     for packing in trip_packaging_methods:
         packing_column_total = sg.Column([[sg.Text(packing, auto_size_text=True, font=("Helvetica", 8))],
@@ -904,7 +897,8 @@ def show_trip_detail_window(trip_id):
     trip_packaging_methods = str(trip_detail.get('packaging_methods')).split(',')
     layout = get_refresh_trip_detail_layout(trip_id, trip_detail)
     trip_window = sg.Window(trip_date).Layout(layout)
-
+    packing_sum = get_packing_sum(trip_id)
+    print(packing_sum)
     while True:
         trip_event, trip_val = trip_window.Read()
 
@@ -913,17 +907,33 @@ def show_trip_detail_window(trip_id):
             break
         if trip_event == RELIEF_BUTTON_EVENT.EDIT_TRIP:
             show_edit_trip_window(trip_id)
+            # Full refresh
+            trip_detail = get_trip_detail_list(trip_id)
+            refresh_layout = get_refresh_trip_detail_layout(trip_id, trip_detail)
+            trip_window.Close()
+            trip_window = sg.Window(trip_date).Layout(refresh_layout)
         if trip_event == RELIEF_BUTTON_EVENT.ADD_ROUTE:
             show_create_route_window(trip_id)
+            # Full refresh
+            trip_detail = get_trip_detail_list(trip_id)
+            refresh_layout = get_refresh_trip_detail_layout(trip_id, trip_detail)
+            trip_window.Close()
+            trip_window = sg.Window(trip_date).Layout(refresh_layout)
         if trip_event == RELIEF_BUTTON_EVENT.REFRESH_TRIP_ROUTE:
             # Full refresh
             trip_detail = get_trip_detail_list(trip_id)
             refresh_layout = get_refresh_trip_detail_layout(trip_id, trip_detail)
             trip_window.Close()
             trip_window = sg.Window(trip_date).Layout(refresh_layout)
-        if 'DELETE_ROUTE_' in str(trip_event):
-            route_id = trip_event[len(str(RELIEF_BUTTON_EVENT.DELETE_ROUTE))]
+        if str(RELIEF_BUTTON_EVENT.DELETE_ROUTE) in str(trip_event):
+            print('Delete Route')
+            route_id = trip_event[len(str(RELIEF_BUTTON_EVENT.DELETE_ROUTE)):]
             show_delete_routes_window(route_id)
+            # Full refresh
+            trip_detail = get_trip_detail_list(trip_id)
+            refresh_layout = get_refresh_trip_detail_layout(trip_id, trip_detail)
+            trip_window.Close()
+            trip_window = sg.Window(trip_date).Layout(refresh_layout)
         if str(RELIEF_INPUT_FIELDS.INPUT_ORDERITEM_QTY) in str(trip_event):
             orderitem_id = str(trip_event)[len(str(RELIEF_INPUT_FIELDS.INPUT_ORDERITEM_QTY)):]
             orderitem_layout = get_route_orderitem_update_layout(int(orderitem_id), trip_packaging_methods)
@@ -936,6 +946,23 @@ def show_trip_detail_window(trip_id):
                     print(oi_event, oi_val)
                     response = save_route_orderitem(orderitem_id, oi_val, trip_packaging_methods)
                     if response.status_code == requests.codes.ok:
+                        # update quantity text
+                        orderitem_qty_text_key = str(RELIEF_VIEW_ELEMENTS.ORDERITEM_QTY_TEXT) + orderitem_id
+                        orderitem_qty_dict_key = str(RELIEF_INPUT_FIELDS.INPUT_ORDERITEM_QTY) + orderitem_id
+                        quantity_field = oi_val.get(orderitem_qty_dict_key)
+                        orderitem_qty_text = trip_window.FindElement(orderitem_qty_text_key)
+                        orderitem_qty_text.Update(value=quantity_field)
+                        # update packing text
+                        refresh_packing_sum = get_packing_sum(trip_id)
+                        for packing in trip_packaging_methods:
+                            orderitem_packing_key = orderitem_id + packing
+                            orderitem_packing_qty = oi_val.get(orderitem_packing_key)
+                            orderitem_packing_text = trip_window.FindElement(orderitem_packing_key)
+                            orderitem_packing_text.Update(value=orderitem_packing_qty)
+                            # update packing text
+                            packing_sum_qty = refresh_packing_sum.get(packing)
+                            packing_sum_text = trip_window.FindElement(packing)
+                            packing_sum_text.Update(value=packing_sum_qty)
                         break
                     else:
                         sg.PopupError('Error', response.text)
@@ -943,7 +970,6 @@ def show_trip_detail_window(trip_id):
 
         if str(RELIEF_BUTTON_EVENT.EDIT_ROUTE) in str(trip_event):
             route_id = str(trip_event)[len(str(RELIEF_BUTTON_EVENT.EDIT_ROUTE)):]
-            print(route_id)
             route_layout = get_route_update_layout(route_id)
             route_window = sg.Window('Update route').Layout(route_layout)
             while True:
@@ -952,9 +978,12 @@ def show_trip_detail_window(trip_id):
                     break
                 if route_event == RELIEF_BUTTON_EVENT.SAVE_TRIP_ROUTE:
                     route_note = route_val.get(str(RELIEF_BUTTON_EVENT.EDIT_ROUTE) + str(route_id))
-                    print(route_note)
                     response = update_route(route_id, route_note)
                     if response.status_code == requests.codes.ok:
+                        # update notes text value
+                        note_text_key = str(RELIEF_INPUT_FIELDS.INPUT_ROUTE_NOTE) + route_id
+                        note_text = trip_window.FindElement(note_text_key)
+                        note_text.Update(route_note)
                         break
                     else:
                         sg.PopupError('Error', response.text)
@@ -995,9 +1024,11 @@ def get_route_update_layout(route_id):
 
 def save_route_orderitem(orderitem_id, trip_values, packing_name_list):
     quantity_field = trip_values.get(str(RELIEF_INPUT_FIELDS.INPUT_ORDERITEM_QTY) + str(orderitem_id))
-    packaging_qty = {name: int(trip_values.get(name))
+    print(trip_values)
+    packaging_qty = {name: int(trip_values.get(str(orderitem_id) + name))
                      for name in packing_name_list
-                     if trip_values.get(name)}
+                     if trip_values.get(str(orderitem_id) + name)}
+    print(packaging_qty)
     quantity = quantity_field
     response = update_orderitem(orderitem_id, quantity=quantity, packing=packaging_qty)
     return response
