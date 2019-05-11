@@ -23,8 +23,10 @@ urlpatterns = [
     path('api/trip/update/<int:pk>/', api.TripUpdate.as_view(), name='trip_update'),
     path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
     path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
-    path('api/invoices/<int:pk>/delete/', api.InvoiceDelete.as_view(), name='invoice_delete'),
     path('api/invoices/', api.InvoiceList.as_view(), name='invoice_list'),
+    path('api/invoices/<int:pk>/', api.InvoiceDetail.as_view(), name='invoice_detail'),
+    path('api/invoice/create/', api.InvoiceCreate.as_view(), name='invoice_create'),
+    path('api/invoices/<int:pk>/delete/', api.InvoiceDelete.as_view(), name='invoice_delete'),
     path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),
     path('api/trips/<int:pk>/detail/routes/add/', api.TripRouteCreate.as_view(), name='trip_route_create'),
     path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
@@ -33,6 +35,7 @@ urlpatterns = [
     path('api/orderitem/<int:pk>/', api.OrderItemDetail.as_view(), name='orderitem_detail'),
     path('api/orderitem/<int:pk>/update/', api.OrderItemUpdate.as_view(), name='orderitem_update'),
     path('api/trips/<int:pk>/routes/arrange/', api.route_arrange, name='route_arrange'),
+    path('api/invoice/getnewinvoicenumber/', api.get_invoice_number, name='get_new_invoice_number')
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

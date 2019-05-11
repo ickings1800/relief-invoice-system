@@ -74,6 +74,10 @@ class Trip(models.Model):
                             packing_sum[k] += packing.get(k)
         return packing_sum
 
+    def get_trips_by_date(start_date, end_date):
+        trips = Trip.objects.filter(date__lte=end_date, date__gte=start_date).order_by('date')
+        return trips
+
 
 class Customer(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -110,6 +114,42 @@ class Invoice(models.Model):
     def get_customer_invoices(customer_id):
         return Invoice.objects.filter(route__orderitem__customerproduct__customer_id=customer_id).distinct('pk')
 
+    def get_next_invoice_number():
+        invoice_num_max = Invoice.objects.all().aggregate(models.Max('invoice_number'))
+        # this condition only occurs on the first invoice (with gst) created.
+        if invoice_num_max.get('invoice_number__max') is None:
+            return 0
+        else:
+            return invoice_num_max.get('invoice_number__max') + 1
+
+    def generate_invoice(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
+        invoice = Invoice(gst=int(customer_gst), start_date=start_date, end_date=end_date)
+        invoice.save()
+        original_total = 0
+        for r in route_id_list:
+            route = get_object_or_404(Route, id=r)
+            route.invoice = invoice
+            orderitems = route.orderitem_set.all()
+            for oi in orderitems:
+                quote = oi.customerproduct.quote_price
+                oi.unit_price = quote
+                oi.save()
+                original_total += (oi.driver_quantity * oi.unit_price)
+            route.save()
+
+        net_total = original_total
+        # GST value is a whole number in model
+        gst = float(original_total) * (int(customer_gst) / 100)
+        invoice.net_total = net_total
+        invoice.original_total = original_total
+        invoice.net_gst = gst
+        invoice.total_incl_gst = float(net_total) + gst
+        if int(customer_gst) > 0:
+            invoice.invoice_year = invoice_year
+            invoice.invoice_number = invoice_number
+        invoice.save()
+        return invoice.pk
+
 
 class Route(models.Model):
     index = models.SmallIntegerField()
@@ -121,6 +161,14 @@ class Route(models.Model):
     def get_customer_routes(customer_id):
         route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id) \
             .filter((Q(orderitem__quantity__gt=0) | Q(orderitem__driver_quantity__gt=0))) \
+            .distinct()
+        return route_list
+
+    def get_customer_routes_orderitems_by_date(date_start, date_end, customer_id):
+        route_list = Route.objects.filter(trip__date__lte=date_end,
+                                          trip__date__gte=date_start,
+                                          invoice__exact=None,
+                                          orderitem__customerproduct__customer_id=customer_id).order_by('trip__date')\
             .distinct()
         return route_list
 

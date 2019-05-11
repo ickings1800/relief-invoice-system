@@ -74,9 +74,13 @@ def get_product_detail_data(product_id):
     return data
 
 
-def get_trip_data():
+def get_trip_data(start_date=None, end_date=None):
     data = []
-    trips = requests.get('http://localhost:8000/pos/api/trips/')
+    if start_date and end_date:
+        payload = {'start_date': start_date, 'end_date':end_date}
+        trips = requests.get('http://localhost:8000/pos/api/trips/', payload)
+    else:
+        trips = requests.get('http://localhost:8000/pos/api/trips/')
     for t in trips.json():
         row = list()
         row.append(t.get('id'))
@@ -202,6 +206,32 @@ def get_customer_routes(customer_id):
     return data
 
 
+def get_customer_routes_by_date(customer_id, start_date, end_date):
+    data = []
+    payload = {'start_date': start_date, 'end_date': end_date}
+    routes = requests.get('http://localhost:8000/pos/api/customers/{0}/routes'.format(customer_id), params=payload)
+    routes_json = routes.json()
+    for r in routes_json:
+        row_dict = convert_customer_route_json_to_dict(r)
+        data.append(row_dict)
+    return data
+
+
+def convert_customer_route_json_to_dict(route_json):
+    row_dict = dict()
+    row_dict['id'] = route_json.get('id')
+    row_dict['do_number'] = route_json.get('do_number')
+    row_dict['trip_date'] = route_json.get('trip_date')
+    for oi in route_json.get('orderitem_set'):
+        orderitem_dict = dict()
+        orderitem_dict['id'] = oi.get('id')
+        orderitem_dict['quantity'] = oi.get('quantity')
+        orderitem_dict['driver_quantity'] = oi.get('driver_quantity')
+        orderitem_dict['customerproduct'] = oi.get('customerproduct')
+        row_dict[oi.get('customerproduct')] = orderitem_dict
+    return row_dict
+
+
 def get_customer_invoices(customer_id):
     data = []
     invoices = requests.get('http://localhost:8000/pos/api/customers/{0}/invoices/'.format(customer_id))
@@ -248,6 +278,49 @@ def get_all_invoices():
     return data
 
 
+def get_invoice_detail(invoice_id):
+    data = {}
+    invoice = requests.get('http://localhost:8000/pos/api/invoices/{0}/'.format(invoice_id))
+    invoice_json = invoice.json()
+    data['id'] = invoice_json.get('id')
+    data['invoice_year'] = invoice_json.get('invoice_year')
+    data['invoice_number'] = invoice_json.get('invoice_number')
+    data['start_date'] = invoice_json.get('start_date')
+    data['end_date'] = invoice_json.get('end_date')
+    data['minus'] = invoice_json.get('minus')
+    data['gst'] = invoice_json.get('gst')
+    data['original_total'] = invoice_json.get('original_total')
+    data['net_total'] = invoice_json.get('net_total')
+    data['net_gst'] = invoice_json.get('net_gst')
+    data['total_incl_gst'] = invoice_json.get('total_incl_gst')
+    data['remark'] = invoice_json.get('remark')
+    data['date_generated'] = invoice_json.get('date_generated')
+    route_summary = []
+    routes = invoice_json.get('route_set')
+    customer_id = None
+    for r in routes:
+        route_row = dict()
+        route_row['trip_date'] = r.get('trip_date')
+        route_row['do_number'] = r.get('do_number')
+        oi_set = r.get('orderitem_set')
+        for oi in oi_set:
+            oi_name = oi.get('customerproduct')
+            oi_driver_quantity = oi.get('driver_quantity')
+            route_row[oi_name] = oi_driver_quantity
+            if customer_id is None:
+                customer_id = oi.get('customer_id')
+        route_summary.append(route_row)
+    data['route_set'] = route_summary
+    customer = get_customer_detail_data(customer_id)
+    data['customer_name'] = customer.get('name')
+    data['customer_address'] = customer.get('address')
+    data['customer_postal'] = customer.get('postal_code')
+    data['customer_term'] = customer.get('term')
+    data['customer_id'] = customer.get('id')
+    return data
+
+
+
 def delete_customer_invoice(invoice_id):
     r = requests.delete('http://localhost:8000/pos/api/invoices/{0}/delete/'.format(invoice_id))
     return r
@@ -276,13 +349,17 @@ def get_detail_route(route_id):
     data = {}
     route = requests.get('http://localhost:8000/pos/api/routes/{0}/'.format(route_id))
     route_json = route.json()
+    data['do_number'] = route_json.get('do_number')
     data['note'] = route_json.get('note')
     return data
 
 
-def update_route(route_id, note):
+def update_route(route_id, note=None, do_number=None):
     data = dict()
-    data['note'] = note
+    if note:
+        data['note'] = note
+    if do_number:
+        data['do_number'] = do_number
     r = requests.put('http://localhost:8000/pos/api/routes/{0}/update/'.format(route_id), data)
     return r
 
@@ -297,6 +374,7 @@ def get_detail_orderitem(orderitem_id):
     orderitem = requests.get('http://localhost:8000/pos/api/orderitem/{0}/'.format(orderitem_id))
     orderitem_json = orderitem.json()
     data['id'] = orderitem_json.get('id')
+    data['driver_quantity'] = orderitem_json.get('driver_quantity')
     data['quantity'] = orderitem_json.get('quantity')
     data['note'] = orderitem_json.get('note')
     data['packing'] = orderitem_json.get('packing')
@@ -324,3 +402,21 @@ def arrange_route_trip(trip_id, id_arrangement):
 def get_packing_sum(trip_id):
     r = requests.get('http://localhost:8000/pos/api/trip/{0}/packingsum/'.format(trip_id))
     return r.json()
+
+
+def get_new_invoice_number():
+    r = requests.get('http://localhost:8000/pos/api/invoice/getnewinvoicenumber/')
+    return r
+
+
+def create_invoice(gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
+    data = dict()
+    data['gst'] = gst
+    data['start_date'] = start_date
+    data['end_date'] = end_date
+    data['invoice_year'] = invoice_year
+    data['invoice_number'] = invoice_number
+    data['route_id_list'] = route_id_list
+    r = requests.post('http://localhost:8000/pos/api/invoice/create/', data)
+    print(r.text)
+    return r

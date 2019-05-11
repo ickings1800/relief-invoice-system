@@ -8,9 +8,11 @@ from .serializers import TripAddRouteSerializer, \
     TripListDetailUpdateSerializer, CustomerListDetailUpdateSerializer, ProductListDetailUpdateSerializer, \
     CustomerCreateSerializer, ProductCreateSerializer, TripCreateSerializer, CustomerProductListDetailSerializer,\
     CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
-    TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer
+    TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
+    InvoiceCreateSerializer, InvoiceDetailSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice
+from datetime import datetime, timedelta
 
 
 class CustomerList(ListAPIView):
@@ -75,8 +77,18 @@ class ProductUpdate(UpdateAPIView):
 
 class TripList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        trip = Trip.objects.all()
-        trip_serializer = TripListDetailUpdateSerializer(trip, many=True)
+        date_start_string = self.request.query_params.get('start_date')
+        date_end_string = self.request.query_params.get('end_date')
+        if date_start_string and date_end_string:
+            date_start = datetime.strptime(date_start_string, '%Y-%m-%d %H:%M:%S')
+            date_end = datetime.strptime(date_end_string, '%Y-%m-%d %H:%M:%S')
+            date_end += timedelta(hours=23, minutes=59, seconds=59)
+            date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
+            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
+            trips = Trip.get_trips_by_date(date_start_formatted, date_end_formatted)
+        else:
+            trips = Trip.objects.all()
+        trip_serializer = TripListDetailUpdateSerializer(trips, many=True)
         return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
 
 
@@ -116,8 +128,9 @@ class TripRouteCreate(CreateAPIView):
         validated_note = request.data.get('note')
         validated_customer = request.data.get('customer')
         print(validated_note, validated_customer)
-        Trip.create_route(trip.pk, validated_note, customer_id=validated_customer)
-        return Response(status=status.HTTP_201_CREATED, data=request.data)
+        route = Trip.create_route(trip.pk, validated_note, customer_id=validated_customer)
+        rs = RouteSerializer(route)
+        return Response(status=status.HTTP_201_CREATED, data=rs.data)
 
 
 class TripRouteList(ListAPIView):
@@ -227,8 +240,24 @@ class CustomerProductUpdate(UpdateAPIView):
 
 class CustomerRouteList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        routes = Route.get_customer_routes(self.kwargs['pk'])
-        route_serializer = RouteListSerializer(routes, many=True)
+        customer_id = self.kwargs['pk']
+        date_start_string = self.request.query_params.get('start_date')
+        date_end_string = self.request.query_params.get('end_date')
+        if date_start_string is not None and date_end_string is not None:
+            date_start = datetime.strptime(date_start_string, '%Y-%m-%d %H:%M:%S')
+            date_end = datetime.strptime(date_end_string, '%Y-%m-%d %H:%M:%S')
+            #  date_start will start from exactly midnight by default
+            #  date_end will have to add timedelta because it will also end at exactly at midnight,
+            #  causing the last route order to not be included.
+            date_end += timedelta(hours=23, minutes=59, seconds=59)
+            date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
+            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
+            routes = Route.get_customer_routes_orderitems_by_date(date_start_formatted, date_end_formatted, customer_id)
+            route_serializer = RouteSerializer(routes, many=True)
+        else:
+            routes = Route.get_customer_routes(customer_id)
+            route_serializer = RouteListSerializer(routes, many=True)
+
         return Response(status=status.HTTP_200_OK, data=route_serializer.data)
 
 
@@ -237,6 +266,14 @@ class CustomerInvoiceList(ListAPIView):
         invoices = Invoice.get_customer_invoices(self.kwargs['pk'])
         invoice_serializer = InvoiceListSerializer(invoices, many=True)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
+
+
+class InvoiceDetail(RetrieveAPIView):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceDetailSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
 
 
 class InvoiceList(ListAPIView):
@@ -253,9 +290,32 @@ class InvoiceDelete(DestroyAPIView):
         return self.destroy(request, *args, **kwargs)
 
 
+class InvoiceCreate(CreateAPIView):
+    serializer_class = InvoiceCreateSerializer
+
+    def post(self, request, *args, **kwargs):
+        print(request.data)
+        customer_gst = request.data.get('gst')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+        invoice_year = request.data.get('invoice_year')
+        invoice_number = request.data.get('invoice_number')
+        route_id_list = request.data.getlist('route_id_list')
+        print(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list)
+        invoice_id = Invoice.generate_invoice(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list)
+        return Response(status=status.HTTP_201_CREATED, data=invoice_id)
+
+
 @api_view(['GET'])
 def trip_packing_sum(request, pk):
     if request.method == 'GET':
         trip_id = pk
         packing_sum = Trip.get_packing_sum(trip_id)
         return Response(status=status.HTTP_200_OK, data=packing_sum)
+
+
+@api_view(['GET'])
+def get_invoice_number(request):
+    if request.method == 'GET':
+        invoice_number = Invoice.get_next_invoice_number()
+        return Response(status=status.HTTP_200_OK, data=invoice_number)

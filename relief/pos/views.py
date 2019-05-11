@@ -454,11 +454,10 @@ def InvoiceDateRangeView(request, pk):
             request.session['date_start'] = date_start_formatted
             request.session['date_end'] = date_end_formatted
 
-            route_list = Route.objects.filter(trip__date__lte=date_end_formatted,
-                                              trip__date__gte=date_start_formatted,
-                                              invoice__exact=None,
-                                              orderitem__customerproduct__customer_id=customer.id)\
-                                              .distinct()
+            route_list = Route.get_customer_routes_orderitems_by_date(date_start_formatted,
+                                                                      date_end_formatted,
+                                                                      customer.id)
+
             customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
 
             routes_display = []
@@ -569,37 +568,15 @@ def InvoiceOrderAssignView(request, pk):
                 all_valid = False
 
         if all_valid:
-            invoice = Invoice(gst=customer.gst, start_date=parse_trip_start, end_date=parse_trip_end)
-            invoice.save()
-            original_total = 0
-            for r in routes:
-                route = get_object_or_404(Route, id=r)
-                route.invoice = invoice
-                orderitems = route.orderitem_set.all()
-                for oi in orderitems:
-                    quote = oi.customerproduct.quote_price
-                    oi.unit_price = quote
-                    oi.save()
-                    original_total += (oi.driver_quantity * oi.unit_price)
-                route.save()
-
-            net_total = original_total
-            # GST value is a whole number in model
-            gst = original_total * (invoice.gst/100)
-            invoice.net_total = net_total
-            invoice.original_total = original_total
-            invoice.net_gst = gst
-            invoice.total_incl_gst = net_total + gst
-            if invoice.gst > 0:
-                invoice.invoice_year = int(date.strftime(date.today(), '%Y'))
-                invoice_num_max = Invoice.objects.all().aggregate(Max('invoice_number'))
-                # this condition only occurs on the first invoice (with gst) created.
-                if invoice_num_max.get('invoice_number__max') is None:
-                    invoice.invoice_number = 0
-                else:
-                    invoice.invoice_number = invoice_num_max.get('invoice_number__max') + 1
-            invoice.save()
-            return HttpResponseRedirect(reverse('pos:invoice_view', kwargs={'pk':invoice.pk}))
+            invoice_year = datetime.now().year
+            invoice_number = Invoice.get_next_invoice_number()
+            invoice_pk = Invoice.generate_invoice(customer.gst,
+                                                  trip_start_formatted,
+                                                  trip_end_formatted,
+                                                  invoice_year,
+                                                  invoice_number,
+                                                  routes)
+            return HttpResponseRedirect(reverse('pos:invoice_view', kwargs={'pk': invoice_pk}))
         else:
             return render(request, template_name, {'rows_list': rows_list,
                                                    'customer': customer,
