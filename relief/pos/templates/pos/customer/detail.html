@@ -11,7 +11,7 @@
                     <div class="panel-title h3 mt-10">{{ customer.name }}</div>
                 </div>
                 <div>
-                <a href="{% url 'pos:customer_edit' pk=customer.id %}" class="btn btn-primary btn-sm hide-lg float-right">
+                <a href="{% url 'admin:pos_customer_change' customer.id %}" class="btn btn-primary btn-sm hide-lg float-right">
                     <i class="icon icon-edit"></i>&nbsp;Edit
                 </a>
                 </div>
@@ -75,7 +75,7 @@
                             <td>{{ customer.gst }}</td>
                         <tr>
                     </table>
-                    <a href="{% url 'pos:customer_edit' pk=customer.id %}" class="btn btn-primary btn-block show-lg my-2">
+                    <a href="{% url 'admin:pos_customer_change' customer.id %}" class="btn btn-primary btn-block show-lg my-2">
                         Edit
                     </a>
                 </div>

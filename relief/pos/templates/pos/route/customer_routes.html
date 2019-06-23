@@ -48,9 +48,6 @@
                             <tr>
                             {% endfor %}
                         </table>
-                        <a href="{% url 'pos:customerproduct_create' pk=customer.pk %}" class="btn btn-primary btn-block my-2 show-lg">
-                                Create
-                        </a>
                     {% else %}
                     <div class="empty">
                       <p class="empty-title h5">Customer has no orders</p>

@@ -1,147 +1,494 @@
 window.onload = function(e){
-    let route_form = document.getElementById('routeform');
-    let submit_btn = document.getElementById('save');
-    route_form.addEventListener('submit', function(e) {
-        e.preventDefault();
-    }, false);
-
-    submit_btn.addEventListener('click', function(e) {
-        addRouteTrip();
-    }, false);
-
-    getTripRouteList();
-};
-
-function addRouteTrip() {
-    let url = document.getElementById('routeform').action;
-    let customer = document.getElementById('customer');
-    let note = document.getElementById('note');
-    data = { 'customer': customer.value, 'note': note.value };
-    console.log(data);
-    fetch(url, {
-        method:'POST',
-        body: JSON.stringify(data),
-        headers:{
-            'Content-Type': 'application/json'
-        }
-    }).then(res => res.json())
-    .then (function(rJson) {
-        console.log('getTripRouteList');
-        getTripRouteList();
-        customer.value = '';
-        note.value = '';
-    })
-    .catch(error => console.error('Error:', error));
-};
-
-function getTripRouteList() {
-    let url = window.location.href + 'routes/';
-    console.log(url);
-    fetch(url)
-    .then(response => response.json())
-    .then(function(tripJson) {
-        tripJson.route_set.sort(function(a,b){
-            return a.index - b.index;
-        });
-        addRoutes(tripJson);
-    });
-};
-
-
-function addRoutes(tripJson) {
-    let routes = document.getElementById('routes');
-    let headers = tripJson.packaging_methods.split(',');
-    console.log('inner html set blank');
-    routes.innerHTML = '';
-
-    for (let i = 0; i < tripJson.route_set.length; i++){
-        let routeJson = tripJson.route_set[i];
-        let route = `
-            <div class="card route">
-                <div class="card-header">
-                    <div class="columns">
-                        <div class="column col-1">
-                            <h5>${ routeJson.index }.</h5>
-                        </div>
-                        <div class="column col-5">
-                            <h5>${ routeJson.orderitem_set[0].customerproduct.customer }</h5>
-                        </div>
-                        <div class="column col-5">
-                            <h5 class="float-right">${ routeJson.do_number }</h5>
-                        </div>
-                        <div class="column col-1">
-                            <a href="#"><i class="float-right icon icon-cross m-1 route-delete"></i></a>
-                        </div>
-                    </div>
-                    <div class="divider"></div>
-                </div>
-                <div class="card-body">
-                    <div class="columns">
-                        <div class="column col-12">
-                        <div class="columns">
-                            <div class="column col-4"></div>
-                            <div class="column col-8">
-                                <div class="row row-header">
-                                    ${headers.map((val, i) => `<div class="col">${ val }</div>`).join('')}
-                                </div>
-                            </div>
-                        </div>
-                            <div class="columns">
-                            ${ routeJson.orderitem_set.map((oi, i) =>`
-                            <div class="column col-1">${ oi.quantity }</div>
-                            <div class="column col-3">${ oi.customerproduct.product }</div>
-                            <div class="column col-8">
-                                <div class="row">
-                                    ${headers.map((val, i) => `
-                                        <div class="col">${ oi.packing ? oi.packing[val] || '' : ''}</div>`
-                                    ).join('')}
-                                </div>
-                            </div>
-                            <div class="column col-12 divider"></div>
-                            `).join('')}
-                            </div>
-                        </div>
-                        <div class="column col-12"><h5>${ routeJson.note }</h5></div>
-                    </div>
-                </div>
-            </div>
-        `
-        routes.innerHTML += route;
+    let routes = document.getElementsByClassName('route');
+    let del_buttons = document.getElementsByClassName('delete');
+    edit_submit_btn = document.getElementById('modal-save');
+    close_btn = document.getElementById('modal-close');
+    add_route_btn = document.getElementById('add-route');
+    add_route_btn.addEventListener("click", addRouteToTrip, false);
+    edit_submit_btn.addEventListener("click", postOrderItemData, false);
+    for (var i = 0 ; i < routes.length ; i++){
+        routes[i].addEventListener("click", showEditRouteModal , false);
     }
+    for (var j = 0 ; j < del_buttons.length ; j++){
+        del_buttons[j].addEventListener("click", deleteRoute , false);
+    }
+    close_btn.addEventListener("click", clearEditForm, false);
+    getTripPackingSum();
+    console.log("Added click event");
+};
 
-    addOrderItemPacking(tripJson);
+function showEditRouteModal(event){
+    console.log("ShowModal");
+    let editModal = document.getElementById('edit-modal');
+    let closeModal = document.getElementById('modal-close');
+    let modalForm = document.getElementById('modal-form');
+    editModal.classList.add("active")
+    closeModal.addEventListener("click", function(e){
+        editModal.classList.remove("active");
+    }, false);
+    routeId = this.getAttribute('data-route-id');
+    fetch('http://localhost:8000/pos/api/routes/' + routeId + '/')
+        .then(function(response){
+            return response.json();
+        })
+        .then(function(response){
+            generateEditRouteForm(response)
+        });
 }
 
-function addOrderItemPacking(tripJson){
-    let packingSum = document.getElementById('packing-sum-header');
-    let packingDiv = document.getElementById('packing-sum-value');
-    let headers = tripJson.packaging_methods.split(',');
-    let routes = tripJson.route_set;
-    let calcSum = new Object();
-    let sum = [];
+function generateEditRouteForm(routeJson){
+    console.log("Generate Route Form");
+    console.log(routeJson);
 
-    headers.forEach(function(header){
-        calcSum[header] = 0;
-    });
+    let packing_methods = routeJson.packing.split(',');
+    let orderitems = routeJson.orderitem_set;
 
-    routes.forEach(function(route){
-        route.orderitem_set.forEach(function(orderitem){
-            if (orderitem.packing !== null){
-                for (var i in orderitem.packing){
-                    if (calcSum[i] !== null){
-                        calcSum[i] += orderitem.packing[i];
-                    }
-                }
+    let route_form = document.getElementById('edit-modal-body');
+
+    let packing_container = document.createElement('div');
+    packing_container.style.display = "flex";
+
+    let packing_space_div = document.createElement('div');
+    packing_space_div.style.display = "flex";
+    packing_space_div.style.flex = "1";
+
+    let packing_heading = document.createElement('div');
+    packing_heading.style.display = "flex";
+    packing_heading.style.flex = "1";
+
+    if (orderitems.length > 0){
+        for (var k = 0; k < packing_methods.length; k++){
+            let heading = document.createElement('label');
+            heading.classList.add('form-label');
+            heading.classList.add('mx-1');
+            heading.classList.add('heading-label');
+            heading.innerHTML = packing_methods[k];
+            heading.style.flex = "1";
+            heading.style.textAlign = "center";
+            heading.style.fontSize = "0.5vw";
+            packing_heading.appendChild(heading)
+        }
+    }
+    packing_container.appendChild(packing_space_div);
+    packing_container.appendChild(packing_heading);
+    route_form.appendChild(packing_container);
+
+    for (var i = 0 ; i < orderitems.length; i++){
+        let orderitem = orderitems[i];
+        let oi_packing = orderitem.packing;
+        console.log(oi_packing);
+
+        var container = document.createElement('form');
+        container.style.display = "flex";
+        container.classList.add('orderitem-form');
+        container.setAttribute('data-orderitem-id', orderitem.id);
+
+        let quantity_div = document.createElement('input');
+        quantity_div.value = orderitem.quantity;
+        quantity_div.classList.add('form-input');
+        quantity_div.style.flex = "2";
+        quantity_div.name = 'quantity';
+
+        let customerproduct_div = document.createElement('label');
+        customerproduct_div.classList.add('form-label');
+        customerproduct_div.classList.add('px-2');
+        customerproduct_div.innerHTML = orderitem.customerproduct;
+        customerproduct_div.style.flex = "5";
+
+        let orderitem_note_div = document.createElement('input');
+        orderitem_note_div.classList.add('form-input');
+        orderitem_note_div.style.flex = "5";
+        orderitem_note_div.value = orderitem.note;
+        orderitem_note_div.name = 'note';
+
+        container.appendChild(quantity_div);
+        container.appendChild(customerproduct_div);
+        container.appendChild(orderitem_note_div);
+
+
+        for (var j = 0; j < packing_methods.length; j++){
+            let method = packing_methods[j];
+            let packing = document.createElement('input');
+            packing.classList.add('form-input');
+            packing.classList.add('mx-1');
+            packing.style.flex = "1";
+            packing.name = packing_methods[j];
+            if (oi_packing && oi_packing[packing.name]){
+                packing.value = oi_packing[packing.name];
+            }
+            container.appendChild(packing);
+        }
+        route_form.appendChild(container);
+    }
+
+    let note_form = document.createElement('form');
+    note_form.classList.add('route-form');
+    note_form.setAttribute('data-route-id', routeJson.id);
+
+    let note_label = document.createElement('label');
+    note_label.classList.add('form-label');
+    note_label.innerHTML = "Note"
+    note_form.appendChild(note_label);
+
+    let note_input = document.createElement('input');
+    note_input.classList.add('form-input');
+    note_input.value = routeJson.note;
+    note_input.name = 'route-note';
+    note_form.appendChild(note_input);
+    route_form.appendChild(note_form);
+}
+
+async function postOrderItemData(){
+    console.log("Submit pressed");
+    let orderitem_packing = Array.from(document.getElementsByClassName('packing-label')).map(e => e.innerHTML);
+    var forms = document.getElementsByClassName('orderitem-form');
+    for (var i = 0 ; i < forms.length; i++) {
+        var orderitem_form = forms[i];
+        var orderitem_id = orderitem_form.getAttribute('data-orderitem-id');
+        var orderitem_quantity = orderitem_form.elements['quantity'].value;
+        var orderitem_note = orderitem_form.elements['note'].value;
+        var orderitem_packing_json = {};
+        for (var j = 0 ; j < orderitem_packing.length; j++){
+            var heading = orderitem_packing[j];
+            if (orderitem_form.elements[heading].value != ""){
+                orderitem_packing_json[heading] = orderitem_form.elements[heading].value;
+            }
+        }
+
+        var url = 'http://localhost:8000/pos/api/orderitem/' + orderitem_id + '/update/';
+        var data = {
+            'id': orderitem_id,
+            'quantity': orderitem_quantity,
+            'note': orderitem_note,
+            'packing': orderitem_packing_json
+        };
+        var response = await fetch(url, {
+          method: 'PUT', // or 'PUT'
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'Content-Type': 'application/json'
+          }
+        })
+
+        var data = await response.json();
+        updateOrderitemData(data, orderitem_packing);
+    };
+    await postRouteData();
+    await getTripPackingSum();
+    closeModalWindow();
+}
+
+
+function updateOrderitemData(orderitemJson, orderitem_packing){
+    var orderitem_id = orderitemJson.id;
+    var orderitem_node = document.querySelectorAll(".orderitem-container[data-orderitem-id='" + orderitem_id + "']")[0];
+    var packing_node = document.querySelectorAll(".packing-container[data-orderitem-id='" + orderitem_id + "']")[0];
+    orderitem_node.innerHTML = "";
+    packing_node.innerHTML = "";
+
+    var quantity = document.createElement('li');
+    quantity.innerHTML = orderitemJson.quantity;
+    quantity.style.flex = "1";
+
+    var customerproduct = document.createElement('li');
+    customerproduct.innerHTML = orderitemJson.customerproduct;
+    customerproduct.style.flex = "3";
+
+    var note = document.createElement('li');
+    note.innerHTML = orderitemJson.note;
+    note.style.flex = "5";
+
+    orderitem_node.appendChild(quantity);
+    orderitem_node.appendChild(customerproduct);
+    orderitem_node.appendChild(note);
+
+    var packing = orderitemJson.packing
+    for (var i = 0 ; i < orderitem_packing.length; i++){
+        var packing_name = orderitem_packing[i];
+        var packing_label = document.createElement('li');
+        packing_label.style.flex = "1";
+        packing_label.style.textAlign = "center";
+        if (packing[packing_name]){
+            packing_label.innerHTML = packing[packing_name];
+        } else {
+            packing_label.innerHTML = "";
+        }
+        packing_node.appendChild(packing_label);
+    }
+
+}
+
+
+async function postRouteData() {
+    var route_forms = document.getElementsByClassName('route-form');
+    for (var i = 0 ; i < route_forms.length; i++){
+        var route_form = route_forms[i];
+        var route_id = route_form.getAttribute('data-route-id');
+        var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
+        var note_input = route_form.elements['route-note'].value;
+        console.log(url);
+        var data = {
+            'id': route_id,
+            'note': note_input,
+        };
+        await fetch(url, {
+          method: 'PUT', // or 'PUT'
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'Content-Type': 'application/json'
+          }
+        }).then(res => res.json())
+        .then(response => console.log('Success:', JSON.stringify(response)))
+        .catch(error => console.error('Error:', error));
+    }
+}
+
+function closeModalWindow(){
+    var modal = document.getElementById('edit-modal');
+    modal.classList.remove('active');
+    clearEditForm();
+}
+
+function clearEditForm(){
+    let route_form = document.getElementById('edit-modal-body');
+    route_form.innerHTML = '';
+}
+
+async function getTripPackingSum(){
+    var total_packing_sum = document.getElementById('total-packing-sum');
+    let total_packing_sum_label = Array.from(document.getElementsByClassName('packing-label')).map(e => e.innerHTML);
+    var trip_id = total_packing_sum.getAttribute('data-trip-id');
+    total_packing_sum.innerHTML = "";
+    fetch('http://localhost:8000/pos/api/trip/' + trip_id + '/packingsum/')
+        .then(res => res.json())
+        .then(function(response){
+            console.log(total_packing_sum);
+            console.log(response);
+            for (var i = 0; i < total_packing_sum_label.length; i++){
+                var label = document.createElement('li');
+                var label_name = total_packing_sum_label[i];
+                label.innerHTML = response[label_name];
+                label.style.flex = "1";
+                label.style.textAlign = "center";
+                total_packing_sum.appendChild(label);
             }
         });
-    });
+}
 
-    headers.forEach(function(header){
-        sum.push(calcSum[header]);
-    });
+async function addRouteToTrip(event){
+    event.preventDefault();
+    var customerInput = document.getElementById('customer');
+    var noteInput = document.getElementById('note');
+    var customerId;
+    var data;
 
-    let packingHeader = `${headers.map((val, i) => `<div class="col">${ val }</div>`).join('')}`;
-    let packingValue = `${sum.map((val, i) => `<div class="col">${ val }</div>`).join('')}`;
-    packingSum.innerHTML = packingHeader;
-    packingDiv.innerHTML = packingValue;
+    if (customerInput.value === '' && noteInput.value === ''){
+        console.log("Both empty");
+    } else if (customerInput.value != '' && noteInput.value == ''){
+        customerId = getCustomerId(customerInput.value);
+        data = { 'customer': customerId, 'note': '' };
+        var route = await postRoute(data);
+        console.log(route);
+        addRouteCardDOM(route);
+    } else if (customerInput.value === '' && noteInput.value != ''){
+        data = { 'note': noteInput.value };
+        var route = await postRoute(data);
+        console.log(route);
+        addRouteCardDOM(route);
+    } else if (customerInput.value != '' && noteInput.value != '') {
+        customerId = getCustomerId(customerInput.value);
+        data = { 'customer': customerId, 'note': noteInput.value };
+        var route = await postRoute(data);
+        console.log(route);
+        addRouteCardDOM(route);
+    }
+    customerInput.value = "";
+    noteInput.value = "";
+    console.log(customerInput);
+    console.log(customerId);
+}
+
+function addRouteCardDOM(route) {
+    console.log(route);
+    var route_id = route.id;
+    var route_index = route.index;
+    var orderitem_set = route.orderitem_set;
+    var packing_label = Array.from(document.getElementsByClassName('packing-label')).map(e => e.innerHTML);
+    var route_note = route.note;
+
+    if (orderitem_set.length > 0){
+        var customer_name = orderitem_set[0].customer;
+        var route_fragment = document.createDocumentFragment();
+
+        var route_div = document.createElement('div');
+        route_div.classList.add('columns', 'col-12', 'route');
+        route_div.setAttribute('data-route-id', route_id);
+
+        var customer_heading = document.createElement('h4');
+        customer_heading.classList.add('column', 'col-12');
+        customer_heading.innerHTML = `${route_index}. ${customer_name}`;
+
+        var orderitem_div = document.createElement('div');
+        orderitem_div.classList.add('columns', 'column', 'col-12');
+
+        var spacing_div = document.createElement('div');
+        spacing_div.classList.add('column', 'col-6');
+        var packing_spacing = document.createElement('div');
+        packing_spacing.classList.add('column', 'col-6');
+        var packing_ul = document.createElement('ul');
+        packing_ul.classList.add('orderitem-container');
+        packing_label.forEach(function(label){
+            var orderitem_li = document.createElement('li');
+            orderitem_li.innerHTML = label;
+            orderitem_li.style.flex = "1";
+            orderitem_li.style.textAlign = "center";
+            packing_ul.appendChild(orderitem_li);
+        });
+        packing_spacing.appendChild(packing_ul);
+        orderitem_div.appendChild(spacing_div);
+        orderitem_div.appendChild(packing_spacing);
+
+        orderitem_set.forEach(function(item){
+            console.log(item);
+            var orderitem_id = item.id;
+            var orderitem_qty = item.quantity;
+            var orderitem_name = item.customerproduct;
+            var orderitem_note = item.note;
+            var orderitem_packing = item.packing;
+
+
+            var orderitem_qty_div = document.createElement('div');
+            orderitem_qty_div.classList.add('column', 'col-6');
+            var orderitem_ul = document.createElement('ul');
+            orderitem_ul.style.display = "flex";
+            orderitem_ul.classList.add('orderitem-container');
+            orderitem_ul.setAttribute('data-orderitem-id', orderitem_id);
+
+            var orderitem_qty_li = document.createElement('li')
+            orderitem_qty_li.style.flex = "1";
+            orderitem_qty_li.innerHTML = orderitem_qty;
+            orderitem_ul.appendChild(orderitem_qty_li);
+
+            var orderitem_name_li = document.createElement('li')
+            orderitem_name_li.style.flex = "3";
+            orderitem_name_li.innerHTML = orderitem_name;
+            orderitem_ul.appendChild(orderitem_name_li);
+
+            var orderitem_note_li = document.createElement('li')
+            orderitem_note_li.style.flex = "5";
+            orderitem_note_li.innerHTML = orderitem_note;
+            orderitem_ul.appendChild(orderitem_note_li);
+
+            var packing_value_div = document.createElement('div');
+            packing_value_div.classList.add('column', 'col-6');
+            var packing_value_ul = document.createElement('ul');
+            packing_value_ul.style.display = "flex";
+            packing_value_ul.classList.add('orderitem-container');
+            packing_value_ul.setAttribute('data-orderitem-id', orderitem_id);
+
+            for (var i = 0 ; i < packing_label.length; i++){
+                var packing_name = packing_label[i];
+                var label = document.createElement('li');
+                label.style.flex = "1";
+                label.style.textAlign = "center";
+                if (orderitem_packing){
+                    if (orderitem_packing[packing_name]){
+                        label.innerHTML = packing[packing_name];
+                    } else {
+                        label.innerHTML = "";
+                    }
+                    packing_value_ul.appendChild(label);
+                }
+            }
+            orderitem_qty_div.appendChild(orderitem_ul);
+            packing_value_div.appendChild(packing_value_ul);
+
+            orderitem_div.appendChild(orderitem_qty_div);
+            orderitem_div.appendChild(packing_value_div);
+
+        });
+
+        var note_heading = document.createElement('h5');
+        note_heading.classList.add('column', 'col-10');
+        note_heading.innerHTML = route_note;
+        var route_delete = document.createElement('a');
+        route_delete.classList.add('btn', 'btn-link', 'column', 'col-2');
+        route_delete.addEventListener("click", deleteRoute , false);
+        var delete_icon = document.createElement('i');
+        delete_icon.classList.add('icon', 'icon-delete', 'float-right');
+        route_delete.appendChild(delete_icon);
+
+        route_div.appendChild(customer_heading);
+        route_div.appendChild(orderitem_div);
+        route_div.appendChild(note_heading);
+        route_div.appendChild(route_delete);
+        route_fragment.appendChild(route_div);
+        route_div.addEventListener("click", showEditRouteModal , false);
+        var routes = document.getElementById('routes');
+        routes.appendChild(route_fragment);
+    } else {
+        var note_div = document.createElement('div');
+        note_div.classList.add('columns', 'col-12', 'route');
+        note_div.setAttribute('data-route-id', route_id);
+
+        var note_h5 = document.createElement('h5');
+        note_h5.classList.add('column', 'col-10');
+        note_h5.innerHTML = route_note;
+
+        var del_anchor = document.createElement('a');
+        del_anchor.classList.add('btn', 'btn-link', 'column', 'col-2');
+
+        var del_icon = document.createElement('i');
+        del_icon.classList.add('icon', 'icon-delete', 'float-right');
+
+        del_anchor.appendChild(del_icon);
+        note_div.appendChild(note_h5);
+        note_div.appendChild(del_anchor);
+        note_div.addEventListener("click", showEditRouteModal , false);
+        var routes = document.getElementById('routes');
+        routes.appendChild(note_div);
+    }
+
+}
+
+
+async function postRoute(data){
+    var trip_id = document.getElementById('add-route').getAttribute('data-trip-id');
+    var url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/add/';
+    var response = await fetch(url, {
+      method: 'POST', // or 'PUT'
+      body: JSON.stringify(data), // data can be `string` or {object}!
+      headers:{
+        'Content-Type': 'application/json'
+      }
+    })
+    var resp_json = await response.json()
+    return resp_json;
+}
+
+
+function deleteRoute(event){
+    event.stopPropagation();
+    var all_routes = document.getElementById('routes');
+    var parentDiv = this.parentElement;
+    var route_id = parentDiv.getAttribute('data-route-id');
+    var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/delete/';
+    fetch(url, {
+      method: 'DELETE',
+      headers:{
+        'Content-Type': 'application/json'
+      }
+    }).then(function(){
+        all_routes.removeChild(parentDiv);
+    }).catch(error => console.error('Error:', error));
+}
+
+
+function getCustomerId(customerName){
+    try {
+        var customerId = document.querySelector("#customers option[value='"+customerName+"']").dataset.value;
+    } catch (err) {
+        console.log(err);
+    }
+    return customerId;
 }

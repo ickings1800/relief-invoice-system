@@ -16,7 +16,7 @@
                 {% endif %}
             </p>
             <div>
-                <a class="btn btn-sm btn-primary my-2" href="{% url 'pos:trip_edit' pk=trip.id %}">
+                <a class="btn btn-sm btn-primary my-2" href="{% url 'admin:pos_trip_change' trip.id %} ">
                     <i class="icon icon-edit"></i>&nbsp;Edit
                 </a>
                 <a class="btn btn-sm my-2" href="{% url 'pos:trip_arrange' pk=trip.id %}">Arrange</a>
@@ -25,38 +25,117 @@
                 </a>
             </div>
             <div class="divider column col-12"></div>
-            <div id="routes"></div>
-
-            <div class="card route">
-                <div class="card-body">
-                    <div class="columns">
-                        <div class="column col-4"></div>
-                        <div class="column col-8">
-                            <div class="row row-header" id="packing-sum-header"></div>
-                            <div class="row row-header" id="packing-sum-value"></div>
+            <div id="routes">
+                {% for r in routes %}
+                <div class="columns col-12 route" data-route-id="{{ r.pk }}">
+                    {% if r.orderitem_set.all|length > 0 %}
+                    <div class="columns column col-12">
+                        <div class="text-bold column col-9">
+                            <h4>{{ r.index }}. {{ r.orderitem_set.first.customerproduct.customer.name }}</h4>
                         </div>
+                        {% if r.do_number != "" %}
+                        <div class="text-bold text-error column col-3">
+                            <p class="float-right">{{ r.do_number }}</p>
+                        </div>
+                        {% endif %}
                     </div>
+
+                    <div class="columns column col-12">
+                        <div class="column col-6"></div>
+                        <div class="column col-6">
+                            <ul class="orderitem-container">
+                                {% for method in packing %}
+                                <li style="flex:1; text-align:center;">{{ method }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% for oi in r.orderitem_set.all %}
+                        <div class="column col-6">
+                            <ul style="display:flex;" class="orderitem-container" data-orderitem-id="{{ oi.pk }}">
+                                <li style="flex:1">{{ oi.quantity }}</li>
+                                <li style="flex:3">{{ oi.customerproduct.product.name }}</li>
+                                <li style="flex:5">
+                                    {% if oi.note %}
+                                    {{ oi.note }}
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="column col-6">
+                            <ul style="display:flex;" class="packing-container" data-orderitem-id="{{ oi.pk }}">
+                                {% for method in packing %}
+                                <li style="flex:1; text-align:center;">
+                                    {% if oi.packing %}
+                                    {% if oi.packing|keyvalueget:method != None %}
+                                    {{ oi.packing|keyvalueget:method }}
+                                    {% endif %}
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <h5 class="column col-10">{{ r.note }}</h5>
+                    <button class="delete btn btn-link column col-2"><i class="icon icon-delete float-right"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+
+
+
+            <div class="columns col-12 packing-sum">
+                <div class="column col-6"></div>
+                <div class="column col-6">
+                    <ul class="orderitem-container mx-2">
+                        {% for method in packing %}
+                        <li class="packing-label" style="flex:1; text-align:center;">{{ method }}</li>
+                        {% endfor %}
+                    </ul>
+                    <ul id="total-packing-sum" class="orderitem-container mx-2" data-trip-id="{{ trip.pk }}"></ul>
                 </div>
             </div>
+
+
+            <div class="divider column col-12"></div>
+
             <h5 class="py-2">Add Customer</h5>
-            <form action="{% url 'pos:trip_route_create' pk=trip.id %}" method="post" autocomplete="off" id="routeform">
+            <form autocomplete="off" id="routeform">
                 {% csrf_token %}
                 <div class="form-group">
                     <label class="form-label">{{ form.customer.label }}</label>
                     {% render_field form.customer class="form-input" name="cust" list="customers" id="customer" %}
                 </div>
                 <datalist id="customers">
-                    {% for customer in customers %}
-                    <option value="{{ customer.name }}">
-                        {% endfor %}
+                {% for customer in customers %}
+                    <option data-value="{{ customer.pk }}" value="{{ customer.name }}">
+                {% endfor %}
                 </datalist>
                 <div class="form-group">
                     <label class="form-label">{{ form.note.label }}</label>
                     {% render_field form.note class="form-input" id="note" %}
                 </div>
-                <button class="btn btn-primary" type="submit" value="Save" id="save">Save</button>
+                <button class="btn btn-primary" value="Save" id="add-route" data-trip-id="{{ trip.pk }}">Save</button>
             </form>
         </div>
     </div>
+</div>
+
+<!-- Route Edit Modal -->
+<div class="modal" id="edit-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container">
+    <div class="modal-header">
+      <a id="modal-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
+      <div id="customer-name" class="modal-title h5"></div>
+    </div>
+    <form id="edit-modal-body" action="" class="modal-body form-group"></form>
+      {% csrf_token %}
+      <div class="modal-footer">
+        <span class="divider"></span>
+        <a id="modal-save" href="#save" class="btn btn-primary btn-lg my-2 float-right">Save</a>
+      </div>
+  </div>
 </div>
 {% endblock %}

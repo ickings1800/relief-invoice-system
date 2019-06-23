@@ -40,9 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'widget_tweaks',
     'rest_framework',
+    'relief',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -109,6 +112,17 @@ REST_FRAMEWORK = {
     "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
 }
 
+# this disables Cross domain requests
+CORS_ORIGIN_ALLOW_ALL = False
+
+# this allows cookie being passed cross domain
+CORS_ALLOW_CREDENTIALS = True
+
+# this is the list of allowed origins for cross domain ajax
+CORS_ORIGIN_WHITELIST = (
+        'http://127.0.0.1:8000',
+
+)
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/

@@ -401,6 +401,7 @@ def arrange_route_trip(trip_id, id_arrangement):
 
 def get_packing_sum(trip_id):
     r = requests.get('http://localhost:8000/pos/api/trip/{0}/packingsum/'.format(trip_id))
+    print(r)
     return r.json()
 
 

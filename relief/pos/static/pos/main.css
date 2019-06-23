@@ -5,6 +5,10 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
+.container {
+    padding:1rem;
+}
+
 #mainmenu li a {
     font-weight:600;
     text-transform:uppercase;
@@ -124,11 +128,15 @@ ul {
     margin:0
 }
 
-.route {
+.route, .packing-sum {
     margin-top:0.3rem;
     margin-left:0;
     margin-right:0;
+    border: .05rem solid #e7e9ed;
+    border-radius: .1rem;
+    padding:1rem;
 }
+
 
 .route-delete {
     color:#e7e9ed;
@@ -137,4 +145,35 @@ ul {
 .row-header {
     font-size:12px;
     font-weight: 600;
+}
+
+.packing td {
+    border-bottom:0;
+}
+
+.packing th {
+    border-bottom-width:0;
+    border-bottom:0;
+    padding:0;
+}
+
+.packing {
+}
+
+.packing-sum {
+    margin-top: 0.3rem;
+    margin-left:0;
+    margin-right:0;
+}
+
+.modal.active .modal-container {
+    max-width:960px;
+}
+
+.heading-label {
+font-size: 0.5vw;
+}
+
+.orderitem-container {
+    display:flex;
 }

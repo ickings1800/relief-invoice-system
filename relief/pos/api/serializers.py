@@ -141,9 +141,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderItemUpdateDetailSerializer(serializers.ModelSerializer):
+    customerproduct = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing')
+        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct')
+
+    def get_customerproduct(self, obj):
+        return obj.customerproduct.product.name
 
 
 class RouteDetailSerializer(serializers.ModelSerializer):
@@ -155,13 +160,17 @@ class RouteDetailSerializer(serializers.ModelSerializer):
 class RouteSerializer(serializers.ModelSerializer):
     orderitem_set = OrderItemSerializer(many=True)
     trip_date = serializers.SerializerMethodField()
+    packing = serializers.SerializerMethodField()
 
     class Meta:
         model = Route
-        fields = ('id', 'index', 'do_number', 'note', 'orderitem_set', 'trip_date',)
+        fields = ('id', 'index', 'do_number', 'note', 'orderitem_set', 'trip_date', 'packing',)
 
     def get_trip_date(self, obj):
         return obj.trip.date.strftime("%d-%m-%Y %H:%M")
+
+    def get_packing(self, obj):
+        return obj.trip.packaging_methods
 
 
 class RouteUpdateSerializer(serializers.ModelSerializer):

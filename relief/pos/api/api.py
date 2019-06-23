@@ -170,7 +170,7 @@ class TripDelete(DestroyAPIView):
 
 class RouteDetail(RetrieveAPIView):
     queryset = Route.objects.all()
-    serializer_class = RouteDetailSerializer
+    serializer_class = RouteSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)

@@ -62,17 +62,20 @@ class Trip(models.Model):
 
     def get_packing_sum(trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        packing_sum = {packing: 0 for packing in trip.packaging_methods.split(',')}
-        route_list = Route.objects.filter(trip_id=trip.pk)
-        for route in route_list:
-            orderitems = OrderItem.objects.filter(route_id=route.pk)
-            for oi in orderitems:
-                packing = oi.packing
-                if packing:
-                    for k in packing_sum:
-                        if packing.get(k):
-                            packing_sum[k] += packing.get(k)
-        return packing_sum
+        if trip.packaging_methods:
+            packing_sum = {packing: 0 for packing in trip.packaging_methods.split(',')}
+            route_list = Route.objects.filter(trip_id=trip.pk)
+            for route in route_list:
+                orderitems = OrderItem.objects.filter(route_id=route.pk)
+                for oi in orderitems:
+                    packing = oi.packing
+                    if packing:
+                        for k in packing_sum:
+                            if packing.get(k):
+                                packing_sum[k] += int(packing.get(k))
+            return packing_sum
+        else:
+            return dict()
 
     def get_trips_by_date(start_date, end_date):
         trips = Trip.objects.filter(date__lte=end_date, date__gte=start_date).order_by('date')
@@ -88,10 +91,15 @@ class Customer(models.Model):
     term = models.PositiveSmallIntegerField()
     gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
 
+    def __str__(self):
+        return self.name
 
 class Product(models.Model):
     name = models.CharField(max_length=128)
     specification = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Invoice(models.Model):

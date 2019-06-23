@@ -23,29 +23,6 @@ class CustomerIndexView(ListView):
         return Customer.objects.all()
 
 
-class CustomerDetailView(DetailView):
-    model = Customer
-    template_name = 'pos/customer/detail.html'
-
-
-class CustomerCreateView(CreateView):
-    model = Customer
-    template_name = 'pos/customer/create.html'
-    form_class = CustomerForm
-
-    def get_success_url(self):
-        return reverse('pos:customer_index')
-
-
-class CustomerEditView(UpdateView):
-    template_name = 'pos/customer/edit.html'
-    model = Customer
-    form_class = CustomerForm
-
-    def get_success_url(self):
-        return reverse('pos:customer_index')
-
-
 class ProductIndexView(ListView):
     template_name = 'pos/product/index.html'
     context_object_name = 'product_list'
@@ -54,22 +31,32 @@ class ProductIndexView(ListView):
         return Product.objects.all()
 
 
-class ProductCreateView(CreateView):
-    model = Product
-    template_name = 'pos/product/create.html'
-    form_class = ProductForm
+class TripIndexView(ListView):
+    template_name = 'pos/trip/index.html'
+    context_object_name = 'trip_list'
 
-    def get_success_url(self):
-        return reverse('pos:product_index')
+    def get_queryset(self):
+        return Trip.objects.all().order_by('-date')
 
 
-class ProductEditView(UpdateView):
-    model = Product
-    template_name = 'pos/product/edit.html'
-    form_class = ProductForm
+class CustomerProductListView(ListView):
+    template_name = 'pos/customerproduct/index.html'
+    context_object_name = 'customerproduct_list'
 
-    def get_success_url(self):
-        return reverse('pos:product_index')
+    def get_queryset(self):
+        customer = self.kwargs['pk']
+        return CustomerProduct.objects.filter(customer_id=customer)
+
+    def get_context_data(self, **kwargs):
+        context = super(CustomerProductListView, self).get_context_data(**kwargs)
+        customer = get_object_or_404(Customer, pk=self.kwargs['pk'])
+        context['customer'] = customer
+        return context
+
+
+class CustomerDetailView(DetailView):
+    model = Customer
+    template_name = 'pos/customer/detail.html'
 
 
 class CustomerRouteView(ListView):
@@ -88,29 +75,7 @@ class CustomerRouteView(ListView):
         return context
 
 
-class TripIndexView(ListView):
-    template_name = 'pos/trip/index.html'
-    context_object_name = 'trip_list'
 
-    def get_queryset(self):
-        return Trip.objects.all().order_by('-date')
-
-
-class TripCreateView(FormView):
-    template_name = 'pos/trip/create.html'
-    form_class = TripForm
-
-    def form_valid(self, form):
-        trip = Trip.objects.create(
-            date=form.cleaned_data['date'],
-            notes=form.cleaned_data['notes'],
-            packaging_methods=form.cleaned_data['packaging']
-        )
-        trip.save()
-        return HttpResponseRedirect(reverse('pos:trip_index'))
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
 
 
 class TripCopyView(FormView):
@@ -170,9 +135,16 @@ class TripDetailView(FormView):
 
     def get_context_data(self, **kwargs):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
+        routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
+        packing = trip.packaging_methods.split(',')
+        # sum = Trip.get_packing_sum(trip.pk)
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
+        context['routes'] = routes
         context['customers'] = Customer.objects.all()
+        context['packing'] = packing
+        # context['sum'] = sum
+        # print(sum)
         return context
 
     def get_success_url(self):
@@ -204,42 +176,6 @@ def print_trip_detail(request, pk):
     context['packing'] = packing
     context['packing_sum'] = packing_sum
     return render(request, template_name, context)
-
-
-class TripEditView(FormView):
-    template_name = 'pos/trip/edit.html'
-    form_class = TripForm
-
-    def get_context_data(self, **kwargs):
-        trip = Trip.objects.get(pk=self.kwargs['pk'])
-        context = super(TripEditView, self).get_context_data(**kwargs)
-        context['trip'] = trip
-        return context
-
-    def get_initial(self):
-        trip = Trip.objects.get(pk=self.kwargs['pk'])
-        initial = super(TripEditView, self).get_initial()
-        initial['date'] = trip.date
-        initial['notes'] = trip.notes
-        initial['packaging'] = trip.packaging_methods
-        return initial
-
-    def form_valid(self, form):
-        trip_date = form.cleaned_data['date']
-        trip_notes = form.cleaned_data['notes']
-        trip_packaging = form.cleaned_data['packaging']
-        trip_pk = self.kwargs['pk']
-
-        trip = get_object_or_404(Trip, pk=trip_pk)
-        trip.date = trip_date
-        trip.notes = trip_notes
-        trip.packaging_methods = trip_packaging
-        trip.save()
-
-        return super(TripEditView, self).form_valid(form)
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
 
 
 class TripDeleteView(DeleteView):
@@ -349,88 +285,6 @@ class RouteDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['trip_pk']})
-
-
-class CustomerProductListView(ListView):
-    template_name = 'pos/customerproduct/index.html'
-    context_object_name = 'customerproduct_list'
-
-    def get_queryset(self):
-        customer = self.kwargs['pk']
-        return CustomerProduct.objects.filter(customer_id=customer)
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerProductListView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, pk=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
-
-class CustomerProductCreateView(FormView):
-    template_name = 'pos/customerproduct/create.html'
-    form_class = CustomerProductCreateForm
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerProductCreateView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
-    def get_initial(self):
-        initial = super(CustomerProductCreateView, self).get_initial()
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        initial['customer'] = customer.id
-        return initial
-
-    def form_valid(self, form):
-        customer_data = int(form.cleaned_data['customer'])
-        product_data = int(form.cleaned_data['product'])
-        quote = form.cleaned_data['quote_price']
-
-        customerproduct_exists = CustomerProduct.objects.filter(customer_id=customer_data, product_id=product_data)
-        if len(customerproduct_exists) > 0:
-            form.add_error('product', "CustomerProduct already exists.")
-            return self.render_to_response(self.get_context_data(form=form))
-        else:
-            customer = get_object_or_404(Customer, pk=customer_data)
-            product = get_object_or_404(Product, pk=product_data)
-            CustomerProduct.objects.create(customer_id=customer_data, product_id=product_data, quote_price=quote)
-            return HttpResponseRedirect(reverse('pos:customerproduct_index', kwargs={'pk':customer_data}))
-
-
-class CustomerProductUpdateView(FormView):
-    template_name = 'pos/customerproduct/edit.html'
-    form_class = CustomerProductUpdateForm
-
-    def get_context_data(self, **kwargs):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        context = super(CustomerProductUpdateView, self).get_context_data(**kwargs)
-        context['customerproduct'] = customerproduct
-        return context
-
-    def get_initial(self):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        initial = super(CustomerProductUpdateView, self).get_initial()
-        initial['customer'] = customerproduct.customer.name
-        initial['product'] = customerproduct.product.name
-        initial['quote_price'] = customerproduct.quote_price
-        return initial
-
-    def form_valid(self, form):
-        customerproduct_id = self.kwargs['pk']
-        quote_price = float(form.cleaned_data['quote_price'])
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        customerproduct.quote_price = quote_price
-        customerproduct.save()
-        return super(CustomerProductUpdateView, self).form_valid(form)
-
-    def get_success_url(self):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        customer_id = customerproduct.customer.id
-        return reverse('pos:customerproduct_index', kwargs={'pk':customer_id})
 
 
 def InvoiceDateRangeView(request, pk):

@@ -9,7 +9,7 @@
         </div>
     </div>
     <div class="columns">
-        <form action="{% url 'pos:product_create' %}" method="post" novalidate>
+        <form action="{% url 'admin:pos_product_add' %}" method="post" novalidate>
             {% csrf_token %}
 
             {% include 'pos/master/create_form.html' with form=form %}
