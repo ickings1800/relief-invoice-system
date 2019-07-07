@@ -1,84 +1,115 @@
 {% extends 'pos/master/menu_nav.html' %}
 {% load index %}
+{% load static %}
 {% load widget_tweaks %}
 
 {% block content %}
+<script type="text/javascript" src="{% static 'pos/js/invoice_detail.js' %}"></script>
 <div class="container">
+    <a href="#">Back </a>
     <div class="columns">
-        <div class="column col-12">
-            <a href="{% url 'pos:customer_detail' pk=customer.id %}">Back</a>
-            <h2>{{ customer.name }}</h2>
+        <h2 id="customer" data-customer-id="{{ customer.pk}}" class="column col-8">{{ customer.name }}</h2>
+        <div class="column col-4">
+            <button id="create" class="btn btn-primary btn-lg float-right">Save</button>
+        </div>
+        <div class="divider column col-12"></div>
+        <div class="column col-6"></div>
+        <div class="column col-6">
+            <ul class="columns float-right">
+                <li class="column col-6"><b>Invoice:</b></li>
+                <li class="column col-2">
+                    <input class="form-input" type="number" id="invoice-year" placeholder="Year">
+                </li>
+                <li class="column col-2">
+                    <input class="form-input" type="number" id="invoice-number" placeholder="Number">
+                </li>
+                <li class="column col-2">
+                    <button class="btn btn-link">GET</button>
+                </li>
+                <li class="column col-6"><b>Start Date:</b></li>
+                <li class="column col-6">
+                    <input style="flex:3" class="form-input" type="date" id="start-date">
+                </li>
+                <li class="column col-6"><b>End Date:</b></li>
+                <li class="column col-6">
+                    <input style="flex:3" class="form-input" type="date" id="end-date">
+                </li>
+            </ul>
+            <button data-customer-id="{{ customer.pk }}" id="refresh" class="btn btn-primary float-right">Refresh</button>
         </div>
     </div>
-    <form action="{% url 'pos:invoice_daterange' pk=customer.pk %}" method="get">
-    <div class="form-group columns col-12">
-        <div class="columns col-4">
-            <div class="column col-2">
-                <label class="form-label float-right">{{ date_form.date_start.label }}</label>
-            </div>
-            <div class="column col-10">
-                {% render_field date_form.date_start class="form-input" placeholder="DD/MM/YYYY" %}
-            </div>
-        </div>
+    <div class="divider"></div>
 
-        <div class="column col-4">
-            <div class="columns col-12">
-                <div class="column col-2">
-                    <label class="form-label float-right">{{ date_form.date_end.label }}</label>
-                </div>
-                <div class="column col-10">
-                    {% render_field date_form.date_end class="form-input" placeholder="DD/MM/YYYY" %}
-                </div>
-            </div>
+    <table id="route-table" class="table">
+        <tr id="heading" class="route-row"></tr>
+        <tr><td style="border:none;"></td></tr>
+        <tr id="add-row"></tr>
+        <tr id="quantity-row"></tr>
+        <tr id="unit-price-row"></tr>
+        <tr id="nett-amt-row"></tr>
+    </table>
+
+    <div class="columns py-2">
+        <div class="column col-5">
+            <input class="form-input" type="text" id="remark" placeholder="Remark">
         </div>
-        <div class="column col-4">
-            <input class="btn btn-primary" type="submit" value="Refresh">
+        <div class="column col-1"></div>
+        <div class="column col-6 columns col-gapless">
+            <div class="column col-4">
+                <label class="form-label">Original Total</label>
+            </div>
+            <div class="column col-8">
+                <label class="form-label" id="original-total"></label>
+            </div>
+            <div class="column col-4">
+                <label class="form-label">Minus</label>
+            </div>
+            <div class="column col-8">
+                <input class="form-input" type="number" id="minus" value="0">
+            </div>
+            <div class="column col-4">
+                <label class="form-label">Nett Total</label>
+            </div>
+            <div class="column col-8">
+                <label class="form-label" id="nett-total"></label>
+            </div>
+            <div class="column col-4">
+                <label class="form-label" id="gst-percent">GST %</label>
+            </div>
+            <div class="column col-8">
+                <label class="form-label" id="gst"></label>
+            </div>
+            <div class="column col-4">
+                <label class="form-label">Total (incl. GST)</label>
+            </div>
+            <div class="column col-8">
+                <label class="form-label" id="total-incl-gst"></label>
+            </div>
         </div>
     </div>
-    </form>
+</div>
 
-    <form action="{% url 'pos:invoice_daterange' pk=customer.pk %}" method="post">
-        <div class="columns col-12">
-            {% csrf_token %}
-            {% if routes|length > 0 %}
-            <table class="table">
-                <tr>
-                    <th></th>
-                    <th>Date</th>
-                    {% for cp in customerproducts %}
-                        <th>{{ cp.product.name }}</th>
-                    {% endfor %}
-                </tr>
-                {% for row in routes %}
-                <tr>
-                    <td>
-                        <div class="form-group">
-                          <label class="form-checkbox">
-                            <input type="checkbox" name="routes" value="{{ row.id }}" checked>
-                            <i class="form-icon"></i>
-                          </label>
-                        </div>
-                    </td>
-                    <td>{{ row.date|date:"d M Y" }}</td>
-                    {% for cp in customerproducts %}
-                    <td>
-                        {{ row|keyvalue:cp.id }}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </table>
-            {% else %}
-            {% if date_form.is_bound %}
-            <div class="empty col-12">
-                <p class="empty-title h3">No available orders found between dates.</p>
-            </div>
-            {% endif %}
-            {% endif %}
-            <div class="column col-12 py-2">
-                <input class="btn btn-primary float-right" type="submit" value="Next">
-            </div>
+
+<div class="modal" id="orderitem-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container">
+    <div class="modal-header">
+      <a href="#close" class="btn btn-clear float-right" aria-label="Close" id="close"></a>
+      <div class="modal-title h5">Edit Driver Quantity</div>
+    </div>
+    <div class="modal-body columns">
+        <div class="form-group column col-6">
+            <label class="form-label" for="oi-quantity">Quantity</label>
+            <label class="form-label" id="oi-quantity"></label>
         </div>
-    </form>
+        <div class="form-group column col-6">
+            <label class="form-label" for="oi-driver-quantity">Driver Quantity</label>
+            <input required class="form-input" type="number" id="oi-driver-quantity" placeholder="Driver Quantity">
+        </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-save" class="btn btn-primary">Save</button>
+    </div>
+  </div>
 </div>
 {% endblock %}

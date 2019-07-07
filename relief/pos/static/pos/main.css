@@ -35,7 +35,6 @@ th {
 }
 
 .off-canvas .off-canvas-content {
-    padding-top: 4rem;
     padding-right: 1rem;
     padding-bottom: 0;
     padding-left: 1rem;
@@ -175,5 +174,9 @@ font-size: 0.5vw;
 }
 
 .orderitem-container {
+    display:flex;
+}
+
+#date-range {
     display:flex;
 }

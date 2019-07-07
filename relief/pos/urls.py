@@ -33,12 +33,10 @@ urlpatterns = [
     path('customerproducts/<int:pk>/', views.CustomerProductListView.as_view(), name='customerproduct_index'),
     #  /pos/invoice/customer_select/<cust_pk>/
     path('invoice/date_range/<int:pk>/', views.InvoiceDateRangeView, name='invoice_daterange'),
-    #  /pos/invoice/order_assign/
-    path('invoice/order_assign/<int:pk>/', views.InvoiceOrderAssignView, name='invoice_orderassign'),
     #  /pos/invoice/invoice_history/
     path('invoice/invoice_history', views.InvoiceHistoryView.as_view(), name='invoice_history'),
     #  /pos/invoice/<invoice_pk>/
-    path('invoice/<int:pk>', views.InvoiceSingleView, name='invoice_view'),
+    path('invoice/<int:cust_pk>/<int:invoice_pk>/', views.InvoiceSingleView, name='invoice_view'),
     #  /pos/invoice/delete/<invoice_pk>/
     path('invoice/delete/<int:pk>', views.InvoiceDeleteView.as_view(), name='invoice_delete'),
     #  /pos/invoice/customer/<customer_pk>/

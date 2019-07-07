@@ -16,7 +16,7 @@
                         {{ invoice.date_generated|date:"d/m/y" }}
                     </td>
                     <td>
-                        <a href="{% url 'pos:invoice_view' pk=invoice.pk %}">
+                        <a href="{% url 'pos:invoice_view' invoice_pk=invoice.pk cust_pk=invoice.route_set.all.0.orderitem_set.all.0.customerproduct.customer.pk %}">
                             {{ invoice.route_set.all.0.orderitem_set.all.0.customerproduct.customer.name }}
                         </a>
                     </td>

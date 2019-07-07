@@ -1,16 +1,13 @@
-from django.db.models import F, Q
+from django.core.files.storage import FileSystemStorage
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, FileResponse
 from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
-from django.db.models import Max
-from datetime import datetime, date, timedelta
 from collections import defaultdict
-from decimal import Decimal
 
 
 # Create your views here.
@@ -75,9 +72,6 @@ class CustomerRouteView(ListView):
         return context
 
 
-
-
-
 class TripCopyView(FormView):
     template_name = 'pos/trip/copy.html'
     form_class = TripForm
@@ -136,13 +130,14 @@ class TripDetailView(FormView):
     def get_context_data(self, **kwargs):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
         routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
-        packing = trip.packaging_methods.split(',')
         # sum = Trip.get_packing_sum(trip.pk)
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
         context['routes'] = routes
         context['customers'] = Customer.objects.all()
-        context['packing'] = packing
+        if trip.packaging_methods:
+            packing = trip.packaging_methods.split(',')
+            context['packing'] = packing
         # context['sum'] = sum
         # print(sum)
         return context
@@ -292,168 +287,15 @@ def InvoiceDateRangeView(request, pk):
 
     if request.method == 'GET':
         customer = get_object_or_404(Customer, id=pk)
-        date_start_string = request.GET.get('date_start', '')
-        date_end_string = request.GET.get('date_end', '')
-
-        if date_start_string and date_end_string:
-            date_form = InvoiceDateRangeForm(request.GET)
-            date_start = datetime.strptime(date_start_string, "%d/%m/%Y")
-            date_end = datetime.strptime(date_end_string, "%d/%m/%Y")
-            #  date_start will start from exactly midnight by default
-            #  date_end will have to add timedelta because it will also end at exactly at midnight,
-            #  causing the last route order to not be included.
-            date_end += timedelta(hours=23, minutes=59, seconds=59)
-            date_end_formatted = datetime.strftime(date_end,'%Y-%m-%d %H:%M:%S')
-            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
-            request.session['date_start'] = date_start_formatted
-            request.session['date_end'] = date_end_formatted
-
-            route_list = Route.get_customer_routes_orderitems_by_date(date_start_formatted,
-                                                                      date_end_formatted,
-                                                                      customer.id)
-
-            customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
-
-            routes_display = []
-            for route in route_list:
-                row = {}
-                row['date'] = route.trip.date
-                row['id'] = route.id
-                for oi in route.orderitem_set.all():
-                    row[oi.customerproduct.id] = oi.quantity
-                routes_display.append(row)
-            return render(request, template_name, {'date_form': date_form,
-                                                   'customer': customer,
-                                                   'routes': routes_display,
-                                                   'customerproducts': customerproducts })
-        else:
-            date_form = InvoiceDateRangeForm()
-            return render(request, template_name, {'date_form': date_form,
-                                                   'customer': customer })
+        return render(request, template_name, {'customer': customer})
 
 
-
-    if request.method == 'POST':
-        selected = request.POST.getlist('routes')
-        request.session['route_select'] = selected
-        return HttpResponseRedirect(reverse('pos:invoice_orderassign', kwargs={'pk':pk}))
-
-
-def InvoiceOrderAssignView(request, pk):
-    template_name = 'pos/invoice/invoice_assign.html'
-    req_post = request.POST.copy()
-    customer = get_object_or_404(Customer, id=pk)
-    customerproducts = CustomerProduct.objects.filter(customer_id=pk)
-    trip_start = request.session['date_start']
-    trip_end = request.session['date_end']
-    parse_trip_start = datetime.strptime(trip_start, '%Y-%m-%d %H:%M:%S')
-    parse_trip_end = datetime.strptime(trip_end, '%Y-%m-%d %H:%M:%S')
-    trip_start_formatted = datetime.strftime(parse_trip_start, '%d/%m/%Y')
-    trip_end_formatted = datetime.strftime(parse_trip_end, '%d/%m/%Y')
-
-    trips = Trip.objects.filter(date__lte=parse_trip_end, date__gte=parse_trip_start).order_by('date')
-    rows_list = []
-    all_valid = True
-    if request.method == 'POST':
-        add_form = InvoiceAddOrderForm(req_post,
-                                       trips=trips,
-                                       customerproducts=customerproducts)
-
-        if req_post.get('add_btn'):
-            all_valid = False
-            if add_form.is_valid():
-                do_number = add_form.cleaned_data['do_number']
-                trip_id = add_form.cleaned_data['date']
-                trip = get_object_or_404(Trip, id=trip_id)
-                route_index_max = trip.route_set.all().aggregate(Max('index'))
-                if route_index_max.get('index__max') is None:
-                    route_index_max['index__max'] = 0
-                route = Route(index=route_index_max.get('index__max') + 1, do_number=do_number, trip_id=trip.pk)
-                route.save()
-                request.session['route_select'].append(route.pk)
-                # Append operations does not get saved to the object if this modified flag is not set.
-                # https://code.djangoproject.com/wiki/NewbieMistakes#Appendingtoalistinsessiondoesntwork
-                # See "Appending to a list in session doesn't work section
-                request.session.modified = True
-                additional_order_fields = {}
-                for cp in customerproducts:
-                    orderitem_quantity = add_form.cleaned_data[cp.product.name]
-                    if orderitem_quantity is None:
-                        orderitem_quantity = 0
-                    orderitem = OrderItem(quantity=orderitem_quantity,
-                                          customerproduct=cp,
-                                          route=route)
-                    orderitem.save()
-                    additional_order_fields[cp.product.name] = orderitem_quantity
-
-
-                additional_order = InvoiceOrderItemForm(prefix=str(route.pk),
-                                                        orderitems=route.orderitem_set.all(),
-                                                        do_number=route.do_number)
-                for k,v in additional_order_fields.items():
-                    additional_order.fields[k] = v
-                additional_order.fields['do_number'] = route.do_number
-                for k,v in additional_order.fields.items():
-                    req_post[additional_order.prefix + '-' + k] = v
-                add_form = InvoiceAddOrderForm(trips=trips, customerproducts=customerproducts)
-
-        routes = request.session['route_select']
-
-
-        for r in routes:
-            row = {}
-            route = get_object_or_404(Route, id=r)
-            route_orderitems = list(route.orderitem_set.all())
-            form = InvoiceOrderItemForm(req_post,
-                                        prefix=str(route.id),
-                                        orderitems=route_orderitems,
-                                        do_number=route.do_number)
-            row['date'] = route.trip.date
-            row['form'] = form
-            rows_list.append(row)
-            if form.is_valid():
-                route.do_number = form.cleaned_data['do_number']
-                for oi in route_orderitems:
-                    oi_driver_quantity = form.cleaned_data[oi.customerproduct.product.name]
-                    oi.driver_quantity = oi_driver_quantity
-                    oi.save()
-                route.save()
-            else:
-                all_valid = False
-
-        if all_valid:
-            invoice_year = datetime.now().year
-            invoice_number = Invoice.get_next_invoice_number()
-            invoice_pk = Invoice.generate_invoice(customer.gst,
-                                                  trip_start_formatted,
-                                                  trip_end_formatted,
-                                                  invoice_year,
-                                                  invoice_number,
-                                                  routes)
-            return HttpResponseRedirect(reverse('pos:invoice_view', kwargs={'pk': invoice_pk}))
-        else:
-            return render(request, template_name, {'rows_list': rows_list,
-                                                   'customer': customer,
-                                                   'customerproducts': customerproducts,
-                                                   'add_order':add_form })
-
-
-    if request.method == 'GET':
-        routes = request.session['route_select']
-        add_order_form = InvoiceAddOrderForm(trips=trips, customerproducts=customerproducts)
-        assign_routes = Route.objects.filter(id__in=routes)
-        for r in assign_routes:
-            row = {}
-            form = InvoiceOrderItemForm(prefix=str(r.id),
-                                        orderitems=list(r.orderitem_set.all()),
-                                        do_number=r.do_number)
-            row['date'] = r.trip.date
-            row['form'] = form
-            rows_list.append(row)
-        return render(request, template_name, {'rows_list': rows_list,
-                                               'customer': customer,
-                                               'customerproducts': customerproducts,
-                                               'add_order':add_order_form })
+def InvoiceSingleView(request, invoice_pk, cust_pk):
+    invoice_file = Invoice.export_invoice_to_pdf(int(pk))
+    pdf_name = str(invoice_pk) + ".pdf"
+    fs = FileSystemStorage("./")
+    with fs.open(pdf_name) as pdf:
+        return FileResponse(pdf, as_attachment=False)
 
 
 class InvoiceHistoryView(ListView):
@@ -463,83 +305,6 @@ class InvoiceHistoryView(ListView):
     def get_queryset(self):
         return Invoice.objects.all()
 
-
-def InvoiceSingleView(request, pk):
-    template_name = 'pos/invoice/invoice_single_view.html'
-    if request.GET.get('print'):
-        template_name = 'pos/invoice/invoice_single_view_print.html'
-
-    invoice_id = pk
-    invoice = get_object_or_404(Invoice, id=invoice_id)
-    invoice_form = InvoiceForm(instance=invoice)
-
-    if request.method == 'POST':
-        invoice_form = InvoiceForm(request.POST, instance=invoice)
-        if invoice_form.is_valid():
-            minus = invoice_form.cleaned_data.get('minus')
-            remark = invoice_form.cleaned_data.get('remark')
-            invoice_year = invoice_form.cleaned_data.get('invoice_year')
-            invoice_number = invoice_form.cleaned_data.get('invoice_number')
-
-            gst = Decimal(invoice_form.instance.gst/100)
-            original_total = Decimal(invoice.original_total)
-            net_total = Decimal(original_total - minus)
-            net_gst = Decimal(gst * net_total)
-            total_incl_gst = Decimal(net_total + net_gst)
-
-            invoice.remark = remark
-            invoice.original_total = original_total
-            invoice.net_total = net_total
-            invoice.net_gst = net_gst
-            invoice.total_incl_gst = total_incl_gst
-            invoice.invoice_year = invoice_year
-            invoice.invoice_number = invoice_number
-            invoice.save()
-            return HttpResponseRedirect(request.path_info)
-
-    company_info = get_object_or_404(Company, id=1)
-    routes = invoice.route_set.all().order_by('trip__date')
-    customer = routes[0].orderitem_set.all()[0].customerproduct.customer
-    customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
-    rows_list = []
-
-    quantity = {cp.product.name:0 for cp in customerproducts}
-    unit_price = {cp.product.name:0 for cp in customerproducts}
-    nett_amt = {cp.product.name:0 for cp in customerproducts}
-
-    for r in routes:
-        row = {}
-        route = get_object_or_404(Route, id=r.pk)
-        row['date'] = route.trip.date
-        row['do_number'] = route.do_number
-        route_orderitems = list(route.orderitem_set.all())
-        for oi in route_orderitems:
-            quantity[oi.customerproduct.product.name] += oi.driver_quantity
-            #  use orderitem's existing unit_price, customerproduct price may not be what it was before.
-            #  if unit price row updates every iteration, may calculate total wrongly
-            #  e.g. if an orderitem's price is different for a single row.
-            #  but usually an invoice's customerproduct quote is consistent.
-            unit_price[oi.customerproduct.product.name] = oi.unit_price
-
-            if oi.quantity != oi.driver_quantity:
-                row[oi.customerproduct.product.name] = str(oi.quantity) + " \u2794 " + str(oi.driver_quantity)
-            else:
-                row[oi.customerproduct.product.name] = oi.driver_quantity
-
-        rows_list.append(row)
-
-    for cp in nett_amt.keys():
-        nett_amt[cp] = quantity[cp] * unit_price[cp]
-
-    return render(request, template_name, {'company':company_info,
-                                           'customer':customer,
-                                           'customerproducts':customerproducts,
-                                           'invoice':invoice,
-                                           'rows_list':rows_list,
-                                           'quantity':quantity,
-                                           'unit_price':unit_price,
-                                           'nett_amt':nett_amt,
-                                           'invoice_form':invoice_form})
 
 
 class InvoiceDeleteView(DeleteView):

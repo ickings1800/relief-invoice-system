@@ -77,11 +77,11 @@ class ProductUpdate(UpdateAPIView):
 
 class TripList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        date_start_string = self.request.query_params.get('start_date')
-        date_end_string = self.request.query_params.get('end_date')
+        date_start_string = self.request.query_params.get('date_start')
+        date_end_string = self.request.query_params.get('date_end')
         if date_start_string and date_end_string:
-            date_start = datetime.strptime(date_start_string, '%Y-%m-%d %H:%M:%S')
-            date_end = datetime.strptime(date_end_string, '%Y-%m-%d %H:%M:%S')
+            date_start = datetime.strptime(date_start_string, '%Y-%m-%d')
+            date_end = datetime.strptime(date_end_string, '%Y-%m-%d')
             date_end += timedelta(hours=23, minutes=59, seconds=59)
             date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
             date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
@@ -127,8 +127,9 @@ class TripRouteCreate(CreateAPIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         validated_note = request.data.get('note')
         validated_customer = request.data.get('customer')
+        validated_do_number = request.data.get('do_number')
         print(validated_note, validated_customer)
-        route = Trip.create_route(trip.pk, validated_note, customer_id=validated_customer)
+        route = Trip.create_route(trip.pk, validated_note, customer_id=validated_customer, do_number=validated_do_number)
         rs = RouteSerializer(route)
         return Response(status=status.HTTP_201_CREATED, data=rs.data)
 
@@ -283,6 +284,36 @@ class InvoiceList(ListAPIView):
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
 
 
+class InvoiceDateRange(ListAPIView):
+    def get(self, request, *args, **kwargs):
+        print(self.request.__str__)
+        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
+        date_start_string = request.GET.get('date_start', '')
+        date_end_string = request.GET.get('date_end', '')
+
+        try:
+            if date_start_string and date_end_string:
+                date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
+                date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
+                #  date_start will start from exactly midnight by default
+                #  date_end will have to add timedelta because it will also end at exactly at midnight,
+                #  causing the last route order to not be included.
+                date_end += timedelta(hours=23, minutes=59, seconds=59)
+                date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
+                date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
+
+                route_list = Route.get_customer_routes_orderitems_by_date(date_start_formatted,
+                                                                          date_end_formatted,
+                                                                          customer.id)
+                print(route_list)
+                rs = RouteListSerializer(route_list, many=True)
+                return Response(status=status.HTTP_200_OK, data=rs.data)
+            else:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return Response(status.HTTP_400_BAD_REQUEST)
+
+
 class InvoiceDelete(DestroyAPIView):
     queryset = Invoice.objects.all()
 
@@ -295,14 +326,16 @@ class InvoiceCreate(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         print(request.data)
+        customer_id = request.data.get('customer')
         customer_gst = request.data.get('gst')
         start_date = request.data.get('start_date')
         end_date = request.data.get('end_date')
         invoice_year = request.data.get('invoice_year')
         invoice_number = request.data.get('invoice_number')
-        route_id_list = request.data.getlist('route_id_list')
+        route_id_list = request.data.get('route_id_list')
         print(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list)
-        invoice_id = Invoice.generate_invoice(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list)
+        invoice_id = Invoice.generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year,
+                                              invoice_number, route_id_list)
         return Response(status=status.HTTP_201_CREATED, data=invoice_id)
 
 
@@ -318,4 +351,5 @@ def trip_packing_sum(request, pk):
 def get_invoice_number(request):
     if request.method == 'GET':
         invoice_number = Invoice.get_next_invoice_number()
-        return Response(status=status.HTTP_200_OK, data=invoice_number)
+        data = {'number': invoice_number}
+        return Response(status=status.HTTP_200_OK, data=data)

@@ -1,13 +1,22 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from django.core.files.storage import FileSystemStorage
 from django.db.models import Q
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.enums import TA_CENTER
 from rest_framework.exceptions import APIException
 
 from .validators import date_within_year
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+import io
 
 # Create your models here.
 
@@ -26,11 +35,11 @@ class Trip(models.Model):
     notes = models.CharField(max_length=255, null=True, blank=True)
     packaging_methods = models.CharField(max_length=255, null=True, blank=True)
 
-    def create_route(trip_id, note, customer_id=None):
+    def create_route(trip_id, note, customer_id=None, do_number=None):
         trip = get_object_or_404(Trip, id=trip_id)
         route_list = Route.objects.filter(trip_id=trip.pk)
         route_indexes = [r.index for r in route_list]
-        route = Route.objects.create(index=max(route_indexes, default=0) + 1, trip=trip, note=note)
+        route = Route.objects.create(index=max(route_indexes, default=0) + 1, trip=trip, note=note, do_number=do_number)
 
         if customer_id:
             customer = get_object_or_404(Customer, id=customer_id)
@@ -115,6 +124,7 @@ class Invoice(models.Model):
     total_incl_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     invoice_year = models.IntegerField(null=True, blank=False)
     invoice_number = models.IntegerField(null=True, blank=False)
+    customer = models.ForeignKey(Customer, null=False, on_delete=models.DO_NOTHING)
 
     class Meta:
         unique_together = ('invoice_year', 'invoice_number')
@@ -130,8 +140,9 @@ class Invoice(models.Model):
         else:
             return invoice_num_max.get('invoice_number__max') + 1
 
-    def generate_invoice(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
+    def generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
         invoice = Invoice(gst=int(customer_gst), start_date=start_date, end_date=end_date)
+        invoice.customer_id = customer_id
         invoice.save()
         original_total = 0
         for r in route_id_list:
@@ -157,6 +168,130 @@ class Invoice(models.Model):
             invoice.invoice_number = invoice_number
         invoice.save()
         return invoice.pk
+
+    def export_invoice_to_pdf(invoice_id):
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        customer_name = invoice.customer_name
+        customer_term = invoice.customer_term
+        customer_gst = invoice.gst
+        customer_id = invoice.customer.pk
+        invoice_number = invoice.invoice_number
+        invoice_year = invoice.invoice_year
+        start_date = invoice.start_date
+        end_date = invoice.end_date
+        minus = invoice.minus
+        gst = invoice.gst
+        original_total = invoice.original_total
+        net_total = invoice.net_total
+        net_gst = invoice.net_gst
+        total_incl_gst = invoice.total_incl_gst
+        remark = invoice.remark
+        date_generated = invoice.date_generated
+        routes = invoice.route_set
+
+        customerproducts = CustomerProduct.objects.filter(customer_id)
+        customerproduct_headings = [cp[1] for cp in customerproducts]
+        quantity_row = {cp: 0 for cp in customerproduct_headings}
+        unit_price_row = {cp[1]: cp[2] for cp in customerproducts}
+        nett_amt_row = {cp: 0 for cp in customerproduct_headings}
+
+        pdf_name = str(invoice_id) + ".pdf"
+        pdf_location = "./" + pdf_name
+        doc = SimpleDocTemplate(pdf_location, pagesize=A4, rightMargin=1 * cm, leftMargin=1 * cm, topMargin=1 * cm,
+                                bottomMargin=2 * cm)
+
+        # container for the "Flowable" objects
+        elements = list()
+
+        # Make heading for each column and start data list
+
+        top_table_style = TableStyle([('FONTSIZE', (0, 0), (-1, -1), 9)])
+
+        top_table_data = list()
+        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", "TAX INVOICE"])
+        address_invoice_number_row = ["TUAS BAY WALK #02-30 SINGAPORE 637780"]
+        if float(customer_gst) > 0:
+            address_invoice_number_row.append("INVOICE NUMBER:")
+            address_invoice_number_row.append(invoice_year + " " + invoice_number)
+        top_table_data.append(address_invoice_number_row)
+        top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", "{0}".format(end_date)])
+        top_table_data.append(["REG NO: 200302589N", "TERMS: ", str(customer_term) + " DAYS"])
+        top_table_data.append(["BILL TO"])
+        top_table_data.append([customer_name])
+
+        top_table = Table(top_table_data, [12 * cm, 4 * cm, 3 * cm])
+        top_table.setStyle(top_table_style)
+
+        # Assemble data for each column using simple loop to append it into data list
+
+        product_style = TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
+                                    ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+                                    ('FONTSIZE', (0, 0), (-1, -1), 9)])
+
+        product_data = [["DATE"] + customerproduct_headings + ["D/O"]]
+        table_width = (19 / len(product_data[0])) * cm
+
+        for r in routes:
+            # Remove time part of trip date
+            row_date = r.get('trip_date')[:-5]
+            row = [row_date]
+            print(r)
+            for cp_heading in customerproduct_headings:
+                orderitem_qty = r.get(cp_heading)
+                if orderitem_qty:
+                    print(cp_heading, orderitem_qty)
+                    quantity_row[cp_heading] += orderitem_qty
+                    row.append(str(orderitem_qty))
+                else:
+                    row.append("")
+
+            row_do_number = r.get('do_number')
+            row.append(row_do_number)
+            product_data.append(row)
+        print(product_data)
+        product_table = Table(product_data, [table_width for i in range(len(product_data))], repeatRows=1,
+                              rowHeights=16)
+        product_table.hAlign = 'CENTER'
+        product_table.setStyle(product_style)
+
+        quantity_style = TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                     ('FONTSIZE', (0, 0), (-1, -1), 9)])
+
+        for cp in customerproduct_headings:
+            quantity = quantity_row.get(cp)
+            unit_price = float(unit_price_row.get(cp))
+            nett_amt = quantity * unit_price
+            nett_amt_row[cp] = round(nett_amt, 4)
+
+        quantity_data = list()
+
+        quantity_data.append(["QUANTITY"] + [quantity_row.get(cp) for cp in customerproduct_headings] + [""])
+        quantity_data.append(["UNIT PRICE ($)"] + [unit_price_row.get(cp) for cp in customerproduct_headings] + [""])
+        quantity_data.append(
+            ["NETT AMOUNT ($)"] + ['%.4f' % nett_amt_row.get(cp) for cp in customerproduct_headings] + [""])
+        quantity_table = Table(quantity_data, [table_width for i in range(len(product_data))])
+        quantity_table.hAlign = 'CENTER'
+        quantity_table.setStyle(quantity_style)
+
+        total_data_style = TableStyle([('FONTSIZE', (0, 0), (-1, -1), 9),
+                                       ('GRID', (1, 0), (-1, -1), 0.5, colors.black)])
+        total_data = list()
+        total_data.append(["SUB-TOTAL ($)", "{0}".format(original_total)])
+        total_data.append(["MINUS ($)", "{0}".format(minus)])
+        total_data.append(["GST ({0}%)".format(gst), "{0}".format(net_gst)])
+        total_data.append(["TOTAL (inc. GST) ($)", "{0}".format(total_incl_gst)])
+        total_data_table = Table(total_data)
+        total_data_table.hAlign = 'RIGHT'
+        total_data_table.setStyle(total_data_style)
+
+        elements.append(top_table)
+        elements.append(product_table)
+        elements.append(quantity_table)
+        elements.append(total_data_table)
+
+        doc.build(elements)
+        return doc
 
 
 class Route(models.Model):
