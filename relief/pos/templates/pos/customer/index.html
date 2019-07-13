@@ -20,7 +20,7 @@
                     {% for c in customer_list %}
                     <tr>
                         <td>
-                            <a href="{% url 'pos:customer_detail' pk=c.id %}">{{ c.name }}</a>
+                            <a href="{% url 'pos:customer_detail_view' pk=c.id %}">{{ c.name }}</a>
                         </td>
                     </tr>
                     {% endfor %}

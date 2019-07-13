@@ -1,13 +1,14 @@
 from django.core.files.storage import FileSystemStorage
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
-from django.http import HttpResponseRedirect, FileResponse
+from django.http import HttpResponseRedirect, FileResponse, HttpResponse
 from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
 from collections import defaultdict
+from io import BytesIO
 
 
 # Create your views here.
@@ -291,11 +292,11 @@ def InvoiceDateRangeView(request, pk):
 
 
 def InvoiceSingleView(request, invoice_pk, cust_pk):
-    invoice_file = Invoice.export_invoice_to_pdf(int(pk))
-    pdf_name = str(invoice_pk) + ".pdf"
-    fs = FileSystemStorage("./")
-    with fs.open(pdf_name) as pdf:
-        return FileResponse(pdf, as_attachment=False)
+    invoice_file = Invoice.export_invoice_to_pdf(int(invoice_pk))
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename={0}.pdf'.format(invoice_pk)
+    response.write(invoice_file.getvalue())
+    return response
 
 
 class InvoiceHistoryView(ListView):

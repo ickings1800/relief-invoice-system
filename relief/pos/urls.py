@@ -8,7 +8,7 @@ urlpatterns = [
     #  /pos/customers/
     path('customers/', views.CustomerIndexView.as_view(), name='customer_index'),
     #  /pos/customers/detail/<pk>/
-    path('customers/detail/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
+    path('customers/detail/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail_view'),
     #  /pos/products/
     path('products/', views.ProductIndexView.as_view(), name='product_index'),
     #  /pos/trips/
@@ -17,8 +17,6 @@ urlpatterns = [
     path('trip/copy/<int:pk>/', views.TripCopyView.as_view(), name='trip_copy'),
     #  /pos/trips/detail/<int:pk>/
     path('trip/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
-    #  /pos/trips/detail/<int:pk>/print
-    path('trip/detail/<int:pk>/print/', views.print_trip_detail, name='print_trip_detail'),
     #  /pos/trips/delete/<pk>/
     path('trip/delete/<int:pk>/', views.TripDeleteView.as_view(), name='trip_delete'),
     #  /pos/trips/arrange/<pk>/

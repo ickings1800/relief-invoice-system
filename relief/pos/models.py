@@ -12,11 +12,12 @@ from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.enums import TA_CENTER
 from rest_framework.exceptions import APIException
+from datetime import datetime
 
 from .validators import date_within_year
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-import io
+from io import BytesIO
 
 # Create your models here.
 
@@ -171,8 +172,8 @@ class Invoice(models.Model):
 
     def export_invoice_to_pdf(invoice_id):
         invoice = get_object_or_404(Invoice, id=invoice_id)
-        customer_name = invoice.customer_name
-        customer_term = invoice.customer_term
+        customer_name = invoice.customer.name
+        customer_term = invoice.customer.term
         customer_gst = invoice.gst
         customer_id = invoice.customer.pk
         invoice_number = invoice.invoice_number
@@ -187,17 +188,16 @@ class Invoice(models.Model):
         total_incl_gst = invoice.total_incl_gst
         remark = invoice.remark
         date_generated = invoice.date_generated
-        routes = invoice.route_set
+        routes = Route.objects.filter(invoice_id=invoice_id)
 
-        customerproducts = CustomerProduct.objects.filter(customer_id)
-        customerproduct_headings = [cp[1] for cp in customerproducts]
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+        customerproduct_headings = [cp.product.name for cp in customerproducts]
         quantity_row = {cp: 0 for cp in customerproduct_headings}
-        unit_price_row = {cp[1]: cp[2] for cp in customerproducts}
+        unit_price_row = {cp.product.name: cp.quote_price for cp in customerproducts}
         nett_amt_row = {cp: 0 for cp in customerproduct_headings}
 
-        pdf_name = str(invoice_id) + ".pdf"
-        pdf_location = "./" + pdf_name
-        doc = SimpleDocTemplate(pdf_location, pagesize=A4, rightMargin=1 * cm, leftMargin=1 * cm, topMargin=1 * cm,
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1 * cm, leftMargin=1 * cm, topMargin=1 * cm,
                                 bottomMargin=2 * cm)
 
         # container for the "Flowable" objects
@@ -210,7 +210,7 @@ class Invoice(models.Model):
         top_table_data = list()
         top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", "TAX INVOICE"])
         address_invoice_number_row = ["TUAS BAY WALK #02-30 SINGAPORE 637780"]
-        if float(customer_gst) > 0:
+        if invoice_number is not None:
             address_invoice_number_row.append("INVOICE NUMBER:")
             address_invoice_number_row.append(invoice_year + " " + invoice_number)
         top_table_data.append(address_invoice_number_row)
@@ -234,11 +234,13 @@ class Invoice(models.Model):
 
         for r in routes:
             # Remove time part of trip date
-            row_date = r.get('trip_date')[:-5]
+            row_date = datetime.strftime(r.trip.date, "%Y-%m-%d")
             row = [row_date]
+            orderitems = OrderItem.objects.filter(route_id=r.pk)
+            orderitems_qty = {oi.customerproduct.product.name: oi.quantity for oi in orderitems}
             print(r)
             for cp_heading in customerproduct_headings:
-                orderitem_qty = r.get(cp_heading)
+                orderitem_qty = orderitems_qty.get(cp_heading)
                 if orderitem_qty:
                     print(cp_heading, orderitem_qty)
                     quantity_row[cp_heading] += orderitem_qty
@@ -246,7 +248,7 @@ class Invoice(models.Model):
                 else:
                     row.append("")
 
-            row_do_number = r.get('do_number')
+            row_do_number = r.do_number
             row.append(row_do_number)
             product_data.append(row)
         print(product_data)
@@ -291,7 +293,7 @@ class Invoice(models.Model):
         elements.append(total_data_table)
 
         doc.build(elements)
-        return doc
+        return buffer
 
 
 class Route(models.Model):
