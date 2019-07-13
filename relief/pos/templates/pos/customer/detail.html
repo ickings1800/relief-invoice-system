@@ -19,7 +19,7 @@
                 <nav class="panel-nav">
                     <ul class="tab">
                         <li class="tab-item active">
-                            <a href="{% url 'pos:customer_detail' pk=customer.pk %}">Profile</a>
+                            <a href="{% url 'pos:customer_detail_view' pk=customer.pk %}">Profile</a>
                         </li>
                         <li class="tab-item">
                             <a href="{% url 'pos:customerproduct_index' pk=customer.pk %}">Quote</a>

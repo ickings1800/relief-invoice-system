@@ -18,7 +18,7 @@
                 <nav class="panel-nav">
                     <ul class="tab">
                         <li class="tab-item">
-                            <a href="{% url 'pos:customer_detail' pk=customer.pk %}">Profile</a>
+                            <a href="{% url 'pos:customer_detail_view' pk=customer.pk %}">Profile</a>
                         </li>
                         <li class="tab-item active">
                             <a href="{% url 'pos:customerproduct_index' pk=customer.pk %}">Quote</a>
@@ -37,7 +37,7 @@
                             {% for cp in customerproduct_list %}
                             <tr>
                                 <td>{{ cp.product.name }}</td>
-                                <td>{{ cp.quote_price|floatformat:2 }}</td>
+                                <td>{{ cp.quote_price|floatformat:4 }}</td>
                                 <td>
                                     <a href="{% url 'admin:pos_customerproduct_change' cp.id %}">
                                         <i class="icon icon-edit float-right"></i>
@@ -54,7 +54,7 @@
                       <p class="empty-title h5">Customer has no quote</p>
                         <p class="empty-subtitle">Click the button to create one.</p>
                       <div class="empty-action">
-                            <a href="{% url 'admin:pos_customerproduct_add' %}?customer=customer.pk" class="btn btn-primary btn-sm button-action">
+                            <a href="{% url 'admin:pos_customerproduct_add' %}?customer={{ customer.pk }}" class="btn btn-primary btn-sm button-action">
                                 <i class="icon icon-plus"></i>&nbsp;Create
                             </a>
                       </div>
