@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from .models import Trip, Customer, Product, Invoice, Route, CustomerProduct, OrderItem
 # Register your models here.
 
@@ -35,6 +36,9 @@ class AdminCustomerProduct(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def response_add(self, request, obj, post_url_continue=None):
+        customer_id = request.GET.get('customer')
+        return redirect(reverse('admin:pos_customerproduct_add') + '?customer={0}'.format(customer_id))
 
 
 admin.site.register(Customer, AdminCustomer)
