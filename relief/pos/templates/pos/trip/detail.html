@@ -20,7 +20,7 @@
                     <i class="icon icon-edit"></i>&nbsp;Edit
                 </a>
                 <a class="btn btn-sm my-2" href="{% url 'pos:trip_arrange' pk=trip.id %}">Arrange</a>
-                <a class="btn btn-sm btn-primary my-2 float-right" href="{% url 'pos:print_trip_detail' pk=trip.id %}">
+                <a class="btn btn-sm btn-primary my-2 float-right" href="{% url 'pos:trip_print' trip.id %}">
                     Print
                 </a>
             </div>

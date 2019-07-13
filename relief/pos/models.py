@@ -91,6 +91,127 @@ class Trip(models.Model):
         trips = Trip.objects.filter(date__lte=end_date, date__gte=start_date).order_by('date')
         return trips
 
+    def export_trip_to_pdf(trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        trip_date = datetime.strftime(trip.date, '%Y-%m-%d %H:%M:%S')
+        trip_notes = trip.notes if trip.notes is not None else ''
+        trip_packaging_methods = str(trip.packaging_methods).split(',')
+        print(trip_packaging_methods)
+        routes = Route.objects.filter(trip_id=trip.pk)
+        trip_routes = sorted(routes, key=lambda route: route.index)
+
+        buffer = BytesIO()
+
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=0.5 * cm, leftMargin=0.5 * cm,
+                                topMargin=1 * cm,
+                                bottomMargin=2 * cm)
+        stylesheet = getSampleStyleSheet()
+        styleNote = stylesheet["Normal"]
+        packStyleSheet = getSampleStyleSheet()
+        packNote = packStyleSheet["Normal"]
+        packNote.fontSize = 7
+        packNote.alignment = TA_CENTER
+        packNote.leading = 10
+
+        # container for the "Flowable" objects
+        elements = []
+        packaging = [Paragraph(heading, packNote) for heading in trip_packaging_methods]
+
+        # Make heading for each column and start data list
+
+        note_paragraph = Paragraph(trip_notes, styleNote)
+
+        top_table_style = TableStyle([('SPAN', (0, -1), (-1, -1))])
+        top_table_data = [["Date:", trip_date], [note_paragraph]]
+        top_table = Table(top_table_data, [3 * cm, 10 * cm])
+        top_table.hAlign = 'LEFT'
+        top_table.setStyle(top_table_style)
+        elements.append(top_table)
+        elements.append(Spacer(1, 12))
+
+        if trip_packaging_methods != ['None']:
+            customer_table_style = TableStyle([('SPAN', (1, 0), (3, 0)),
+                                               ('SPAN', (0, -1), (-1, -1)),
+                                               ('GRID', (0 - len(packaging), 0), (-1, -2), 0.5, colors.black),
+                                               ('LEFTPADDING', (0, 0), (-1, -1), 1),
+                                               ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+                                               ('TOPPADDING', (0, 0), (-1, -1), 1),
+                                               ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+                                               ('ALIGN', (0 - len(packaging), 0), (-1, -1), 'CENTER')])
+        else:
+            customer_table_style = TableStyle([('SPAN', (1, 0), (3, 0)),
+                                               ('SPAN', (0, -1), (-1, -1)),
+                                               ('LEFTPADDING', (0, 0), (-1, -1), 1),
+                                               ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+                                               ('TOPPADDING', (0, 0), (-1, -1), 1),
+                                               ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+                                               ('ALIGN', (0 - len(packaging), 0), (-1, -1), 'CENTER')])
+
+        total_table_style = TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 1),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+            ('TOPPADDING', (0, 0), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER')])
+
+        packing_column_sum = Trip.get_packing_sum(trip_id)
+        total_table_data = [packaging, [str(packing_column_sum.get(p)) for p in trip_packaging_methods]]
+        total_table = Table(total_table_data, [(10.5 / (len(packaging))) * cm for p in packaging])
+        total_table.hAlign = 'RIGHT'
+        total_table.setStyle(total_table_style)
+
+        noteStyleSheet = getSampleStyleSheet()
+        noteStyle = noteStyleSheet["Normal"]
+        noteStyle.fontSize = 14
+        for tr in trip_routes:
+            index = str(tr.index)
+            customer_name = ''
+            trip_note = tr.note if tr.note is not None else ''
+            orderitems = OrderItem.objects.filter(route_id=tr.pk)
+
+            if len(orderitems) > 0:
+                customer_name = orderitems[0].customerproduct.customer.name
+
+                # First Row
+                if trip_packaging_methods != ['None']:
+                    route_table_data = [[index + ".", customer_name, "", ""] + packaging]
+                else:
+                    route_table_data = [[index + ".", customer_name, "", ""] + [""]]
+
+                for oi in orderitems:
+                    row = ["", oi.quantity, Paragraph(oi.customerproduct.product.name, styleNote), ""]
+                    # Second Row
+                    oi_packing = oi.packing
+                    if oi_packing:
+                        for packing in trip_packaging_methods:
+                            quantity = oi_packing.get(packing)
+                            if quantity:
+                                row.append(quantity)
+                            else:
+                                row.append('')
+                    route_table_data.append(row)
+                # Last Row
+                route_table_data.append([trip_note])
+                customer_table = Table(route_table_data,
+                                       [0.5 * cm, 1 * cm, 4 * cm, 4 * cm] + [(10.5 / (len(packaging))) * cm for p in
+                                                                             packaging])
+                customer_table.hAlign = 'CENTER'
+                customer_table.setStyle(customer_table_style)
+                elements.append(customer_table)
+                elements.append(Spacer(1, 12))
+            else:
+                note = Paragraph(index + ". " + trip_note, noteStyle)
+                elements.append(note)
+                elements.append(Spacer(1, 12))
+
+        if trip_packaging_methods != ['None']:
+            elements.append(total_table)
+        elements.append(Spacer(1, 12))
+
+        doc.build(elements)
+        return buffer
+
 
 class Customer(models.Model):
     name = models.CharField(max_length=255, unique=True)

@@ -148,30 +148,11 @@ class TripDetailView(FormView):
 
 
 def print_trip_detail(request, pk):
-    template_name = 'pos/trip/print_detail.html'
-    trip = get_object_or_404(Trip, pk=pk)
-    routes = trip.route_set.all().order_by('index')
-    [r.orderitem_set.all() for r in routes]
-    packing = []
-    if trip.packaging_methods:
-        packing = [key for key in trip.packaging_methods.split(',')]
-    packing_sum_ddict = defaultdict(int)
-
-    for r in routes:
-        for oi in r.orderitem_set.all():
-            if oi.packing:
-                for method, value in oi.packing.items():
-                    if oi.packing.get(method):
-                        packing_sum_ddict[method] += value
-
-    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-
-    context = {}
-    context['trip'] = trip
-    context['routes'] = routes
-    context['packing'] = packing
-    context['packing_sum'] = packing_sum
-    return render(request, template_name, context)
+    order_file = Trip.export_trip_to_pdf(pk)
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename={0}.pdf'.format(pk)
+    response.write(order_file.getvalue())
+    return response
 
 
 class TripDeleteView(DeleteView):
