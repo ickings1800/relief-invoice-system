@@ -219,7 +219,7 @@ class Customer(models.Model):
     postal_code = models.CharField(max_length=6, null=True, blank=True)
     tel_no = models.CharField(max_length=8, null=True, blank=True)
     fax_no = models.CharField(max_length=8, null=True, blank=True)
-    term = models.PositiveSmallIntegerField(null=True)
+    term = models.PositiveSmallIntegerField(null=True, blank=True)
     gst = models.DecimalField(default=7, max_digits=1, decimal_places=0)
 
     def __str__(self):
