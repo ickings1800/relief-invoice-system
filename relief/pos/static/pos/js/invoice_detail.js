@@ -3,11 +3,13 @@ window.onload = function(e){
     modal_close = document.getElementById('close');
     modal_save = document.getElementById('modal-save');
     add_row_ul = document.getElementById('add-row');
+    gst_select = document.getElementById('gst-select');
     invoice_create = document.getElementById('create');
     refresh_btn.addEventListener("click", getRoutes, false);
     modal_close.addEventListener("click", closeModal, false);
     modal_save.addEventListener("click", saveOrderItem , false);
     invoice_create.addEventListener("click", createInvoice, false);
+    gst_select.addEventListener("click", calculateInvoice, false);
     getInvoiceNumber();
     console.log("Added click event");
 };
@@ -32,6 +34,7 @@ async function getInvoiceNumber(){
 async function createInvoice(event) {
     await saveRouteDoNumber();
     var customer_id = document.getElementById('customer').getAttribute('data-customer-id');
+    var gst_select = document.getElementById('gst-select');
     var customer = await getCustomer(customer_id);
     console.log(customer);
     var do_nums = Array.from(document.getElementsByClassName('do-number-input'));
@@ -45,6 +48,10 @@ async function createInvoice(event) {
     var route_ids = do_nums.map(do_input => do_input.getAttribute('data-route-id'));
     var url = 'http://localhost:8000/pos/api/invoice/create/';
     console.log(route_ids);
+
+    if (gst_select.checked == false){
+        gst = 0;
+    }
 
     var data = {
         'invoice_year':invoice_year,
@@ -394,12 +401,19 @@ async function calculateInvoice(){
     var nett_total = document.getElementById('nett-total');
     var gst = document.getElementById('gst');
     var total_incl_gst = document.getElementById('total-incl-gst');
+    var gst_select = document.getElementById('gst-select');
 
     var customer_id = document.getElementById('customer').getAttribute('data-customer-id');
     //  get customer gst data.
     var customer = await getCustomer(customer_id);
     console.log(customer);
-    gst_percent.innerHTML = "GST " + customer.gst + "%";
+
+    var gst_checked = gst_select.checked;
+    gst_percent.innerHTML = `
+    <input type="checkbox" id="gst-select" checked=${gst_checked}>
+        <i class="form-icon"></i> GST ${customer.gst} %
+    `;
+
     var customerproducts = await getCustomerProducts(customer_id);
     var cp_dict_list = []
     customerproducts.forEach(function(element){
@@ -460,10 +474,15 @@ async function calculateInvoice(){
     nett_amt_row.appendChild(delete_blank_td.cloneNode(true));
 
     // invoice calculation
+    var invoice_gst = customer.gst;
+    // show actual gst percent on invoice, but actual calculation is zero.
+    if (gst_select.checked == false){
+        invoice_gst = 0;
+    }
     var reducer = (accumulator, currentValue) => accumulator + currentValue;
     var original_total_val = original_total_calc_list.reduce(reducer, 0);
     var nett_total_val = original_total_val - minus.value;
-    var gst_value = nett_total_val * customer.gst;
+    var gst_value = nett_total_val * invoice_gst;
     var total_incl_gst_val = nett_total_val + gst_value;
 
     minus.value = minus.value;
