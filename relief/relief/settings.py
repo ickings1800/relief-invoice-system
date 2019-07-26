@@ -120,8 +120,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # this is the list of allowed origins for cross domain ajax
 CORS_ORIGIN_WHITELIST = (
-        'http://127.0.0.1:8000',
-
+    'http://127.0.0.1:8000',
+    'http://192.168.2.47:8000',
 )
 
 # Internationalization
