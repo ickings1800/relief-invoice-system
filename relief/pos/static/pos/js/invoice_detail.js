@@ -1,3 +1,19 @@
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 window.onload = function(e){
     refresh_btn = document.getElementById('refresh');
     modal_close = document.getElementById('close');
@@ -67,8 +83,11 @@ async function createInvoice(event) {
     console.log(data);
     fetch(url, {
       method: 'POST', // or 'PUT'
+      credentials: 'same-origin',
       body: JSON.stringify(data), // data can be `string` or {object}!
       headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     }).then(response => response.json())
@@ -89,8 +108,11 @@ async function saveRouteDoNumber(){
             };
             fetch(url, {
               method: 'PUT', // or 'PUT'
+              credentials: 'same-origin',
               body: JSON.stringify(data), // data can be `string` or {object}!
               headers:{
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
               }
             }).then(response => response.json())
@@ -213,8 +235,11 @@ async function addRouteForm(event){
     };
     fetch(url, {
       method: 'POST', // or 'PUT'
+      credentials: 'same-origin',
       body: JSON.stringify(data), // data can be `string` or {object}!
       headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     }).then(response => response.json())
@@ -298,8 +323,11 @@ async function saveOrderItem(event){
     };
     fetch(url, {
       method: 'PUT', // or 'PUT'
+      credentials: 'same-origin',
       body: JSON.stringify(data), // data can be `string` or {object}!
       headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     }).then(response => response.json())

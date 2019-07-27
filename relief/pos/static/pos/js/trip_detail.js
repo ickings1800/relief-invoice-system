@@ -1,3 +1,19 @@
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 window.onload = function(e){
     let routes = document.getElementsByClassName('route');
     let del_buttons = document.getElementsByClassName('delete');
@@ -138,46 +154,6 @@ function generateEditRouteForm(routeJson){
     route_form.appendChild(note_form);
 }
 
-async function postOrderItemData(){
-    console.log("Submit pressed");
-    let orderitem_packing = Array.from(document.getElementsByClassName('packing-label')).map(e => e.innerHTML);
-    var forms = document.getElementsByClassName('orderitem-form');
-    for (var i = 0 ; i < forms.length; i++) {
-        var orderitem_form = forms[i];
-        var orderitem_id = orderitem_form.getAttribute('data-orderitem-id');
-        var orderitem_quantity = orderitem_form.elements['quantity'].value;
-        var orderitem_note = orderitem_form.elements['note'].value;
-        var orderitem_packing_json = {};
-        for (var j = 0 ; j < orderitem_packing.length; j++){
-            var heading = orderitem_packing[j];
-            if (orderitem_form.elements[heading].value != ""){
-                orderitem_packing_json[heading] = orderitem_form.elements[heading].value;
-            }
-        }
-
-        var url = 'http://localhost:8000/pos/api/orderitem/' + orderitem_id + '/update/';
-        var data = {
-            'id': orderitem_id,
-            'quantity': orderitem_quantity,
-            'note': orderitem_note,
-            'packing': orderitem_packing_json
-        };
-        var response = await fetch(url, {
-          method: 'PUT', // or 'PUT'
-          body: JSON.stringify(data), // data can be `string` or {object}!
-          headers:{
-            'Content-Type': 'application/json'
-          }
-        })
-
-        var data = await response.json();
-        updateOrderitemData(data, orderitem_packing);
-    };
-    await postRouteData();
-    await getTripPackingSum();
-    closeModalWindow();
-}
-
 
 function updateOrderitemData(orderitemJson, orderitem_packing){
     var orderitem_id = orderitemJson.id;
@@ -218,30 +194,6 @@ function updateOrderitemData(orderitemJson, orderitem_packing){
 
 }
 
-
-async function postRouteData() {
-    var route_forms = document.getElementsByClassName('route-form');
-    for (var i = 0 ; i < route_forms.length; i++){
-        var route_form = route_forms[i];
-        var route_id = route_form.getAttribute('data-route-id');
-        var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
-        var note_input = route_form.elements['route-note'].value;
-        console.log(url);
-        var data = {
-            'id': route_id,
-            'note': note_input,
-        };
-        await fetch(url, {
-          method: 'PUT', // or 'PUT'
-          body: JSON.stringify(data), // data can be `string` or {object}!
-          headers:{
-            'Content-Type': 'application/json'
-          }
-        }).then(res => res.json())
-        .then(response => console.log('Success:', JSON.stringify(response)))
-        .catch(error => console.error('Error:', error));
-    }
-}
 
 function closeModalWindow(){
     var modal = document.getElementById('edit-modal');
@@ -452,13 +404,87 @@ function addRouteCardDOM(route) {
 }
 
 
+async function postOrderItemData(){
+    console.log("Submit pressed");
+    let orderitem_packing = Array.from(document.getElementsByClassName('packing-label')).map(e => e.innerHTML);
+    var forms = document.getElementsByClassName('orderitem-form');
+    for (var i = 0 ; i < forms.length; i++) {
+        var orderitem_form = forms[i];
+        var orderitem_id = orderitem_form.getAttribute('data-orderitem-id');
+        var orderitem_quantity = orderitem_form.elements['quantity'].value;
+        var orderitem_note = orderitem_form.elements['note'].value;
+        var orderitem_packing_json = {};
+        for (var j = 0 ; j < orderitem_packing.length; j++){
+            var heading = orderitem_packing[j];
+            if (orderitem_form.elements[heading].value != ""){
+                orderitem_packing_json[heading] = orderitem_form.elements[heading].value;
+            }
+        }
+
+        var url = 'http://localhost:8000/pos/api/orderitem/' + orderitem_id + '/update/';
+        var data = {
+            'id': orderitem_id,
+            'quantity': orderitem_quantity,
+            'note': orderitem_note,
+            'packing': orderitem_packing_json
+        };
+        var response = await fetch(url, {
+          method: 'PUT', // or 'PUT'
+          credentials: 'same-origin',
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
+
+        var data = await response.json();
+        updateOrderitemData(data, orderitem_packing);
+    };
+    await postRouteData();
+    await getTripPackingSum();
+    closeModalWindow();
+}
+
+
+async function postRouteData() {
+    var route_forms = document.getElementsByClassName('route-form');
+    for (var i = 0 ; i < route_forms.length; i++){
+        var route_form = route_forms[i];
+        var route_id = route_form.getAttribute('data-route-id');
+        var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
+        var note_input = route_form.elements['route-note'].value;
+        console.log(url);
+        var data = {
+            'id': route_id,
+            'note': note_input,
+        };
+        await fetch(url, {
+          method: 'PUT', // or 'PUT'
+          credentials: 'same-origin',
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }).then(res => res.json())
+        .then(response => console.log('Success:', JSON.stringify(response)))
+        .catch(error => console.error('Error:', error));
+    }
+}
+
 async function postRoute(data){
     var trip_id = document.getElementById('add-route').getAttribute('data-trip-id');
     var url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/add/';
     var response = await fetch(url, {
       method: 'POST', // or 'PUT'
+      credentials: 'same-origin',
       body: JSON.stringify(data), // data can be `string` or {object}!
       headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     })
@@ -475,7 +501,10 @@ function deleteRoute(event){
     var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/delete/';
     fetch(url, {
       method: 'DELETE',
+      credentials: 'same-origin',
       headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     }).then(function(){
