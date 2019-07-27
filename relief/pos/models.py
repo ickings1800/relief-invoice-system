@@ -419,7 +419,7 @@ class Invoice(models.Model):
 
 class Route(models.Model):
     index = models.SmallIntegerField()
-    do_number = models.CharField(max_length=8, blank=True)
+    do_number = models.CharField(max_length=8, null=True, blank=True)
     note = models.TextField(null=True, blank=True, max_length=255)
     invoice = models.ForeignKey(Invoice, null=True, default=None, on_delete=models.SET_NULL)
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
