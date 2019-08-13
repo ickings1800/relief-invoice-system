@@ -10,40 +10,15 @@
     <link rel="stylesheet" type="text/css" href="{% static 'pos/main.css' %}" />
 </head>
 <body>
-<!-- off-screen toggle button -->
-<a href="#sidebar-id" class="show-lg off-canvas-toggle" id="hamburger">
-    <i class="icon icon-menu"></i>
-</a>
-
-
-<div class="off-canvas off-canvas-sidebar-show">
-      <div id="sidebar-id" class="off-canvas-sidebar">
-        <!-- off-screen sidebar -->
-          <ul class="nav" id="mainmenu">
-              <li class="nav-item">
-                  <a href="{% url 'pos:customer_index' %}">Customer</a>
-              </li>
-              <li class="nav-item">
-                  <a href="{% url 'pos:trip_index' %}">Trips</a>
-              </li>
-              <li class="nav-item">
-                <a href="{% url 'pos:product_index' %}">Products</a>
-              </li>
-              <li class="nav-item">
-                <a href="{% url 'pos:invoice_history' %}">Invoices</a>
-              </li>
-          </ul>
-      </div>
-
-    <!-- Grey Area -->
-      <a class="off-canvas-overlay" href="#close"></a>
-
-      <div class="off-canvas-content">
-            <div id="content-block">
-                {% block content %}
-                {% endblock %}
-            </div>
-      </div>
-</div>
+  <header class="navbar">
+  <section class="navbar-section">
+      <a href="{% url 'pos:customer_index' %}" class="btn btn-link">Customer</a>
+      <a href="{% url 'pos:trip_index' %}" class="btn btn-link">Trips</a>
+      <a href="{% url 'pos:product_index' %}" class="btn btn-link">Products</a>
+      <a href="{% url 'pos:invoice_history' %}" class="btn btn-link">Invoices</a>
+  </section>
+</header>
+{% block content %}
+{% endblock %}
 </body>
 </html>
