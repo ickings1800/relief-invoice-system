@@ -148,11 +148,14 @@ class TripDetailView(FormView):
 
 
 def print_trip_detail(request, pk):
-    order_file = Trip.export_trip_to_pdf(pk)
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename={0}.pdf'.format(pk)
-    response.write(order_file.getvalue())
-    return response
+    template_name = 'pos/trip/print_detail.html'
+    trip = get_object_or_404(Trip, pk=pk)
+    routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
+    context = {'trip': trip, 'routes': routes}
+    if trip.packaging_methods:
+        packing = trip.packaging_methods.split(',')
+        context['packing'] = [e.strip() for e in packing]
+    return render(request, template_name, context)
 
 
 class TripDeleteView(DeleteView):
@@ -165,52 +168,6 @@ class TripDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse('pos:trip_index')
-
-
-def TripArrangementView(request, pk):
-    trip = get_object_or_404(Trip, pk=pk)
-    template_name = 'pos/trip/arrange.html'
-    packing = []
-    if trip.packaging_methods:
-        packing = [key.strip() for key in trip.packaging_methods.split(',')]
-    packing_sum_dict = {p: 0 for p in packing}
-    print("Packing dict:", packing_sum_dict)
-    route_arrange = trip.route_set.all().order_by('index')
-
-    for r in route_arrange:
-        for oi in r.orderitem_set.all():
-            if oi.packing:
-                for method, value in oi.packing.items():
-                    method = method.strip()
-                    print(method, value)
-                    if oi.packing.get(method):
-                        packing_sum_dict[method] += int(value)
-    print("Packing dict:", packing_sum_dict)
-
-    context = {'trip': trip,
-               'packing': packing,
-               'packing_sum': packing_sum_dict,
-               'errors': []}
-
-    if request.method == 'POST':
-        arrange_formset = RouteArrangementFormSet(request.POST)
-        context['arrange_formset'] = arrange_formset
-        if arrange_formset.is_valid():
-            order_index = [r.cleaned_data['index'] for r in arrange_formset.forms]
-            index_range = [i+1 for i in range(len(arrange_formset))]
-            valid_range = all(elem in order_index for elem in index_range)
-            if not valid_range:
-                context['errors'].append("Numbering not in sequence.")
-                return render(request, template_name, context)
-
-            arrange_formset.save()
-            return HttpResponseRedirect(reverse('pos:trip_detail', kwargs={'pk': pk}))
-
-        return render(request, template_name, context)
-
-    arrange_formset = RouteArrangementFormSet(queryset=route_arrange)
-    context['arrange_formset'] = arrange_formset
-    return render(request, template_name, context)
 
 
 class RouteEditView(UpdateView):

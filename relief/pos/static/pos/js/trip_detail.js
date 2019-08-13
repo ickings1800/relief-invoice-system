@@ -15,22 +15,26 @@ function getCookie(name) {
 }
 
 window.onload = function(e){
-    let routes = getRouteDomElements();
-    let del_buttons = getDeleteButtonsDomElements();
-    edit_submit_btn = document.getElementById('modal-save');
-    close_btn = document.getElementById('modal-close');
-    add_route_btn = document.getElementById('add-route');
-    arrange_toggle = document.getElementById('arrange-toggle');
-    arrange_toggle.addEventListener("click", arrangeRoutes, false);
-    add_route_btn.addEventListener("click", addRouteToTrip, false);
-    edit_submit_btn.addEventListener("click", postOrderItemData, false);
+    let print_button = document.getElementById('print');
+    if (print_button !== null){
+        // Apply click events if on trip details page
+        let routes = getRouteDomElements();
+        let del_buttons = getDeleteButtonsDomElements();
+        let edit_submit_btn = document.getElementById('modal-save');
+        let close_btn = document.getElementById('modal-close');
+        let add_route_btn = document.getElementById('add-route');
+        let arrange_toggle = document.getElementById('arrange-toggle');
+        arrange_toggle.addEventListener("click", arrangeRoutes, false);
+        add_route_btn.addEventListener("click", addRouteToTrip, false);
+        edit_submit_btn.addEventListener("click", postOrderItemData, false);
 
-    applyShowEditRouteModalEvent(routes);
-    applyDeleteRouteEvent(del_buttons);
+        applyShowEditRouteModalEvent(routes);
+        applyDeleteRouteEvent(del_buttons);
 
-    close_btn.addEventListener("click", clearEditForm, false);
+        close_btn.addEventListener("click", clearEditForm, false);
+    }
+    // Only get trip packing sum if on print trip details page
     getTripPackingSum();
-    console.log("Added click event");
 };
 
 function getRouteDomElements(){
