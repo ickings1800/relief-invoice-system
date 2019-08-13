@@ -28,14 +28,14 @@ urlpatterns = [
     # path('api/invoices/<int:pk>/', api.InvoiceDetail.as_view(), name='invoice_detail'),
     path('api/invoice/create/', api.InvoiceCreate.as_view(), name='invoice_create'),
     # path('api/invoices/<int:pk>/delete/', api.InvoiceDelete.as_view(), name='invoice_delete'),
-    # path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),
+    path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),
     path('api/trips/<int:pk>/detail/routes/add/', api.TripRouteCreate.as_view(), name='trip_route_create'),
     path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
     path('api/routes/<int:pk>/update/', api.RouteUpdate.as_view(), name='route_update'),
     path('api/routes/<int:pk>/', api.RouteDetail.as_view(), name='route_detail'),
     path('api/orderitem/<int:pk>/', api.OrderItemDetail.as_view(), name='orderitem_detail'),
     path('api/orderitem/<int:pk>/update/', api.OrderItemUpdate.as_view(), name='orderitem_update'),
-    # path('api/trips/<int:pk>/routes/arrange/', api.route_arrange, name='route_arrange'),
+    path('api/trips/<int:pk>/routes/arrange/', api.route_arrange, name='route_arrange'),
     path('api/invoice/getnewinvoicenumber/', api.get_invoice_number, name='get_new_invoice_number')
 ]
 

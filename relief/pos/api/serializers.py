@@ -156,7 +156,8 @@ class RouteSerializer(serializers.ModelSerializer):
         return obj.trip.date.strftime("%d-%m-%Y")
 
     def get_packing(self, obj):
-        return obj.trip.packaging_methods
+        remove_space_packing_list = [e.strip() for e in obj.trip.packaging_methods.split(',')]
+        return remove_space_packing_list
 
 
 class RouteUpdateSerializer(serializers.ModelSerializer):

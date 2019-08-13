@@ -138,7 +138,7 @@ class TripDetailView(FormView):
         context['customers'] = Customer.objects.all()
         if trip.packaging_methods:
             packing = trip.packaging_methods.split(',')
-            context['packing'] = packing
+            context['packing'] = [e.strip() for e in packing]
         # context['sum'] = sum
         # print(sum)
         return context
@@ -172,22 +172,24 @@ def TripArrangementView(request, pk):
     template_name = 'pos/trip/arrange.html'
     packing = []
     if trip.packaging_methods:
-        packing = [key for key in trip.packaging_methods.split(',')]
-    packing_sum_ddict = defaultdict(int)
+        packing = [key.strip() for key in trip.packaging_methods.split(',')]
+    packing_sum_dict = {p: 0 for p in packing}
+    print("Packing dict:", packing_sum_dict)
     route_arrange = trip.route_set.all().order_by('index')
 
     for r in route_arrange:
         for oi in r.orderitem_set.all():
             if oi.packing:
                 for method, value in oi.packing.items():
+                    method = method.strip()
+                    print(method, value)
                     if oi.packing.get(method):
-                        packing_sum_ddict[method] += value
-
-    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
+                        packing_sum_dict[method] += int(value)
+    print("Packing dict:", packing_sum_dict)
 
     context = {'trip': trip,
                'packing': packing,
-               'packing_sum': packing_sum,
+               'packing_sum': packing_sum_dict,
                'errors': []}
 
     if request.method == 'POST':

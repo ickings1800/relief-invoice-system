@@ -110,17 +110,6 @@
 
             <div class="column col-5 route"></div>
                 <div class="column col-7 route">
-                    <table class="table packing">
-                        <tr>
-                            {% for method in packing %}
-                            {% if packing_sum|keyvalue:method is not None %}
-                            <td>{{ packing_sum|keyvalue:method }}</td>
-                            {% else %}
-                            <td>0</td>
-                            {% endif %}
-                            {% endfor %}
-                        </tr>
-                    </table>
                 </div>
             </div>
         </div>

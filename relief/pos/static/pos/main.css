@@ -5,19 +5,25 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
+.navbar-section {
+    background-color:#f7f8f9;
+}
+
+.btn.btn-link {
+    color: #455060;
+}
+.navbar-section a {
+    font-size: .65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+h4 {
+    margin:0;
+}
+
 .container {
     padding:1rem;
-}
-
-#mainmenu li a {
-    font-weight:600;
-    text-transform:uppercase;
-    font-size:.65rem;
-}
-
-.nav-item {
-    margin-top:1rem;
-    margin-left:1rem;
 }
 
 
@@ -32,24 +38,6 @@ th {
 .form-button-action {
     margin-top:1rem;
     margin-bottom:1rem;
-}
-
-.off-canvas .off-canvas-content {
-    padding-right: 1rem;
-    padding-bottom: 0;
-    padding-left: 1rem;
-}
-
-#hamburger {
-    position: fixed;
-    padding-top: 1.3rem;
-    padding-left: 1.5rem;
-    /* z-index above zero for hamburger to be clicked with absolute position. */
-    z-index:10;
-}
-
-.off-canvas {
-    height:100vh;
 }
 
 .panel {
@@ -107,6 +95,11 @@ background-color:#ffffcc;
 
 ul {
     list-style-type:none;
+    margin:0;
+}
+
+ul li {
+padding-top:0;
 }
 
 .invoice-table th {
@@ -133,7 +126,7 @@ ul {
     margin-right:0;
     border: .05rem solid #e7e9ed;
     border-radius: .1rem;
-    padding:1rem;
+    padding:.8rem;
 }
 
 
@@ -170,13 +163,37 @@ ul {
 }
 
 .heading-label {
-font-size: 0.5vw;
+font-size: 1vw;
 }
 
-.orderitem-container {
+.orderitem-container, .packing-container {
     display:flex;
+    justify-content: space-between;
+}
+
+
+.packing-container li {
+	flex-grow:1;
+	flex-basis: 0;
+	text-align: center;
+	margin-top:0;
+    border: 1px solid #50596c;
+    font-weight:bold;
+    font-size:1vw;
+}
+
+@media screen and (min-width: 1920px) {
+.packing-container li {
+     font-size: 1em;
+  }
 }
 
 #date-range {
     display:flex;
+}
+
+.index.form-input.input-lg {
+    display:inline;
+    width:3.5em;
+    opacity:1;
 }

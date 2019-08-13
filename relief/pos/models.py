@@ -73,7 +73,7 @@ class Trip(models.Model):
     def get_packing_sum(trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if trip.packaging_methods:
-            packing_sum = {packing: 0 for packing in trip.packaging_methods.split(',')}
+            packing_sum = {packing.strip(): 0 for packing in trip.packaging_methods.split(',')}
             route_list = Route.objects.filter(trip_id=trip.pk)
             for route in route_list:
                 orderitems = OrderItem.objects.filter(route_id=route.pk)
