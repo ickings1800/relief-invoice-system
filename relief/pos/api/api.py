@@ -138,11 +138,11 @@ class TripRouteList(ListAPIView):
     def get(self, request, *args, **kwargs):
         try:
             trip = Trip.objects.get(pk=self.kwargs['pk'])
+            routes = trip.route_set.all().order_by('index')
         except Trip.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-
-        trip_serializer = TripDetailSerializer(instance=trip)
-        return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
+        route_serializer = RouteSerializer(instance=routes, many=True)
+        return Response(status=status.HTTP_200_OK, data=route_serializer.data)
 
 
 class OrderItemDetail(RetrieveAPIView):

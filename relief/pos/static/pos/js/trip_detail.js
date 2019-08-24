@@ -23,8 +23,10 @@ window.onload = function(e){
         let edit_submit_btn = document.getElementById('modal-save');
         let close_btn = document.getElementById('modal-close');
         let add_route_btn = document.getElementById('add-route');
-        let arrange_toggle = document.getElementById('arrange-toggle');
-        arrange_toggle.addEventListener("click", arrangeRoutes, false);
+        let arrange_button = document.getElementById('arrange-button');
+        let arrange_cancel = document.getElementById('arrange-cancel-button');
+        arrange_cancel.addEventListener("click", cancelArrangeRoutes, false);
+        arrange_button.addEventListener("click", arrangeRoutes, false);
         add_route_btn.addEventListener("click", addRouteToTrip, false);
         edit_submit_btn.addEventListener("click", postOrderItemData, false);
 
@@ -87,12 +89,32 @@ function orderIndexInputsByIndexValue(index_inputs){
     });
 }
 
-async function arrangeRoutes(event){
+function cancelArrangeRoutes(event){
     console.log("Toggled");
+    let arrange_cancel = document.getElementById('arrange-cancel-button');
+    let arrange_button = document.getElementById('arrange-button');
     let index_inputs = Array.from(getIndexInputDomElements());
     let route_divs = getRouteDomElements();
     let del_buttons = getDeleteButtonsDomElements();
-    if (event.target.checked){
+    index_inputs.forEach((e) => {
+        e.value = e.defaultValue;
+        e.readOnly=true;
+        e.disabled=true;
+    });
+    applyDeleteRouteEvent(del_buttons);
+    applyShowEditRouteModalEvent(route_divs);
+    arrange_cancel.classList.add('d-hide');
+    arrange_button.classList.remove('btn-success');
+    arrange_button.innerHTML = "Arrange";
+}
+
+async function arrangeRoutes(event){
+    console.log("Toggled");
+    let arrange_cancel = document.getElementById('arrange-cancel-button');
+    let index_inputs = Array.from(getIndexInputDomElements());
+    let route_divs = getRouteDomElements();
+    let del_buttons = getDeleteButtonsDomElements();
+    if (event.target.innerHTML === 'Arrange'){
         console.log("Arrange checked");
         index_inputs.forEach((e) => {
             e.readOnly=false;
@@ -102,6 +124,9 @@ async function arrangeRoutes(event){
         });
         removeShowEditRouteModalEvent(route_divs);
         removeDeleteRouteEvent(del_buttons);
+        event.target.classList.add('btn-success');
+        event.target.innerHTML = 'Save';
+        arrange_cancel.classList.remove('d-hide');
     } else {
         console.log("Arrange Unchecked");
         let index_values = index_inputs.map(e => e.value);
@@ -118,18 +143,21 @@ async function arrangeRoutes(event){
             // POST index ordering request to server.
             let trip_id = document.getElementById('total-packing-sum').getAttribute('data-trip-id');
             await postIndexOrderingData(index_ordering, trip_id);
+            event.target.classList.remove('btn-success');
+            event.target.innerHTML = 'Arrange';
+            arrange_cancel.classList.add('d-hide');
             // Refresh the DOM.
             refreshTripRoutesDOM(trip_id);
         } else {
             // duplicated indexes
             alert("Number ordering may be duplicated, change and save again.");
-            event.target.checked = true;
         }
     }
 }
 
 
 async function postIndexOrderingData(index_ordering_array, trip_id){
+    console.log("index ordering array", index_ordering_array);
     let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/routes/arrange/';
     let data = {'id_arrangement': index_ordering_array};
     var response = await fetch(url, {
@@ -366,6 +394,7 @@ async function addRouteToTrip(event){
 
 
 async function refreshTripRoutesDOM(trip_id){
+    console.log("Refresh Trip Route DOM");
     let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/';
     let route_divs = getRouteDomElements();
     let del_buttons = getDeleteButtonsDomElements();
@@ -374,8 +403,10 @@ async function refreshTripRoutesDOM(trip_id){
       method: 'GET', // or 'PUT'
     });
     var resp_json = await response.json();
+    console.log(resp_json);
     routes_div.innerHTML = "";
-    let routes = resp_json.route_set;
+    let routes = resp_json;
+    console.log(routes);
     routes.forEach((r) => addRouteCardDOM(r));
     applyShowEditRouteModalEvent(route_divs);
     applyDeleteRouteEvent(del_buttons);
@@ -383,7 +414,7 @@ async function refreshTripRoutesDOM(trip_id){
 
 
 function addRouteCardDOM(route) {
-    console.log(route);
+//    console.log(route);
     var route_id = route.id;
     var route_index = route.index;
     var orderitem_set = route.orderitem_set;
@@ -400,7 +431,7 @@ function addRouteCardDOM(route) {
         route_div.setAttribute('data-route-id', route_id);
 
         var customer_index = document.createElement('input');
-        customer_index.innerHTML = route_index;
+//        customer_index.innerHTML = route_index;
         customer_index.classList.add('index', 'form-input', 'input-lg');
         customer_index.setAttribute('data-route-id', route_id);
         customer_index.type = 'number';
@@ -444,7 +475,7 @@ function addRouteCardDOM(route) {
         route_div.appendChild(packing_ul);
 
         orderitem_set.forEach(function(item){
-            console.log(item);
+//            console.log(item);
             var orderitem_id = item.id;
             var orderitem_qty = item.quantity;
             var orderitem_name = item.customerproduct;

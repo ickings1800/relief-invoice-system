@@ -130,17 +130,13 @@ class TripDetailView(FormView):
 
     def get_context_data(self, **kwargs):
         trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
-        routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
-        # sum = Trip.get_packing_sum(trip.pk)
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['trip'] = trip
-        context['routes'] = routes
+        context['routes'] = trip.route_set.all().order_by('index')
         context['customers'] = Customer.objects.all()
         if trip.packaging_methods:
             packing = trip.packaging_methods.split(',')
             context['packing'] = [e.strip() for e in packing]
-        # context['sum'] = sum
-        # print(sum)
         return context
 
     def get_success_url(self):

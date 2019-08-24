@@ -4,30 +4,31 @@
 {% load widget_tweaks %}
 {% block content %}
 <script type="text/javascript" src="{% static 'pos/js/trip_detail.js' %}"></script>
+<title>{{ trip.date|date:"d M Y P" }}</title>
 <div class="container">
     <div class="columns">
-        <div class="column col-12">
-            <a href="{% url 'pos:trip_index' %}">Back</a>
-            <h2>{{ trip.date|date:"d M Y P" }}</h2>
+        <div class="columns column col-12">
+            <div class="column col-12">
+                <a href="{% url 'pos:trip_index' %}">Back</a>
+                <h2>{{ trip.date|date:"d M Y P" }}</h2>
+            <div>
             <p>
                 Trip Notes:<br>
                 {% if trip.notes %}
                 {{ trip.notes }}
                 {% endif %}
             </p>
-            <div>
-                <a class="btn btn-sm btn-primary my-2" href="{% url 'admin:pos_trip_change' trip.id %} ">
-                    <i class="icon icon-edit"></i>&nbsp;Edit
-                </a>
-              <label class="form-switch m-2">
-                <input type="checkbox" id="arrange-toggle">
-                <i class="form-icon"></i> Arrange
-              </label>
-                <a class="btn btn-sm btn-primary my-2 float-right" id="print" href="{% url 'pos:trip_print' trip.id %}">
-                    Print
-                </a>
+            <a class="btn btn-sm my-2" href="{% url 'admin:pos_trip_change' trip.id %} ">Edit</a>
+            <a class="btn btn-primary btn-sm my-2" id="arrange-button">Arrange</a>
+            <a class="btn btn-link btn-sm my-2 d-hide" id="arrange-cancel-button">Cancel</a>
+            <a class="btn btn-sm btn-primary my-2 float-right" id="print" href="{% url 'pos:trip_print' trip.id %}">
+                Print
+            </a>
             </div>
             <div class="divider column col-12"></div>
+            </div>
+        </div>
+            <div class="column col-12">
             <div id="routes">
                 {% for r in routes %}
                 <div class="columns col-12 route" data-route-id="{{ r.pk }}">
