@@ -548,9 +548,23 @@ function addRouteCardDOM(route) {
         var routes = document.getElementById('routes');
         routes.appendChild(route_fragment);
     } else {
+
         var note_div = document.createElement('div');
         note_div.classList.add('columns', 'col-12', 'route');
         note_div.setAttribute('data-route-id', route_id);
+
+        var customer_index = document.createElement('input');
+//        customer_index.innerHTML = route_index;
+        customer_index.classList.add('index', 'form-input', 'input-lg', 'mx-2');
+        customer_index.setAttribute('data-route-id', route_id);
+        customer_index.type = 'number';
+        customer_index.value = route_index;
+        customer_index.readOnly = true;
+        customer_index.disabled = true;
+        customer_index.style.display = 'block';
+
+        var divider = document.createElement('div');
+        divider.classList.add('column', 'col-12', 'divider');
 
         var note_h5 = document.createElement('h5');
         note_h5.classList.add('column', 'col-11');
@@ -562,6 +576,8 @@ function addRouteCardDOM(route) {
         var del_icon = document.createElement('i');
         del_icon.classList.add('icon', 'icon-delete', 'float-right');
 
+        note_div.appendChild(customer_index);
+        note_div.appendChild(divider);
         del_anchor.appendChild(del_icon);
         note_div.appendChild(note_h5);
         note_div.appendChild(del_anchor);

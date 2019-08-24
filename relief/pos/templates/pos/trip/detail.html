@@ -32,7 +32,6 @@
             <div id="routes">
                 {% for r in routes %}
                 <div class="columns col-12 route" data-route-id="{{ r.pk }}">
-                    {% if r.orderitem_set.all|length > 0 %}
                     <div class="columns column col-12">
                             <input class="index form-input input-lg" value="{{ r.index }}" type="number" data-route-id="{{ r.pk }}" readonly disabled>
                             <div style="display:inline;" class="h4 mx-2">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
@@ -41,6 +40,7 @@
                             {% endif %}
                     </div>
 
+                    {% if r.orderitem_set.all|length > 0 %}
                         <div class="column col-6"></div>
                         <ul class="packing-container column col-6 col-ml-auto">
                             {% for method in packing %}
