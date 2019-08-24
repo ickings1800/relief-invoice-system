@@ -27,7 +27,7 @@
                     <div class="columns col-12 route" data-route-id="{{ r.pk }}">
                         {% if r.orderitem_set.all|length > 0 %}
                         <div class="columns column col-12">
-                            <div class="h4">{{ r.index }}</div>
+                            <div class="h4">{{ r.index }}.</div>
                             <div style="display:inline;" class="h4 mx-2">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
                             {% if r.do_number != "" and r.do_number != None %}
                                 <p class="h4 text-error float-right">{{ r.do_number }}</p>
