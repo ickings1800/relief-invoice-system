@@ -288,8 +288,8 @@ function generateEditRouteForm(routeJson){
 
 function updateOrderitemData(orderitemJson, orderitem_packing){
     var orderitem_id = orderitemJson.id;
-    var orderitem_node = document.querySelectorAll(".orderitem-container[data-orderitem-id='" + orderitem_id + "']")[0];
-    var packing_node = document.querySelectorAll(".packing-container[data-orderitem-id='" + orderitem_id + "']")[0];
+    var orderitem_node = document.querySelector(".orderitem-container[data-orderitem-id='" + orderitem_id + "']");
+    var packing_node = document.querySelector(".packing-container[data-orderitem-id='" + orderitem_id + "']");
     orderitem_node.innerHTML = "";
     packing_node.innerHTML = "";
 
@@ -604,7 +604,7 @@ async function postOrderItemData(){
     for (var i = 0 ; i < forms.length; i++) {
         var orderitem_form = forms[i];
         var orderitem_id = orderitem_form.getAttribute('data-orderitem-id');
-        var orderitem_packing_form = document.querySelectorAll(".orderitem-packing-form[data-orderitem-id='" + orderitem_id + "']")[0];
+        var orderitem_packing_form = document.querySelector(".orderitem-packing-form[data-orderitem-id='" + orderitem_id + "']");
         console.log(orderitem_packing_form);
         var orderitem_quantity = orderitem_form.elements['quantity'].value;
         var orderitem_note = orderitem_form.elements['note'].value;
