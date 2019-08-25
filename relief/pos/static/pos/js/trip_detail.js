@@ -324,6 +324,14 @@ function updateOrderitemData(orderitemJson, orderitem_packing){
 
 }
 
+function updateRouteNoteData(routeJson){
+    console.log(routeJson);
+    let route_id = routeJson.id;
+    let route_note = routeJson.note;
+    let route_h5 = document.querySelector(".note[data-route-id='" + route_id + "']");
+    route_h5.innerHTML = route_note;
+}
+
 
 function closeModalWindow(){
     var modal = document.getElementById('edit-modal');
@@ -659,7 +667,7 @@ async function postRouteData() {
             'Content-Type': 'application/json'
           }
         }).then(res => res.json())
-        .then(response => console.log('Success:', JSON.stringify(response)))
+        .then(res => updateRouteNoteData(res))
         .catch(error => console.error('Error:', error));
     }
 }

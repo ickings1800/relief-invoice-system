@@ -163,7 +163,7 @@ class RouteSerializer(serializers.ModelSerializer):
 class RouteUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
-        fields = ('do_number', 'note')
+        fields = ('id', 'do_number', 'note')
 
 
 class TripDetailSerializer(serializers.ModelSerializer):

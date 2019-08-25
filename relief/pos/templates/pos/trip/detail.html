@@ -66,7 +66,7 @@
                         {% endfor %}
                     {% endif %}
                     <div class="divider column col-12"></div>
-                    <h5 class="column col-11">{{ r.note }}</h5>
+                    <h5 class="column col-11 note" data-route-id="{{ r.pk }}">{{ r.note }}</h5>
                     <button class="delete btn btn-link column col-1"><i class="icon icon-delete float-right"></i></button>
                 </div>
                 {% endfor %}
