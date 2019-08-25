@@ -57,6 +57,8 @@
                                 {% endfor %}
                             </ul>
                             {% endfor %}
+                        {% else %}
+                        <div class="h4">{{ r.index }}.</div>
                         {% endif %}
                         <div class="divider column col-12"></div>
                         <h5 class="column col-11">{{ r.note }}</h5>
