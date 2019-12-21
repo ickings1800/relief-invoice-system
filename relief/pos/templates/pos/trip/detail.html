@@ -33,10 +33,12 @@
                 {% for r in routes %}
                 <div class="columns col-12 route" data-route-id="{{ r.pk }}">
                     <div class="columns column col-12">
-                            <input class="index form-input input-lg" value="{{ r.index }}" type="number" data-route-id="{{ r.pk }}" readonly disabled>
-                            <div style="display:inline;" class="h4 mx-2">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
+                            <input class="index form-input input-lg column col-1" value="{{ r.index }}" type="number" data-route-id="{{ r.pk }}" readonly disabled>
+                            <div style="display:inline;" class="h4 mx-2 column col-ml-auto">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
                             {% if r.do_number != "" and r.do_number != None %}
-                                <p class="h4 text-error float-right">{{ r.do_number }}</p>
+                                <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">{{ r.do_number }}</a>
+                            {% else %}
+                                <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">D/O NUMBER</a>
                             {% endif %}
                     </div>
 
@@ -120,6 +122,24 @@
       {% csrf_token %}
       <div class="modal-footer">
         <a id="modal-save" href="#save" class="btn btn-primary btn-lg my-2 float-right">Save</a>
+      </div>
+  </div>
+</div>
+
+<!-- DO Number Edit Modal -->
+<div class="modal modal-sm" id="do-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container">
+    <div class="modal-header">
+      <a id="do-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
+      <div id="do-title" class="modal-title h5">Edit D/O Number</div>
+    </div>
+    <form id="do-modal-body" action="" class="modal-body form-group columns">
+          <input class="form-input" type="number" id="do-number-input">
+    </form>
+      {% csrf_token %}
+      <div class="modal-footer">
+        <a id="do-save" href="#save" class="btn btn-primary float-right">Save</a>
       </div>
   </div>
 </div>
