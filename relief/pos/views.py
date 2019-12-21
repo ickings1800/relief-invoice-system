@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponseRedirect, FileResponse, HttpResponse
 from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
+from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company, CustomerGroup, Group
 from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
     CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
     InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
@@ -15,10 +15,15 @@ from io import BytesIO
 
 class CustomerIndexView(ListView):
     template_name = 'pos/customer/index.html'
-    context_object_name = 'customer_list'
+    context_object_name = 'group_dict'
 
     def get_queryset(self):
-        return Customer.objects.all()
+        group_dict = {}
+        groups = Group.objects.all()
+        for g in groups:
+            customer_groups = list(CustomerGroup.objects.filter(group_id=g.pk).order_by('index'))
+            group_dict[g.name] = customer_groups
+        return group_dict
 
 
 class ProductIndexView(ListView):
@@ -55,6 +60,15 @@ class CustomerProductListView(ListView):
 class CustomerDetailView(DetailView):
     model = Customer
     template_name = 'pos/customer/detail.html'
+
+    def get_context_data(self, **kwargs):
+        customer = self.kwargs['pk']
+        context = super(CustomerDetailView, self).get_context_data(**kwargs)
+        customer_group = get_object_or_404(CustomerGroup, customer_id=customer)
+        groups = Group.objects.all()
+        context['customer_group'] = customer_group
+        context['groups'] = groups
+        return context
 
 
 class CustomerRouteView(ListView):
@@ -224,7 +238,9 @@ def InvoiceDateRangeView(request, pk):
 
     if request.method == 'GET':
         customer = get_object_or_404(Customer, id=pk)
-        return render(request, template_name, {'customer': customer})
+        customer_group = CustomerGroup.objects.filter(customer_id=customer.pk)[0]
+        customer_groups = CustomerGroup.objects.filter(group_id=customer_group.group_id).order_by('index')
+        return render(request, template_name, {'customer': customer, 'customer_groups':customer_groups})
 
 
 def InvoiceSingleView(request, invoice_pk):

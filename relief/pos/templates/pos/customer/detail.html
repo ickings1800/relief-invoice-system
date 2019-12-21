@@ -1,5 +1,7 @@
 {% extends 'pos/master/menu_nav.html' %}
+{% load static %}
 {% block content %}
+<script type="text/javascript" src="{% static 'pos/js/customer_detail.js' %}"></script>
 <div class="container">
     <div class="columns">
         <div class="column col-12">
@@ -74,6 +76,10 @@
                             <td>GST:</td>
                             <td>{{ customer.gst }}</td>
                         <tr>
+                        <tr>
+                            <td>Group:</td>
+                            <td><a href="#" id="customer_group_name">{{ customer_group.group.name }}</a></td>
+                        </tr>
                     </table>
                     <a href="{% url 'admin:pos_customer_change' customer.id %}" class="btn btn-primary btn-block show-lg my-2">
                         Edit
@@ -82,5 +88,34 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="modal modal-sm" id="change_customer_group_modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container" id="group-change-modal">
+    <div class="modal-header">
+      <a href="#close" class="btn btn-clear float-right" aria-label="Close" id="modal-close"></a>
+      <div class="modal-title h5">Change Group</div>
+    </div>
+    <div class="modal-body">
+      <div class="content">
+        <!-- form select control -->
+        <div class="form-group">
+          <select class="form-select" id="modal-select" data-customer-groupid="{{ customer_group.id }}">
+          {% for g in groups %}
+              {% if customer_group.group.name == g.name %}
+              <option selected value="{{ g.pk }}">{{ g.name }}</option>
+              {% else %}
+              <option value="{{ g.pk }}">{{ g.name }}</option>
+              {% endif %}
+          {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="modal-save">Save</button>
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct
+from ..models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
 
 
 class TripAddRouteSerializer(serializers.Serializer):
@@ -24,6 +24,12 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = ('name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst')
+
+
+class CustomerGroupUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerGroup
+        fields = ('id', 'group')
 
 
 class ProductListDetailUpdateSerializer(serializers.ModelSerializer):
@@ -213,3 +219,12 @@ class RouteListSerializer(serializers.ModelSerializer):
 
     def get_trip_date(self, obj):
         return obj.trip.date.strftime("%d-%m-%Y")
+
+
+# class CustomerGroupSwapSerializer(serializers.Serializer):
+#     group_id = serializers.IntegerField()
+#     customers = serializers.ListField()
+#
+#     def update(self, instance, validated_data):
+#         print(validated_data.get('group_id'))
+#         print(validated_data.get('customers'))

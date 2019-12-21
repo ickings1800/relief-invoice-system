@@ -213,6 +213,33 @@ class Trip(models.Model):
         return buffer
 
 
+class Group(models.Model):
+    name = models.CharField(max_length=255, null=False, blank=False)
+
+    def __str__(self):
+        return self.name
+
+    def group_change(pk, group_id):
+        if pk and group_id:
+            customer_group = CustomerGroup.objects.get(pk=pk)
+            group = Group.objects.get(pk=group_id)
+            prev_customergroup_group_id = customer_group.group_id
+            next_group_index = len(CustomerGroup.objects.filter(group_id=group_id)) + 1
+            customer_group.group = group
+            customer_group.index = next_group_index
+            customer_group.save()
+            Group.customergroup_index_rearrange(prev_customergroup_group_id)
+
+    def customergroup_index_rearrange(group_id):
+        customergroup_rerrange = CustomerGroup.objects.filter(group_id=group_id).order_by('index')
+        for i in range(len(customergroup_rerrange)):
+            customergroup = customergroup_rerrange[i]
+            ordering = i + 1
+            if customergroup.index != ordering:
+                customergroup.index = ordering
+                customergroup.save()
+
+
 class Customer(models.Model):
     name = models.CharField(max_length=255, unique=True)
     address = models.CharField(max_length=255, null=True, blank=True)
@@ -224,6 +251,40 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CustomerGroup(models.Model):
+    index = models.IntegerField(null=True)
+    customer = models.ForeignKey(Customer, on_delete=models.DO_NOTHING, null=True)
+    group = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True)
+
+    class Meta:
+        unique_together = ('group', 'index')
+
+    def customergroup_swap(customer_groups, customergroup_list_arrangement):
+        if customergroup_list_arrangement and len(customergroup_list_arrangement) == len(customer_groups):
+            for cg in customer_groups:
+                try:
+                    customergroup_index = customergroup_list_arrangement.index(cg.pk) + 1
+                except ValueError as e:
+                    print(e)
+                    break
+                if cg.index != customergroup_index:
+                    cg.index = customergroup_index
+                    cg.save()
+
+    def next_customer_group(customer_id):
+        cg = CustomerGroup.objects.filter(customer_id=customer_id)[0]
+        next_customer_group = CustomerGroup.objects.filter(index__gt=cg.index).order_by('index')
+        if len(next_customer_group) > 0:
+            return next_customer_group[0]
+
+    def prev_customer_group(customer_id):
+        cg = CustomerGroup.objects.filter(customer_id=customer_id)[0]
+        prev_customer_group = CustomerGroup.objects.filter(index__lt=cg.index).order_by('index')
+        if len(prev_customer_group) > 0:
+            return prev_customer_group[0]
+
 
 class Product(models.Model):
     name = models.CharField(max_length=128)

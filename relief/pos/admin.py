@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from .models import Trip, Customer, Product, Invoice, Route, CustomerProduct, OrderItem
+from django.db import models
+from django.forms import forms, fields, ModelForm
+from .models import Trip, Customer, Product, Invoice, Route, CustomerProduct, OrderItem, CustomerGroup, Group
 # Register your models here.
 
 
@@ -41,6 +43,12 @@ class AdminCustomerProduct(admin.ModelAdmin):
         return redirect(reverse('admin:pos_customerproduct_add') + '?customer={0}'.format(customer_id))
 
 
+class AdminGroup(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+admin.site.register(Group, AdminGroup)
 admin.site.register(Customer, AdminCustomer)
 admin.site.register(Product, AdminProduct)
 admin.site.register(Trip, AdminTrip)

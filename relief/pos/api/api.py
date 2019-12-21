@@ -9,9 +9,9 @@ from .serializers import TripAddRouteSerializer, \
     CustomerCreateSerializer, ProductCreateSerializer, TripCreateSerializer, CustomerProductListDetailSerializer,\
     CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
     TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
-    InvoiceCreateSerializer, InvoiceDetailSerializer
+    InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer
 
-from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice
+from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, timedelta
 
 
@@ -43,6 +43,14 @@ class CustomerCreate(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+
+class CustomerGroupUpdate(UpdateAPIView):
+    queryset = CustomerGroup.objects.all()
+    serializer_class = CustomerGroupUpdateSerializer
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 
 class ProductList(ListAPIView):
@@ -196,6 +204,25 @@ def route_arrange(request, pk):
             print(e.detail)
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_200_OK, data=request.data)
+
+
+@api_view(['POST'])
+def customergroup_arrange(request, group_id):
+    if request.method == 'POST':
+        customergroups = CustomerGroup.objects.filter(group_id=group_id)
+        customergroup_list_arrangement = request.data['arrangement']
+        CustomerGroup.customergroup_swap(customergroups, customergroup_list_arrangement)
+        return Response(status=status.HTTP_200_OK, data=request.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+def group_change(request, pk):
+    if request.method == 'PUT':
+        group_id = request.data['group']
+        Group.group_change(pk, group_id)
+        return Response(status=status.HTTP_200_OK, data=request.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class RouteDelete(DestroyAPIView):
