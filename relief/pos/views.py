@@ -227,7 +227,7 @@ def InvoiceDateRangeView(request, pk):
         return render(request, template_name, {'customer': customer})
 
 
-def InvoiceSingleView(request, invoice_pk, cust_pk):
+def InvoiceSingleView(request, invoice_pk):
     invoice_file = Invoice.export_invoice_to_pdf(int(invoice_pk))
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename={0}.pdf'.format(invoice_pk)

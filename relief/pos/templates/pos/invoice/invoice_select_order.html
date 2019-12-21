@@ -6,9 +6,18 @@
 {% block content %}
 <script type="text/javascript" src="{% static 'pos/js/invoice_detail.js' %}"></script>
 <div class="container">
-    <a href="#">Back </a>
     <div class="columns">
-        <h2 id="customer" data-customer-id="{{ customer.pk}}" class="column col-8">{{ customer.name }}</h2>
+        <div class="dropdown column col-8">
+          <a href="#" class="btn btn-link dropdown-toggle" tabindex="0" id="customer" data-customer-id="{{ customer.pk }}">
+              {{ customer.name }} <i class="icon icon-caret"></i>
+          </a>
+          <!-- menu component -->
+          <ul class="menu">
+              {% for cg in customer_groups %}
+              <li class="menu-item"><a href="{% url 'pos:invoice_daterange' pk=cg.customer_id %}">{{ cg.customer.name }}</a></li>
+              {% endfor %}
+          </ul>
+        </div>
         <div class="column col-4">
             <button id="create" class="btn btn-primary btn-lg float-right">Save</button>
         </div>
@@ -34,12 +43,13 @@
                 <li class="column col-6">
                     <input style="flex:3" class="form-input" type="date" id="end-date">
                 </li>
+                <li class="column col-12">
+                    <button data-customer-id="{{ customer.pk }}" id="refresh" class="btn btn-primary float-right">Refresh</button>
+                </li>
             </ul>
-            <button data-customer-id="{{ customer.pk }}" id="refresh" class="btn btn-primary float-right">Refresh</button>
         </div>
     </div>
     <div class="divider"></div>
-
     <table id="route-table" class="table">
         <tr id="heading" class="route-row"></tr>
         <tr><td style="border:none;"></td></tr>
