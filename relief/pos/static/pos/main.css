@@ -169,6 +169,11 @@ padding-top:0;
     max-width:960px;
 }
 
+#do-modal > div {
+    max-width:320px;
+    padding:.5rem;
+}
+
 .heading-label {
 font-size: 1vw;
 }
@@ -203,4 +208,17 @@ font-size: 1vw;
     display:inline;
     width:3.5em;
     opacity:1;
+}
+
+.accordion input:checked~.accordion-body, .accordion[open] .accordion-body {
+    max-height: fit-content;
+}
+
+#group-change-modal {
+    max-width:320px;
+}
+
+#customer {
+    font-size:1.6rem;
+    font-weight:500;
 }

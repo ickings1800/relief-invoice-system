@@ -14,6 +14,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
+
 window.onload = function(e){
     let print_button = document.getElementById('print');
     if (print_button !== null){
@@ -25,14 +26,18 @@ window.onload = function(e){
         let add_route_btn = document.getElementById('add-route');
         let arrange_button = document.getElementById('arrange-button');
         let arrange_cancel = document.getElementById('arrange-cancel-button');
+        let do_number_save = document.getElementById('do-save');
         arrange_cancel.addEventListener("click", cancelArrangeRoutes, false);
         arrange_button.addEventListener("click", arrangeRoutes, false);
         add_route_btn.addEventListener("click", addRouteToTrip, false);
         edit_submit_btn.addEventListener("click", postOrderItemData, false);
+        do_number_save.addEventListener("click", saveDoNumber, false);
 
+        let doNumberAnchors = getDoNumberAnchors();
+        applyShowDoNumberModalEvent(doNumberAnchors);
         applyShowEditRouteModalEvent(routes);
         applyDeleteRouteEvent(del_buttons);
-
+        applyCloseDoNumberModal();
         close_btn.addEventListener("click", clearEditForm, false);
     }
     // Only get trip packing sum if on print trip details page
@@ -49,6 +54,22 @@ function getDeleteButtonsDomElements(){
 
 function getIndexInputDomElements(){
     return index_inputs = document.getElementsByClassName('index');
+}
+
+
+function getDoNumberAnchors(){
+    return do_number_anchors = document.getElementsByClassName('do-number')
+}
+
+function applyShowDoNumberModalEvent(do_number_anchors){
+    for(var i = 0; i < do_number_anchors.length; i++){
+            do_number_anchors[i].addEventListener("click", showDoNumberModal, false);
+    }
+}
+
+function applyCloseDoNumberModal(){
+        let doNumberClose = document.getElementById('do-close');
+        doNumberClose.addEventListener("click", closeDoNumberModal, false);
 }
 
 function applyShowEditRouteModalEvent(route_div){
@@ -87,6 +108,71 @@ function orderIndexInputsByIndexValue(index_inputs){
     index_inputs.sort(function(a, b){
         return parseInt(a.value) - parseInt(b.value);
     });
+}
+
+function updateDoNumberText(route_id, do_number_text){
+    let do_number_href = document.querySelector(".do-number[data-route-id='" + route_id + "']");
+    do_number_href.text = do_number_text;
+}
+
+function saveDoNumber(event){
+    let do_save_button = document.getElementById('do-save');
+    let do_number_input = document.getElementById('do-number-input');
+    let do_number_text = do_number_input.value;
+    let route_id = do_save_button.getAttribute('data-route-id');
+    let url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
+    var data = {
+        'id': route_id,
+        'do_number': do_number_text,
+    };
+    fetch(url, {
+      method: 'PUT', // or 'PUT'
+      credentials: 'same-origin',
+      body: JSON.stringify(data), // data can be `string` or {object}!
+      headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).then(function(){
+        updateDoNumberText(route_id, do_number_text);
+    }).then(function(){
+        closeDoNumberModal();
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+
+
+async function showDoNumberModal(event){
+    let do_anchor = event.target;
+    let do_modal = document.getElementById('do-modal');
+    let do_save_button = document.getElementById('do-save');
+    let do_number_input = document.getElementById('do-number-input');
+    let route_id = do_anchor.getAttribute('data-route-id');
+    let url = "http://localhost:8000/pos/api/routes/" + route_id + "/";
+    do_save_button.setAttribute('data-route-id', route_id);
+    do_modal.classList.add('active');
+    event.stopPropagation();
+    event.preventDefault();
+    let route = await fetch(url)
+    .then(function(response){
+        return response.json();
+    });
+    let do_number = route.do_number;
+    console.log(do_number);
+    if (do_number != null && do_number != ""){
+        do_number_input.value = do_number;
+    } else {
+        do_number_input.text = "";
+    }
+}
+
+function closeDoNumberModal(event){
+    let do_modal = document.getElementById('do-modal');
+    do_modal.classList.remove('active');
+    event.stopPropagation();
+    event.preventDefault();
 }
 
 function cancelArrangeRoutes(event){
