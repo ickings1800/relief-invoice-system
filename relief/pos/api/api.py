@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.response import Response
 from rest_framework.exceptions import APIException
@@ -237,6 +238,7 @@ class RouteDelete(DestroyAPIView):
 
 
 class CustomerProductList(ListAPIView):
+    # TODO: change customerproduct to filter based on date range
     def get(self, request, *args, **kwargs):
         customerproducts = CustomerProduct.objects.filter(customer=self.kwargs['pk'])
         customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
@@ -361,9 +363,16 @@ class InvoiceCreate(CreateAPIView):
         invoice_number = request.data.get('invoice_number')
         route_id_list = request.data.get('route_id_list')
         print(customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list)
-        invoice_id = Invoice.generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year,
-                                              invoice_number, route_id_list)
-        return Response(status=status.HTTP_201_CREATED, data=invoice_id)
+        if len(route_id_list) > 0:
+            try:
+                invoice_id = Invoice.generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year,
+                                                  invoice_number, route_id_list)
+                pdf_url = reverse('pos:invoice_pdf_view', args=[invoice_id])
+            except ValueError as e:
+                return Response({str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'Route list is empty'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'pdf_url': pdf_url}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

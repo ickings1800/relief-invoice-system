@@ -324,20 +324,35 @@ class Invoice(models.Model):
             return invoice_num_max.get('invoice_number__max') + 1
 
     def generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
+        invoice_exists = Invoice.objects.filter(invoice_year=invoice_year, invoice_number=invoice_number)
+        if invoice_exists.count() > 0:
+            raise ValueError("Invoice number {0} {1} already exists, generate a new number"
+                             .format(invoice_year,invoice_number))
+
+        selected_routes = []
+        for r in route_id_list:
+            try:
+                route = Route.objects.get(pk=r)
+            except Route.DoesNotExist:
+                raise ValueError("Route ID:{0} does not exist".format(r))
+            if route.invoice_id:
+                raise ValueError("Route ID:{0} has an Invoice".format(r))
+            selected_routes.append(route)
         invoice = Invoice(gst=int(customer_gst), start_date=start_date, end_date=end_date)
         invoice.customer_id = customer_id
         invoice.save()
         original_total = 0
-        for r in route_id_list:
-            route = get_object_or_404(Route, id=r)
-            route.invoice = invoice
-            orderitems = route.orderitem_set.all()
+        # check whether route already has an invoice, and ensure every route is found.
+
+        for r in selected_routes:
+            r.invoice = invoice
+            orderitems = r.orderitem_set.all()
             for oi in orderitems:
                 quote = oi.customerproduct.quote_price
                 oi.unit_price = quote
                 oi.save()
                 original_total += (oi.driver_quantity * oi.unit_price)
-            route.save()
+            r.save()
 
         net_total = original_total
         # GST value is a whole number in model
