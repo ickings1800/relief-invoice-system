@@ -3,9 +3,12 @@
 {% load static %}
 {% load widget_tweaks %}
 {% block content %}
-<script type="text/javascript" src="{% static 'pos/js/trip_detail.js' %}"></script>
+<script type="module" src="{% static 'pos/js/trip_detail.js' %}"></script>
+<script type="module" src="{% static 'pos/js/jspdf.min.js' %}"></script>
+<script type="module" src="{% static 'pos/js/html2canvas.min.js' %}"></script>
+
 <title>{{ trip.date|date:"d M Y P" }}</title>
-<div class="container">
+<div class="container" id="print-page">
     <div class="columns">
         <div class="columns column col-12">
             <div class="column col-12">
@@ -129,7 +132,7 @@
 <!-- DO Number Edit Modal -->
 <div class="modal modal-sm" id="do-modal">
   <a href="#close" class="modal-overlay" aria-label="Close"></a>
-  <div class="modal-container">
+  <div class="modal-container do-modal-window">
     <div class="modal-header">
       <a id="do-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
       <div id="do-title" class="modal-title h5">Edit D/O Number</div>

@@ -18,7 +18,7 @@ urlpatterns = [
     #  /pos/trips/detail/<int:pk>/
     path('trip/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
     #  /pos/trips/detail/<int:pk>/
-    path('trip/detail/<int:pk>/print/', views.print_trip_detail, name='trip_print'),
+    path('trip/detail/<int:pk>/print/', views.TripDetailPDFView.as_view(), name='trip_print'),
     #  /pos/trips/delete/<pk>/
     path('trip/delete/<int:pk>/', views.TripDeleteView.as_view(), name='trip_delete'),
     #  /pos/route/customer/<int:pk>/

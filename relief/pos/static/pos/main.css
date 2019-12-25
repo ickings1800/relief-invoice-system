@@ -17,9 +17,14 @@ input[type=number]::-webkit-outer-spin-button {
     font-weight: 600;
     text-transform: uppercase;
 }
-
+@page {
+    margin:0;
+}
 @media print
 {
+    body{
+        zoom:80%;
+    }
     .route, .packing-sum{
         page-break-inside: avoid;
     }
@@ -165,7 +170,7 @@ padding-top:0;
     margin-right:0;
 }
 
-.modal.active .modal-container {
+.modal.active .do-modal-window {
     max-width:960px;
 }
 

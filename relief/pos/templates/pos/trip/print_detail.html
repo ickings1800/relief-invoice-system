@@ -4,11 +4,14 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta charset="UTF-8">
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre.min.css' %}" />
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre-icons.min.css' %}" />
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre-exp.min.css' %}" />
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/main.css' %}" />
     <script type="text/javascript" src="{% static 'pos/js/trip_detail.js' %}"></script>
+    <!--inline css because django-hardcopy does not support linking of css via script tags-->
+    <style>
+        {% include "pos/spectre.min.css" %}
+        {% include "pos/spectre-icons.min.css" %}
+        {% include "pos/spectre-exp.min.css" %}
+        {% include "pos/main.css" %}
+    </style>
 </head>
 <body>
     <div class="container">
@@ -29,9 +32,6 @@
                         <div class="columns column col-12">
                             <div class="h4">{{ r.index }}.</div>
                             <div style="display:inline;" class="h4 mx-2">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
-                            {% if r.do_number != "" and r.do_number != None %}
-                                <p class="h4 text-error float-right">{{ r.do_number }}</p>
-                            {% endif %}
                         </div>
 
                             <div class="column col-6"></div>
@@ -74,7 +74,11 @@
                         {% endfor %}
                     </ul>
                     <div class="column col-6"></div>
-                    <ul id="total-packing-sum" class="packing-container column col-6" data-trip-id="{{ trip.pk }}"></ul>
+                    <ul id="total-packing-sum" class="packing-container column col-6" data-trip-id="{{ trip.pk }}">
+                        {% for method in packing %}
+                        <li>{{ packing_sum|keyvalueget:method }}</li>
+                        {% endfor %}
+                    </ul>
                 </div>
                 <div class="divider column col-12"></div>
             </div>

@@ -1,3 +1,4 @@
+
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -27,11 +28,14 @@ window.onload = function(e){
         let arrange_button = document.getElementById('arrange-button');
         let arrange_cancel = document.getElementById('arrange-cancel-button');
         let do_number_save = document.getElementById('do-save');
+        //let print_button = document.getElementById('print');
+
         arrange_cancel.addEventListener("click", cancelArrangeRoutes, false);
         arrange_button.addEventListener("click", arrangeRoutes, false);
         add_route_btn.addEventListener("click", addRouteToTrip, false);
         edit_submit_btn.addEventListener("click", postOrderItemData, false);
         do_number_save.addEventListener("click", saveDoNumber, false);
+        print_button.addEventListener("click", print, false);
 
         let doNumberAnchors = getDoNumberAnchors();
         applyShowDoNumberModalEvent(doNumberAnchors);
@@ -49,16 +53,16 @@ function getRouteDomElements(){
 }
 
 function getDeleteButtonsDomElements(){
-    return del_buttons = document.getElementsByClassName('delete');
+    return document.getElementsByClassName('delete');
 }
 
 function getIndexInputDomElements(){
-    return index_inputs = document.getElementsByClassName('index');
+    return document.getElementsByClassName('index');
 }
 
 
 function getDoNumberAnchors(){
-    return do_number_anchors = document.getElementsByClassName('do-number')
+    return document.getElementsByClassName('do-number')
 }
 
 function applyShowDoNumberModalEvent(do_number_anchors){
@@ -268,7 +272,7 @@ function showEditRouteModal(event){
     closeModal.addEventListener("click", function(e){
         editModal.classList.remove("active");
     }, false);
-    routeId = this.getAttribute('data-route-id');
+    let routeId = this.getAttribute('data-route-id');
     fetch('http://localhost:8000/pos/api/routes/' + routeId + '/')
         .then(function(response){
             return response.json();
@@ -298,7 +302,7 @@ function generateEditRouteForm(routeJson){
         container.classList.add('orderitem-form');
         container.setAttribute('data-orderitem-id', orderitem.id);
 
-        main_container = document.createElement('div');
+        let main_container = document.createElement('div');
         main_container.classList.add('column', 'col-12', 'my-1');
         main_container.style.display = "flex";
 
@@ -708,6 +712,7 @@ async function postOrderItemData(){
         var data = {
             'id': orderitem_id,
             'quantity': orderitem_quantity,
+            'driver_quantity', orderitem_quantity, // driver quantity to default to orderitem quantity temporarily.
             'note': orderitem_note,
             'packing': orderitem_packing_json
         };
@@ -805,4 +810,15 @@ function getCustomerId(customerName){
         console.log(err);
     }
     return customerId;
+}
+
+function print(){
+    console.log('print pdf');
+    const filename = 'invoice.pdf';
+    let options = { pagesplit: true,'background': '#fff' };
+    html2canvas(document.querySelector('#print-page')).then(canvas => {
+        let pdf= new jsPDF('p', 'mm', 'a4');
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 211, 298);
+        pdf.save(filename);
+    });
 }
