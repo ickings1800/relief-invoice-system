@@ -34,7 +34,9 @@ urlpatterns = [
     #  /pos/invoice/invoice_history/
     path('invoice/invoice_history', views.InvoiceHistoryView.as_view(), name='invoice_history'),
     #  /pos/invoice/<invoice_pk>/
-    path('invoice/<int:invoice_pk>/', views.InvoiceSingleView, name='invoice_view'),
+    path('invoice/<int:invoice_pk>/', views.InvoiceSingleView.as_view(), name='invoice_view'),
+    #  /pos/invoice/<invoice_pk>/pdf/
+    path('invoice/<int:invoice_pk>/pdf/', views.InvoiceSinglePDFView.as_view(), name='invoice_pdf_view'),
     #  /pos/invoice/delete/<invoice_pk>/
     path('invoice/delete/<int:pk>', views.InvoiceDeleteView.as_view(), name='invoice_delete'),
     #  /pos/invoice/customer/<customer_pk>/

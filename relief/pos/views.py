@@ -1,14 +1,13 @@
-from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
-from django.http import HttpResponseRedirect, FileResponse, HttpResponse
-from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company, CustomerGroup, Group
-from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
-    CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
-    InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
-from collections import defaultdict
-from io import BytesIO
+from django.http import HttpResponseRedirect, HttpResponse
+from django.core.files import File
+from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
+from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
+from .forms import   TripForm, TripDetailForm, OrderItemFormSet, RouteForm
+from hardcopy.views import PDFViewMixin, PNGViewMixin
+import os
 
 
 # Create your views here.
@@ -168,6 +167,28 @@ def print_trip_detail(request, pk):
     return render(request, template_name, context)
 
 
+class TripDetailPrintView(FormView):
+    model = Trip
+    template_name = 'pos/trip/print_detail.html'
+    form_class = TripDetailForm
+
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailPrintView, self).get_context_data(**kwargs)
+        trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
+        context['trip'] = trip
+        context['routes'] = trip.route_set.all().order_by('index')
+        if trip.packaging_methods:
+            packing = trip.packaging_methods.split(',')
+            packing_sum = Trip.get_packing_sum(trip.pk)
+            context['packing'] = [e.strip() for e in packing]
+            context['packing_sum'] = packing_sum
+        return context
+
+
+class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
+    template_name = 'pos/trip/print_detail.html'
+    download_attachment = True
+
 class TripDeleteView(DeleteView):
     template_name = 'pos/trip/trip_confirm_delete.html'
     model = Trip
@@ -243,12 +264,32 @@ def InvoiceDateRangeView(request, pk):
         return render(request, template_name, {'customer': customer, 'customer_groups':customer_groups})
 
 
-def InvoiceSingleView(request, invoice_pk):
-    invoice_file = Invoice.export_invoice_to_pdf(int(invoice_pk))
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename={0}.pdf'.format(invoice_pk)
-    response.write(invoice_file.getvalue())
-    return response
+class InvoiceSingleView(TemplateView):
+    template_name = 'pos/invoice/invoice_single_view.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(InvoiceSingleView, self).get_context_data(**kwargs)
+        invoice_pk = self.kwargs['invoice_pk']
+        invoice = get_object_or_404(Invoice, pk=invoice_pk)
+        customer = invoice.customer_id
+        customer = get_object_or_404(Customer, pk=customer)
+        route_list = Invoice.get_customer_routes_for_invoice(invoice_pk)
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
+        customerproduct_sum = Invoice.get_invoice_customerproduct_sum(route_list, customerproducts)
+        customerproduct_nett = Invoice.get_invoice_customerproduct_nett_amt(customerproduct_sum, customerproducts)
+        print(customerproduct_nett)
+        context['customerproduct_nett'] = customerproduct_nett
+        context['customerproduct_sum'] = customerproduct_sum
+        context['invoice_route_list'] = route_list
+        context['customerproducts'] = customerproducts
+        context['customer'] = customer
+        context['invoice'] = invoice
+        return context
+
+
+class InvoiceSinglePDFView(PDFViewMixin, InvoiceSingleView):
+    template_name = 'pos/invoice/invoice_single_view.html'
+    download_attachment = True
 
 
 class InvoiceHistoryView(ListView):

@@ -38,11 +38,16 @@
                             <tr>
                                 <td>{{ invoice.pk }}</td>
                                 <td>
-                                    <a href="{% url 'pos:invoice_view' invoice_pk=invoice.id cust_pk=customer.pk %}">{{ invoice.date_generated|date:"d M Y" }}</a>
+                                    <a href="{% url 'pos:invoice_view' invoice_pk=invoice.id %}">{{ invoice.date_generated|date:"d M Y" }}</a>
                                 </td>
                                 <td>
                                     <a href="{% url 'pos:invoice_delete' pk=invoice.id %}">
                                         <i class="icon icon-delete float-right"></i>
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{% url 'pos:invoice_pdf_view' invoice_pk=invoice.id %}">
+                                        <i class="icon icon-download float-right"></i>
                                     </a>
                                 </td>
                             </tr>

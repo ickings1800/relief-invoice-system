@@ -21,14 +21,46 @@ window.onload = function(e){
     add_row_ul = document.getElementById('add-row');
     gst_select = document.getElementById('gst-select');
     invoice_create = document.getElementById('create');
+    modal_status_ok_btn = document.getElementById('ok-button');
+    modal_download_close_btn = document.getElementById('download-close');
     refresh_btn.addEventListener("click", getRoutes, false);
     modal_close.addEventListener("click", closeModal, false);
     modal_save.addEventListener("click", saveOrderItem , false);
     invoice_create.addEventListener("click", createInvoice, false);
     gst_select.addEventListener("click", calculateInvoice, false);
+    modal_status_ok_btn.addEventListener("click", closeStatusModal, false);
+    modal_download_close_btn.addEventListener("click", closeDownloadModal, false);
     getInvoiceNumber();
     console.log("Added click event");
 };
+
+function closeDownloadModal(event){
+    let modal_download_url = document.getElementById('download-url');
+    let modal_download_window = document.getElementById('download-window');
+    modal_download_url.href = "";
+    modal_download_window.classList.remove('active');
+}
+
+function openDownloadModal(download_url){
+    let modal_download_url = document.getElementById('download-url');
+    let modal_download_window = document.getElementById('download-window');
+    modal_download_url.href = download_url;
+    modal_download_window.classList.add('active');
+}
+
+function closeStatusModal(event){
+    let modal_status = document.getElementById('modal-status');
+    let modal_status_window = document.getElementById('modal-status-window');
+    modal_status.innerHTML = "";
+    modal_status_window.classList.remove('active');
+}
+
+function openStatusModal(error_message) {
+    let modal_status = document.getElementById('modal-status');
+    let modal_status_window = document.getElementById('modal-status-window');
+    modal_status.innerHTML = error_message;
+    modal_status_window.classList.add('active');
+}
 
 
 async function getInvoiceNumber(){
@@ -91,7 +123,8 @@ async function createInvoice(event) {
         'Content-Type': 'application/json'
       }
     }).then(response => response.json())
-    .catch(error => console.error('Error: ', error));
+    .then(response => openDownloadModal(response.pdf_url))
+    .catch(error => openStatusModal(error));
 }
 
 

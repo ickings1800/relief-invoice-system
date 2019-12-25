@@ -492,6 +492,38 @@ class Invoice(models.Model):
         doc.build(elements)
         return buffer
 
+    def get_customer_routes_for_invoice(invoice_id):
+        route_list_dict = list()
+        route_list = Route.objects.filter(invoice_id=invoice_id).order_by('trip__date')
+        for r in route_list:
+            row_dict = dict()
+            trip_date = r.trip.date
+            do_number = r.do_number
+            row_dict['trip_date'] = trip_date
+            row_dict['do_number'] = do_number
+            for oi in r.orderitem_set.all():
+                orderitem_name = oi.customerproduct.product.name
+                orderitem_driver_quantity = oi.quantity
+                row_dict[orderitem_name] = orderitem_driver_quantity
+            route_list_dict.append(row_dict)
+        return route_list_dict
+
+    def get_invoice_customerproduct_sum(route_list_dict, customerproducts):
+        customerproduct_dict = {cp.product.name: 0 for cp in customerproducts}
+        print(route_list_dict)
+        for row in route_list_dict:
+            for cp in customerproduct_dict.keys():
+                customerproduct_dict[cp] += row[cp]
+        return customerproduct_dict
+
+    def get_invoice_customerproduct_nett_amt(customerproduct_quantity_sum_dict, customerproducts):
+        customerproduct_nett_dict = {cp.product.name: 0 for cp in customerproducts}
+        for cp in customerproducts:
+            customerproduct_nett = customerproduct_quantity_sum_dict[cp.product.name] * cp.quote_price
+            customerproduct_nett_dict[cp.product.name] = customerproduct_nett
+        return customerproduct_nett_dict
+
+
 
 class Route(models.Model):
     index = models.SmallIntegerField()
@@ -513,6 +545,8 @@ class Route(models.Model):
                                           orderitem__customerproduct__customer_id=customer_id).order_by('trip__date')\
             .distinct()
         return route_list
+
+
 
 
 class CustomerProduct(models.Model):

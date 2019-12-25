@@ -57,10 +57,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'relief.urls'
 
+# template directory to include static directory to include css files in template
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR + '/pos/static/'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -82,7 +83,7 @@ WSGI_APPLICATION = 'relief.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'Relief',
+        'NAME': 'relief',
         'USER':'admin',
         'PASSWORD':'admin',
     }
