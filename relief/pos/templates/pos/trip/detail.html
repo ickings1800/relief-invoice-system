@@ -4,8 +4,6 @@
 {% load widget_tweaks %}
 {% block content %}
 <script type="module" src="{% static 'pos/js/trip_detail.js' %}"></script>
-<script type="module" src="{% static 'pos/js/jspdf.min.js' %}"></script>
-<script type="module" src="{% static 'pos/js/html2canvas.min.js' %}"></script>
 
 <title>{{ trip.date|date:"d M Y P" }}</title>
 <div class="container" id="print-page">
