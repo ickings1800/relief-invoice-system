@@ -9,7 +9,6 @@ https://docs.djangoproject.com/en/2.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.0/ref/settings/
 """
-
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -111,6 +110,12 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     "DATETIME_FORMAT": "%d-%m-%Y %H:%M",
     "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES':[
+        'rest_framework.permissions.IsAuthenticated',
+    ]
 }
 
 # this disables Cross domain requests
@@ -143,3 +148,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
 STATIC_URL = '/static/'
+LOGIN_URL = '/pos/login/'
+LOGIN_REDIRECT_URL = '/pos/customers/'
+LOGOUT_REDIRECT_URL = '/pos/login'

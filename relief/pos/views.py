@@ -1,18 +1,18 @@
 from django.conf import settings
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse
-from django.core.files import File
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
 from .forms import   TripForm, TripDetailForm, OrderItemFormSet, RouteForm
 from hardcopy.views import PDFViewMixin, PNGViewMixin
-import os
 
 
 # Create your views here.
 
-class CustomerIndexView(ListView):
+class CustomerIndexView(LoginRequiredMixin, ListView):
     template_name = 'pos/customer/index.html'
     context_object_name = 'group_dict'
 
@@ -25,7 +25,7 @@ class CustomerIndexView(ListView):
         return group_dict
 
 
-class ProductIndexView(ListView):
+class ProductIndexView(LoginRequiredMixin, ListView):
     template_name = 'pos/product/index.html'
     context_object_name = 'product_list'
 
@@ -33,7 +33,7 @@ class ProductIndexView(ListView):
         return Product.objects.all()
 
 
-class TripIndexView(ListView):
+class TripIndexView(LoginRequiredMixin, ListView):
     template_name = 'pos/trip/index.html'
     context_object_name = 'trip_list'
 
@@ -41,7 +41,7 @@ class TripIndexView(ListView):
         return Trip.objects.all().order_by('-date')
 
 
-class CustomerProductListView(ListView):
+class CustomerProductListView(LoginRequiredMixin, ListView):
     template_name = 'pos/customerproduct/index.html'
     context_object_name = 'customerproduct_list'
 
@@ -56,7 +56,7 @@ class CustomerProductListView(ListView):
         return context
 
 
-class CustomerDetailView(DetailView):
+class CustomerDetailView(LoginRequiredMixin, DetailView):
     model = Customer
     template_name = 'pos/customer/detail.html'
 
@@ -70,7 +70,7 @@ class CustomerDetailView(DetailView):
         return context
 
 
-class CustomerRouteView(ListView):
+class CustomerRouteView(LoginRequiredMixin, ListView):
     template_name = 'pos/route/customer_routes.html'
     context_object_name = 'route_list'
 
@@ -86,7 +86,7 @@ class CustomerRouteView(ListView):
         return context
 
 
-class TripCopyView(FormView):
+class TripCopyView(LoginRequiredMixin, FormView):
     template_name = 'pos/trip/copy.html'
     form_class = TripForm
 
@@ -136,7 +136,7 @@ class TripCopyView(FormView):
         return reverse('pos:trip_index')
 
 
-class TripDetailView(FormView):
+class TripDetailView(LoginRequiredMixin, FormView):
     model = Trip
     template_name = 'pos/trip/detail.html'
     form_class = TripDetailForm
@@ -156,6 +156,7 @@ class TripDetailView(FormView):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
 
 
+@login_required
 def print_trip_detail(request, pk):
     template_name = 'pos/trip/print_detail.html'
     trip = get_object_or_404(Trip, pk=pk)
@@ -167,7 +168,7 @@ def print_trip_detail(request, pk):
     return render(request, template_name, context)
 
 
-class TripDetailPrintView(FormView):
+class TripDetailPrintView(LoginRequiredMixin, FormView):
     model = Trip
     template_name = 'pos/trip/print_detail.html'
     form_class = TripDetailForm
@@ -189,7 +190,8 @@ class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
     template_name = 'pos/trip/print_detail.html'
     download_attachment = True
 
-class TripDeleteView(DeleteView):
+
+class TripDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'pos/trip/trip_confirm_delete.html'
     model = Trip
 
@@ -201,7 +203,7 @@ class TripDeleteView(DeleteView):
         return reverse('pos:trip_index')
 
 
-class RouteEditView(UpdateView):
+class RouteEditView(LoginRequiredMixin, UpdateView):
     model = Route
     template_name = 'pos/route/edit.html'
     form_class = RouteForm
@@ -236,7 +238,7 @@ class RouteEditView(UpdateView):
         return reverse('pos:trip_detail', kwargs={'pk':route.trip.id})
 
 
-class RouteDeleteView(DeleteView):
+class RouteDeleteView(LoginRequiredMixin, DeleteView):
     model = Route
     template_name = 'pos/route/route_confirm_delete.html'
 
@@ -254,6 +256,7 @@ class RouteDeleteView(DeleteView):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['trip_pk']})
 
 
+@login_required
 def InvoiceDateRangeView(request, pk):
     template_name = 'pos/invoice/invoice_select_order.html'
 
@@ -264,7 +267,7 @@ def InvoiceDateRangeView(request, pk):
         return render(request, template_name, {'customer': customer, 'customer_groups':customer_groups})
 
 
-class InvoiceSingleView(TemplateView):
+class InvoiceSingleView(LoginRequiredMixin, TemplateView):
     template_name = 'pos/invoice/invoice_single_view.html'
 
     def get_context_data(self, **kwargs):
@@ -292,7 +295,7 @@ class InvoiceSinglePDFView(PDFViewMixin, InvoiceSingleView):
     download_attachment = True
 
 
-class InvoiceHistoryView(ListView):
+class InvoiceHistoryView(LoginRequiredMixin, ListView):
     template_name = 'pos/invoice/invoice_history.html'
     context_object_name = 'invoice_list'
 
@@ -301,7 +304,7 @@ class InvoiceHistoryView(ListView):
 
 
 
-class InvoiceDeleteView(DeleteView):
+class InvoiceDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'pos/invoice/invoice_confirm_delete.html'
     model = Invoice
 
@@ -313,7 +316,7 @@ class InvoiceDeleteView(DeleteView):
         return reverse('pos:invoice_history')
 
 
-class InvoiceCustomerView(ListView):
+class InvoiceCustomerView(LoginRequiredMixin, ListView):
     template_name = 'pos/invoice/customer_invoice.html'
     context_object_name = 'invoice_list'
 
