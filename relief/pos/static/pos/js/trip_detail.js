@@ -712,7 +712,7 @@ async function postOrderItemData(){
         var data = {
             'id': orderitem_id,
             'quantity': orderitem_quantity,
-            'driver_quantity', orderitem_quantity, // driver quantity to default to orderitem quantity temporarily.
+            'driver_quantity': orderitem_quantity, // driver quantity to default to orderitem quantity temporarily.
             'note': orderitem_note,
             'packing': orderitem_packing_json
         };
