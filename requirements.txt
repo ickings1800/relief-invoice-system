@@ -2,6 +2,7 @@ certifi==2019.3.9
 chardet==3.0.4
 Django==2.0
 django-cors-headers==3.0.2
+django-hardcopy==0.1.4
 django-widget-tweaks==1.4.2
 djangorestframework==3.9.0
 idna==2.8
