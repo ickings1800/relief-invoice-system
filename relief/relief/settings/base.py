@@ -12,19 +12,11 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
+BASE_DIR = os.path.dirname(os.path.realpath(os.path.dirname(__file__) + "/.."))
+print(BASE_DIR)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '&#-xi^5e37sfdqy%y6)-h5jvuu4)1v9u7*2wxsaj0#pw7)@$%$'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+SECRET_KEY = os.environ['SECRET_KEY']
 
 
 # Application definition
@@ -76,19 +68,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'relief.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/2.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'relief',
-        'USER':'admin',
-        'PASSWORD':'admin',
-    }
-}
-
-
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
 
@@ -126,8 +105,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # this is the list of allowed origins for cross domain ajax
 CORS_ORIGIN_WHITELIST = (
-    'http://127.0.0.1:8000',
-    'http://192.168.2.47:8000',
+    'http://127.0.0.1:80',
+    'http://192.168.2.69:80',
 )
 
 # Internationalization
@@ -147,7 +126,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
-STATIC_URL = '/static/'
 LOGIN_URL = '/pos/login/'
 LOGIN_REDIRECT_URL = '/pos/customers/'
 LOGOUT_REDIRECT_URL = '/pos/login'
