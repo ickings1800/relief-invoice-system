@@ -1,1 +1,1 @@
-sed -i 's/localhost/192.168.2.47/g' *.js
+sed -i 's/http://localhost:8000/https://sunupserver.ddns.net/g' *.js
