@@ -672,7 +672,9 @@ function addRouteCardDOM(route) {
         note_h5.setAttribute('data-route-id', route_id);
 
         var del_anchor = document.createElement('a');
+        del_anchor.addEventListener("click", deleteRoute , false);
         del_anchor.classList.add('btn', 'btn-link', 'column', 'col-1');
+
 
         var del_icon = document.createElement('i');
         del_icon.classList.add('icon', 'icon-delete', 'float-right');
@@ -786,6 +788,7 @@ async function postRoute(data){
 
 function deleteRoute(event){
     event.stopPropagation();
+    console.log("delete route");
     var all_routes = document.getElementById('routes');
     var parentDiv = this.parentElement;
     var route_id = parentDiv.getAttribute('data-route-id');
