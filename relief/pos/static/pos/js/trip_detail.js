@@ -415,6 +415,7 @@ function updateOrderitemData(orderitemJson, orderitem_packing){
 }
 
 function updateRouteNoteData(routeJson){
+    console.log("update route note data");
     console.log(routeJson);
     let route_id = routeJson.id;
     let route_note = routeJson.note;
@@ -629,10 +630,11 @@ function addRouteCardDOM(route) {
         var note_spacing = document.createElement('div');
         note_spacing.classList.add('column', 'col-12', 'divider');
         var note_heading = document.createElement('h5');
-        note_heading.classList.add('column', 'col-10');
+        note_heading.classList.add('column', 'col-11', 'note');
         note_heading.innerHTML = route_note;
+        note_heading.setAttribute('data-route-id', route_id);
         var route_delete = document.createElement('a');
-        route_delete.classList.add('btn', 'btn-link', 'column', 'col-2');
+        route_delete.classList.add('btn', 'btn-link', 'column', 'col-1');
         route_delete.addEventListener("click", deleteRoute , false);
         var delete_icon = document.createElement('i');
         delete_icon.classList.add('icon', 'icon-delete', 'float-right');
@@ -665,8 +667,9 @@ function addRouteCardDOM(route) {
         divider.classList.add('column', 'col-12', 'divider');
 
         var note_h5 = document.createElement('h5');
-        note_h5.classList.add('column', 'col-11');
+        note_h5.classList.add('column', 'col-11', 'note');
         note_h5.innerHTML = route_note;
+        note_h5.setAttribute('data-route-id', route_id);
 
         var del_anchor = document.createElement('a');
         del_anchor.classList.add('btn', 'btn-link', 'column', 'col-1');
