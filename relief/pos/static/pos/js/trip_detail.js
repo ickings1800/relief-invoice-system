@@ -1,3 +1,4 @@
+var el;
 
 function getCookie(name) {
     var cookieValue = null;
@@ -17,33 +18,33 @@ function getCookie(name) {
 
 
 window.onload = function(e){
-    let print_button = document.getElementById('print');
-    if (print_button !== null){
-        // Apply click events if on trip details page
-        let routes = getRouteDomElements();
-        let del_buttons = getDeleteButtonsDomElements();
-        let edit_submit_btn = document.getElementById('modal-save');
-        let close_btn = document.getElementById('modal-close');
-        let add_route_btn = document.getElementById('add-route');
-        let arrange_button = document.getElementById('arrange-button');
-        let arrange_cancel = document.getElementById('arrange-cancel-button');
-        let do_number_save = document.getElementById('do-save');
-        //let print_button = document.getElementById('print');
+    // Apply click events if on trip details page
+    let routes = getRouteDomElements();
+    let del_buttons = getDeleteButtonsDomElements();
+    let edit_submit_btn = document.getElementById('modal-save');
+    let close_btn = document.getElementById('modal-close');
+    let add_route_btn = document.getElementById('add-route');
+    let arrange_button = document.getElementById('arrange-button');
+    let do_number_save = document.getElementById('do-save');
 
-        arrange_cancel.addEventListener("click", cancelArrangeRoutes, false);
-        arrange_button.addEventListener("click", arrangeRoutes, false);
-        add_route_btn.addEventListener("click", addRouteToTrip, false);
-        edit_submit_btn.addEventListener("click", postOrderItemData, false);
-        do_number_save.addEventListener("click", saveDoNumber, false);
-        print_button.addEventListener("click", print, false);
+    arrange_button.addEventListener("click", showArrangeRouteModal, false);
+    add_route_btn.addEventListener("click", addRouteToTrip, false);
+    edit_submit_btn.addEventListener("click", postOrderItemData, false);
+    do_number_save.addEventListener("click", saveDoNumber, false);
 
-        let doNumberAnchors = getDoNumberAnchors();
-        applyShowDoNumberModalEvent(doNumberAnchors);
-        applyShowEditRouteModalEvent(routes);
-        applyDeleteRouteEvent(del_buttons);
-        applyCloseDoNumberModal();
-        close_btn.addEventListener("click", clearEditForm, false);
-    }
+    let doNumberAnchors = getDoNumberAnchors();
+    applyShowDoNumberModalEvent(doNumberAnchors);
+    applyShowEditRouteModalEvent(routes);
+    applyDeleteRouteEvent(del_buttons);
+    applyCloseDoNumberModal();
+    close_btn.addEventListener("click", clearEditForm, false);
+
+    var arrange_menu = document.getElementById('arrange-menu');
+    el = Sortable.create(arrange_menu, {
+            group: arrange_menu.id,
+            animation: 100,
+            dataIdAttr: 'data-route-id',
+        });
     // Only get trip packing sum if on print trip details page
     getTripPackingSum();
 };
@@ -179,72 +180,69 @@ function closeDoNumberModal(event){
     event.preventDefault();
 }
 
-function cancelArrangeRoutes(event){
-    console.log("Toggled");
-    let arrange_cancel = document.getElementById('arrange-cancel-button');
-    let arrange_button = document.getElementById('arrange-button');
-    let index_inputs = Array.from(getIndexInputDomElements());
-    let route_divs = getRouteDomElements();
-    let del_buttons = getDeleteButtonsDomElements();
-    index_inputs.forEach((e) => {
-        e.value = e.defaultValue;
-        e.readOnly=true;
-        e.disabled=true;
+
+function closeArrangeRouteModal(){
+    let arrangeModal = document.getElementById('arrange-modal');
+    let arrangeList = document.getElementById('arrange-menu');
+    arrangeModal.classList.remove("active");
+    arrangeList.innerHTML = "";
+}
+
+
+async function arrangeRoutes(trip_id){
+    console.log(el.toArray());
+    let index_ordering = el.toArray().map(function(item){
+        return parseInt(item, 10);
     });
-    applyDeleteRouteEvent(del_buttons);
-    applyShowEditRouteModalEvent(route_divs);
-    arrange_cancel.classList.add('d-hide');
-    arrange_button.classList.remove('btn-success');
-    arrange_button.innerHTML = "Arrange";
+    await postIndexOrderingData(index_ordering, trip_id);
+    refreshTripRoutesDOM(trip_id)
+    closeArrangeRouteModal();
 }
 
-async function arrangeRoutes(event){
-    console.log("Toggled");
-    let arrange_cancel = document.getElementById('arrange-cancel-button');
-    let index_inputs = Array.from(getIndexInputDomElements());
-    let route_divs = getRouteDomElements();
-    let del_buttons = getDeleteButtonsDomElements();
-    if (event.target.innerHTML === 'Arrange'){
-        console.log("Arrange checked");
-        index_inputs.forEach((e) => {
-            e.readOnly=false;
-            e.disabled=false;
-            e.setAttribute('min', 1);
-            e.setAttribute('max', index_inputs.length);
-        });
-        removeShowEditRouteModalEvent(route_divs);
-        removeDeleteRouteEvent(del_buttons);
-        event.target.classList.add('btn-success');
-        event.target.innerHTML = 'Save';
-        arrange_cancel.classList.remove('d-hide');
-    } else {
-        console.log("Arrange Unchecked");
-        let index_values = index_inputs.map(e => e.value);
-        let result = validateIndexInputsWithinRange(index_values, route_divs.length);
-        if (result) {
-            orderIndexInputsByIndexValue(index_inputs);
-            index_ordering = [];
-            index_inputs.forEach((e) => {
-                e.readOnly=true;
-                e.disabled=true;
-                console.log(e.getAttribute('data-route-id'), e.value);
-                index_ordering.push(parseInt(e.getAttribute('data-route-id')));
-            });
-            // POST index ordering request to server.
-            let trip_id = document.getElementById('total-packing-sum').getAttribute('data-trip-id');
-            await postIndexOrderingData(index_ordering, trip_id);
-            event.target.classList.remove('btn-success');
-            event.target.innerHTML = 'Arrange';
-            arrange_cancel.classList.add('d-hide');
-            // Refresh the DOM.
-            refreshTripRoutesDOM(trip_id);
-        } else {
-            // duplicated indexes
-            alert("Number ordering may be duplicated, change and save again.");
+
+async function showArrangeRouteModal(event){
+    console.log("Show Arrange Modal");
+    let arrangeModal = document.getElementById('arrange-modal');
+    let closeModal = document.getElementById('arrange-close');
+    let cancelButton = document.getElementById('arrange-cancel-button');
+    let arrangeList = document.getElementById('arrange-menu');
+    let saveButton = document.getElementById('arrange-save');
+    let trip_id = arrangeModal.getAttribute('data-trip-id');
+    let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/';
+    var response = await fetch(url, {
+      method: 'GET', // or 'PUT'
+    });
+    var resp_json = await response.json();
+    resp_json.forEach(function(route){
+        let route_id = route.id;
+        let route_index = route.index;
+        let listItem = document.createElement('li');
+        listItem.classList.add('menu-item')
+        listItem.setAttribute('data-route-id', route_id)
+        let listAnchor = document.createElement('a');
+        if (route.orderitem_set.length > 0){
+            listAnchor.innerHTML = route.orderitem_set[0].customer;
+        } else  {
+            listAnchor.innerHTML = route.note;
         }
-    }
+        let listIcon = document.createElement('i');
+        listIcon.classList.add('icon-menu');
+        listAnchor.appendChild(listIcon);
+        listItem.appendChild(listAnchor);
+        arrangeList.appendChild(listItem);
+    });
+    console.log(resp_json);
+    arrangeModal.classList.add("active");
+    closeModal.addEventListener("click", function(e){
+        closeArrangeRouteModal();
+    }, false);
+    cancelButton.addEventListener("click", function(e){
+        closeArrangeRouteModal();
+    }, false);
+    saveButton.addEventListener("click", function(e){
+        arrangeRoutes(trip_id);
+    })
 }
-
 
 async function postIndexOrderingData(index_ordering_array, trip_id){
     console.log("index ordering array", index_ordering_array);
@@ -529,19 +527,9 @@ function addRouteCardDOM(route) {
         route_div.classList.add('columns', 'col-12', 'route');
         route_div.setAttribute('data-route-id', route_id);
 
-        var customer_index = document.createElement('input');
-//        customer_index.innerHTML = route_index;
-        customer_index.classList.add('index', 'form-input', 'input-lg');
-        customer_index.setAttribute('data-route-id', route_id);
-        customer_index.type = 'number';
-        customer_index.value = route_index;
-        customer_index.readOnly = true;
-        customer_index.disabled = true;
-        customer_index.style.display = 'inline';
-
         var customer_heading = document.createElement('div');
-        customer_heading.innerHTML = `${customer_name}`;
-        customer_heading.classList.add('h4', 'mx-2');
+        customer_heading.innerHTML = `${route_index}. ${customer_name}`;
+        customer_heading.classList.add('h4');
         customer_heading.style.display = 'inline';
 
         var do_number_div = document.createElement('div');
@@ -551,7 +539,6 @@ function addRouteCardDOM(route) {
 
         var card_header = document.createElement('div');
         card_header.classList.add('column', 'col-12');
-        card_header.appendChild(customer_index);
         card_header.appendChild(customer_heading);
         if (do_number !== '' && do_number !== null){
             card_header.appendChild(do_number_div);
@@ -653,15 +640,10 @@ function addRouteCardDOM(route) {
         note_div.classList.add('columns', 'col-12', 'route');
         note_div.setAttribute('data-route-id', route_id);
 
-        var customer_index = document.createElement('input');
-//        customer_index.innerHTML = route_index;
-        customer_index.classList.add('index', 'form-input', 'input-lg', 'mx-2');
-        customer_index.setAttribute('data-route-id', route_id);
-        customer_index.type = 'number';
-        customer_index.value = route_index;
-        customer_index.readOnly = true;
-        customer_index.disabled = true;
-        customer_index.style.display = 'block';
+        var customer_index = document.createElement('div');
+        customer_index.classList.add('h4', 'column', 'col-ml-auto');
+        customer_index.style.display = 'inline';
+        customer_index.innerHTML = route_index.toString() + ".";
 
         var divider = document.createElement('div');
         divider.classList.add('column', 'col-12', 'divider');

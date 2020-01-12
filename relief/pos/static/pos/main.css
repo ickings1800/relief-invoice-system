@@ -227,3 +227,11 @@ font-size: 1vw;
     font-size:1.6rem;
     font-weight:500;
 }
+
+#arrange-modal {
+    cursor: pointer;
+}
+
+#arrange-menu {
+    box-shadow: none;
+}

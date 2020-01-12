@@ -4,6 +4,7 @@
 {% load widget_tweaks %}
 {% block content %}
 <script type="module" src="{% static 'pos/js/trip_detail.js' %}"></script>
+<script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
 
 <title>{{ trip.date|date:"d M Y P" }}</title>
 <div class="container" id="print-page">
@@ -21,7 +22,6 @@
             </p>
             <a class="btn btn-sm my-2" href="{% url 'admin:pos_trip_change' trip.id %} ">Edit</a>
             <a class="btn btn-primary btn-sm my-2" id="arrange-button">Arrange</a>
-            <a class="btn btn-link btn-sm my-2 d-hide" id="arrange-cancel-button">Cancel</a>
             <a class="btn btn-sm btn-primary my-2 float-right" id="print" href="{% url 'pos:trip_print' trip.id %}">
                 Print
             </a>
@@ -34,8 +34,7 @@
                 {% for r in routes %}
                 <div class="columns col-12 route" data-route-id="{{ r.pk }}">
                     <div class="columns column col-12">
-                            <input class="index form-input input-lg column col-1" value="{{ r.index }}" type="number" data-route-id="{{ r.pk }}" readonly disabled>
-                            <div style="display:inline;" class="h4 mx-2 column col-ml-auto">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
+                            <div style="display:inline;" class="h4 column col-ml-auto">{{ r.index }}. {{ r.orderitem_set.first.customerproduct.customer.name }}</div>
                             {% if r.do_number != "" and r.do_number != None %}
                                 <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">{{ r.do_number }}</a>
                             {% else %}
@@ -142,6 +141,23 @@
       <div class="modal-footer">
         <a id="do-save" href="#save" class="btn btn-primary float-right">Save</a>
       </div>
+  </div>
+</div>
+
+<!-- Route Arrange Modal -->
+<div class="modal modal-sm" id="arrange-modal" data-trip-id="{{ trip.pk }}">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container do-modal-window">
+    <div class="modal-header">
+        <a id="arrange-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
+        <div id="arrange-title" class="modal-title h5">Arrange Routes</div>
+    </div>
+    <ul class="menu draggable-list modal-body" id="arrange-menu"></ul>
+    <div class="modal-footer">
+        <div class="divider"></div>
+        <a class="btn btn-link btn-sm my-2" id="arrange-cancel-button">Cancel</a>
+        <a id="arrange-save" href="#save" class="btn btn-primary">Save</a>
+    </div>
   </div>
 </div>
 {% endblock %}
