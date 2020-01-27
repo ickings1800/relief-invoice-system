@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
-from .forms import   TripForm, TripDetailForm, OrderItemFormSet, RouteForm
+from .forms import   TripForm, TripDetailForm, OrderItemFormSet, RouteForm, CustomerForm
 from hardcopy.views import PDFViewMixin, PNGViewMixin
 
 
@@ -23,6 +23,13 @@ class CustomerIndexView(LoginRequiredMixin, ListView):
             customer_groups = list(CustomerGroup.objects.filter(group_id=g.pk).order_by('index'))
             group_dict[g.name] = customer_groups
         return group_dict
+
+    def get_context_data(self, **kwargs):
+        context = super(CustomerIndexView, self).get_context_data(**kwargs)
+        context['products'] = Product.objects.all()
+        context['customer_groups'] = Group.objects.all()
+        return context
+
 
 
 class ProductIndexView(LoginRequiredMixin, ListView):

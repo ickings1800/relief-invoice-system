@@ -235,3 +235,11 @@ font-size: 1vw;
 #arrange-menu {
     box-shadow: none;
 }
+
+#create-customer-product {
+    display:none;
+}
+
+#customer-create-modal-window {
+    max-width:none;
+}

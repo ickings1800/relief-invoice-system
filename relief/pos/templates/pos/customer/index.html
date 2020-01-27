@@ -10,7 +10,7 @@
         </div>
         <div class="column col-mr-auto"></div>
         <div class="column col-3">
-            <a href="{% url 'admin:pos_customer_add' %}" class="btn btn-primary btn-sm float-right button-action">
+            <a class="btn btn-primary btn-sm float-right button-action" id="create-customer-button">
                 <i class="icon icon-plus"></i>&nbsp;Create
             </a>
         </div>
@@ -41,6 +41,116 @@
             {% endfor %}
         </div>
     </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal" id="create-customer-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container customer-create-modal-window">
+    <div class="modal-header">
+        <ul class="step">
+            <li id="create-customer-tab" class="step-item active">
+                <a href="#">Create Customer</a>
+            </li>
+            <li id="quote-tab" class="step-item">
+                <a href="#">Quote</a>
+            </li>
+        </ul>
+    </div>
+    <div class="modal-body" id="create-customer-menu">
+        <!-- First step: creating customer -->
+        <form id="create-customer-form" class="form-horizontal">
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label text-bold" for="customer-create-name">Name:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="text" maxlength="255" id="customer-create-name">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-address">Address:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <textarea class="form-input" maxlength="255" id="customer-create-address"></textarea>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-postal">Postal:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="number" maxlength="6" id="customer-create-postal">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-tel">Tel:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="number" maxlength="8" id="customer-create-tel">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-fax">Fax:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="number" maxlength="8" id="customer-create-fax">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-term">Term:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="number" id="customer-create-term">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label text-bold" for="customer-create-gst">GST:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <input class="form-input" type="number" maxlength="2" id="customer-create-gst" value="7" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-3 col-sm-12">
+                    <label class="form-label" for="customer-create-group">Group:</label>
+                </div>
+                <div class="col-9 col-sm-12">
+                    <select class="form-select" id="customer-create-group">
+                        {% for g in customer_groups %}
+                        <option value="{{ g.pk }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </form>
+
+        <!-- Second step: creating customer products -->
+        <div id="create-customer-product">
+            <ul id="menu-list">
+                <li class="columns" id="create-customerproduct-row">
+                  <select class="form-select column col-7" id="create-customerproduct-list"></select>
+                    <div class="divider-vert column col-1"></div>
+                    <input class="form-input column col-3" id="create-customerproduct-quote" placeholder="Quote">
+                    <a href="#" class="btn btn-link column col-1" id="create-customerproduct-row-btn">
+                    <i class="icon icon-plus"></i>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <div class="divider"></div>
+        <a class="btn btn-link btn-sm my-2 float-left" id="customer-create-back">Back</a>
+        <a class="btn btn-link btn-sm my-2" id="customer-create-cancel-button">Cancel</a>
+        <a id="customer-create-submit-button" href="#save" class="btn btn-primary">Next</a>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
