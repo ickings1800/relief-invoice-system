@@ -21,9 +21,25 @@ class CustomerListDetailUpdateSerializer(serializers.ModelSerializer):
 
 
 class CustomerCreateSerializer(serializers.ModelSerializer):
+    group = serializers.IntegerField(write_only=True)
+
+    def create(self, validated_data):
+        group_id = validated_data.pop('group', None)
+        new_customer = super().create(validated_data)
+        group = Group.objects.get(id=group_id)
+        new_customer_group = CustomerGroup.objects.create(customer=new_customer, group=group)
+        return new_customer
+
+    def validate_group(self, value):
+        customer_group = Group.objects.get(id=value)
+        if customer_group:
+            return value
+        else:
+            raise serializers.ValidationError("Group does not exist")
+
     class Meta:
         model = Customer
-        fields = ('name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst')
+        fields = ('id', 'name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst', 'group')
 
 
 class CustomerGroupUpdateSerializer(serializers.ModelSerializer):

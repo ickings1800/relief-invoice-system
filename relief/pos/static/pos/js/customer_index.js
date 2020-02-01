@@ -55,7 +55,8 @@ function addCustomerProductRow(event){
         row_list.classList.add('columns', 'create-customerproduct-row');
         row_list.setAttribute('data-product-id', selected_value);
         row_list.setAttribute('data-quote', quote_input.value);
-        row_list.setAttribute('data-product-name', selected_product_name)
+        row_list.setAttribute('data-product-name', selected_product_name);
+        row_list.setAttribute('data-list-index', cp.selectedIndex);
         let row_product_name = document.createElement('div');
         row_product_name.classList.add('column', 'col-7');
         row_product_name.innerHTML = selected_product_name;
@@ -88,12 +89,15 @@ function removeCustomerProductRow(event){
     let menu = document.getElementById('menu-list');
     let removed_product_id = row.getAttribute('data-product-id');
     let removed_product_name = row.getAttribute('data-product-name');
+    let insert_list_index = row.getAttribute('data-list-index');
     let create_customerproduct_list = document.getElementById('create-customerproduct-list');
+    let customerproduct_select = document.getElementById('create-customerproduct-list');
     menu.removeChild(row);
 //    add product back into select list
     let new_row = document.createElement('option');
     new_row.value = removed_product_id;
     new_row.innerHTML = removed_product_name;
+    customerproduct_select.insertBefore(new_row, customerproduct_select.children[insert_list_index]);
 }
 
 

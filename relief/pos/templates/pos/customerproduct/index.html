@@ -1,5 +1,7 @@
 {% extends 'pos/master/menu_nav.html' %}
+{% load static %}
 {% block content %}
+<script type="text/javascript" src="{% static 'pos/js/customer_product_detail.js' %}"></script>
 <div class="container">
     <div class="columns">
         <div class="column col-12">
@@ -11,7 +13,7 @@
                     <div class="panel-title h3 mt-10">{{ customer.name }}</div>
                 </div>
                 <div>
-                <a href="{% url 'admin:pos_customerproduct_add' %}?customer={{ customer.pk }}" class="btn btn-primary btn-sm hide-lg float-right">
+                <a class="btn btn-primary btn-sm hide-lg float-right" id="customerproduct-create-btn">
                     <i class="icon icon-plus"></i>&nbsp;Create
                 </a>
                 </div>
@@ -64,5 +66,33 @@
         </div>
     </div>
     </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal" id="create-customer-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container customer-create-modal-window">
+    <div class="modal-header">
+        <a href="#close" class="btn btn-clear float-right" aria-label="Close" id="modal-close"></a>
+        <div class="modal-title h5">Create Quote</div>
+    </div>
+    <div class="modal-body">
+        <ul id="menu-list">
+            <li class="columns" id="create-customerproduct-row">
+                <select class="form-select column col-7" id="create-customerproduct-list"></select>
+                <div class="divider-vert column col-1"></div>
+                <input class="form-input column col-3" id="create-customerproduct-quote" placeholder="Quote">
+                <a href="#" class="btn btn-link column col-1" id="create-customerproduct-row-btn" data-customer-id="{{ customer.pk }}">
+                <i class="icon icon-plus"></i>
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="modal-footer">
+        <div class="divider"></div>
+        <a class="btn btn-link btn-sm my-2" id="modal-cancel">Cancel</a>
+        <a id="modal-save" href="#save" class="btn btn-primary">Submit</a>
+    </div>
+  </div>
 </div>
 {% endblock %}

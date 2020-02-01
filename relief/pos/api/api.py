@@ -43,6 +43,7 @@ class CustomerCreate(CreateAPIView):
     serializer_class = CustomerCreateSerializer
 
     def post(self, request, *args, **kwargs):
+        print(request.data)
         return self.create(request, *args, **kwargs)
 
 
@@ -56,7 +57,13 @@ class CustomerGroupUpdate(UpdateAPIView):
 
 class ProductList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        products = Product.objects.all()
+        customer_id = request.GET.get('customer_id')
+        if customer_id:
+            products_existing = CustomerProduct.objects.filter(customer_id=customer_id).distinct('product_id')
+            products_existing_ids = [cp.product_id for cp in products_existing]
+            products = Product.objects.exclude(id__in=products_existing_ids)
+        else:
+            products = Product.objects.all()
         product_serializer = ProductListDetailUpdateSerializer(products, many=True)
         return Response(status=status.HTTP_200_OK, data=product_serializer.data)
 
