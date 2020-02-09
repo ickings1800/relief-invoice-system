@@ -41,7 +41,7 @@
                                 <td>{{ cp.product.name }}</td>
                                 <td>{{ cp.quote_price|floatformat:4 }}</td>
                                 <td>
-                                    <a href="{% url 'admin:pos_customerproduct_change' cp.id %}">
+                                    <a href="#" data-customerproduct-id="{{ cp.id }}" class="customerproduct-edit">
                                         <i class="icon icon-edit float-right"></i>
                                     </a>
                                 </td>
@@ -92,6 +92,27 @@
         <div class="divider"></div>
         <a class="btn btn-link btn-sm my-2" id="modal-cancel">Cancel</a>
         <a id="modal-save" href="#save" class="btn btn-primary">Submit</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="update-customerproduct-modal">
+  <a href="#close" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container update-customerproduct-modal-window">
+    <div class="modal-header">
+        <a href="#close" class="btn btn-clear float-right" aria-label="Close" id="update-customerproduct-modal-close"></a>
+        <div class="modal-title h5">Update Quote</div>
+    </div>
+    <div class="modal-body columns">
+        <label class="form-label" for="quote-price">Quote</label>
+        <input class="form-input" id="quote-price" placeholder="0.00">
+        <label class="form-label" for="start-date">Start Date</label>
+        <input class="form-input" type="date" id="start-date" placeholder="Start date">
+    </div>
+    <div class="modal-footer">
+        <div class="divider"></div>
+        <a class="btn btn-link btn-sm my-2" id="update-customerproduct-cancel">Cancel</a>
+        <a id="update-customerproduct-save" href="#save" class="btn btn-primary">Save</a>
     </div>
   </div>
 </div>

@@ -12,7 +12,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.enums import TA_CENTER
 from rest_framework.exceptions import APIException
-from datetime import datetime
+from datetime import datetime, date
 
 from .validators import date_within_year
 from django.contrib.postgres.fields import JSONField
@@ -547,15 +547,30 @@ class Route(models.Model):
         return route_list
 
 
-
-
 class CustomerProduct(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quote_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
+    start_date = models.DateField(default=date.today(), null=False, blank=False)
+    end_date = models.DateField(null=True, blank=True)
 
-    class Meta:
-        unique_together = ('customer', 'product')
+    def get_latest_customerproducts(customer_id):
+        customerproduct_ids = CustomerProduct.objects.filter(customer_id=customer_id).distinct('product_id')
+        customerproducts = []
+        for cp in customerproduct_ids:
+            latest_cp = CustomerProduct.objects.filter(Q(end_date__isnull=True) | Q(end_date__gte=date.today()),
+                                                       customer_id=cp.customer_id,
+                                                       product_id=cp.product_id).latest('start_date')
+            if latest_cp:
+                customerproducts.append(latest_cp)
+        print(customerproducts)
+        return customerproducts
+
+    def get_customerproducts_by_date(customer_id, start_date, end_date):
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id,
+                                                          start_date__lte=start_date,
+                                                          end_date__gte=end_date)
+        return customerproducts
 
 
 class OrderItem(models.Model):

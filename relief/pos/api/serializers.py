@@ -92,7 +92,7 @@ class CustomerProductCreateSerializer(serializers.ModelSerializer):
 class CustomerProductUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProduct
-        fields = ('id', 'quote_price')
+        fields = ('id', 'quote_price', 'end_date')
 
 
 class InvoiceListSerializer(serializers.ModelSerializer):

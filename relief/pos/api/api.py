@@ -13,7 +13,7 @@ from .serializers import TripAddRouteSerializer, \
     InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 
 class CustomerList(ListAPIView):
@@ -245,9 +245,14 @@ class RouteDelete(DestroyAPIView):
 
 
 class CustomerProductList(ListAPIView):
-    # TODO: change customerproduct to filter based on date range
     def get(self, request, *args, **kwargs):
-        customerproducts = CustomerProduct.objects.filter(customer=self.kwargs['pk'])
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+        customer_id = self.kwargs['pk']
+        if start_date and end_date:
+            customerproducts = CustomerProduct.get_customerproducts_by_date(customer_id, start_date, end_date)
+        else:
+            customerproducts = CustomerProduct.get_latest_customerproducts(customer_id)
         customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
 
@@ -272,7 +277,19 @@ class CustomerProductUpdate(UpdateAPIView):
     serializer_class = CustomerProductUpdateSerializer
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        customerproduct_id = request.data.get('id')
+        new_quote_price = request.data.pop('quote_price')
+        new_start_date = request.data.get('end_date')
+        existing_customerproduct = CustomerProduct.objects.get(id=customerproduct_id)
+        if datetime.strptime(new_start_date, '%Y-%m-%d').date() <= existing_customerproduct.start_date:
+            return Response({"error": "End date is earlier than or equal to start date"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            new_customerproduct = CustomerProduct(customer_id=existing_customerproduct.customer_id,
+                                                  product_id=existing_customerproduct.product_id,
+                                                  quote_price=new_quote_price,
+                                                  start_date=new_start_date)
+            new_customerproduct.save()
+            return self.update(request, *args, **kwargs)
 
 
 class CustomerRouteList(ListAPIView):

@@ -20,14 +20,81 @@ window.onload = function(e){
     let modal_close = document.getElementById('modal-close');
     let modal_cancel = document.getElementById('modal-cancel');
     let modal_save = document.getElementById('modal-save');
+    let edit_buttons = Array.from(document.getElementsByClassName('customerproduct-edit'));
     let create_customerproduct_row_btn = document.getElementById('create-customerproduct-row-btn');
+    let update_customerproduct_cancel = document.getElementById('update-customerproduct-cancel');
+    let update_customerproduct_save = document.getElementById('update-customerproduct-save');
+
+    edit_buttons.forEach(function(e){
+        e.addEventListener("click", showUpdateCustomerProductModal, false);
+    });
     modal_click.addEventListener("click", showModal, false);
     modal_close.addEventListener("click", closeModal, false);
     modal_save.addEventListener("click", saveModal, false);
     modal_cancel.addEventListener("click", closeModal, false);
+
+    update_customerproduct_save.addEventListener("click", saveUpdateQuote, false);
+    update_customerproduct_cancel.addEventListener("click", closeUpdateCustomerProductModal, false)
+
+
     create_customerproduct_row_btn.addEventListener("click", addCustomerProductRow, false);
     console.log("Added click event");
 };
+
+function closeUpdateCustomerProductModal(event){
+    console.log("remove");
+    let modal_div = document.getElementById('update-customerproduct-modal');
+    let quote_price = document.getElementById('quote-price');
+    let start_date = document.getElementById('start-date');
+    modal_div.classList.remove('active');
+    quote_price.value = "";
+    start_date.value = "";
+}
+
+function saveUpdateQuote(event){
+    let save_btn = document.getElementById('update-customerproduct-save');
+    let quote_price = parseFloat(document.getElementById('quote-price').value);
+    let start_date = document.getElementById('start-date').value;
+    let customerproduct_id = save_btn.getAttribute('data-customerproduct-id');
+    postCustomerProduct(customerproduct_id, quote_price, start_date)
+    .then(resp => resp.json())
+    .then(resp => handleErrors(resp))
+    .then(closeUpdateCustomerProductModal())
+    .catch(error => alert(error))
+}
+
+
+function handleErrors(response){
+    if (response.error){
+        throw Error(response.error);
+    }
+}
+
+function postCustomerProduct(customerproduct_id, quote_price, start_date){
+    let url = `http://localhost:8000/pos/api/customerproduct/${customerproduct_id}/update/`;
+    let data = {"id":customerproduct_id, "quote_price": quote_price, "end_date": start_date};
+    return fetch(url, {
+      method: 'PUT', // or 'PUT'
+      credentials: 'same-origin',
+      body: JSON.stringify(data), // data can be `string` or {object}!
+      headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).catch(error => alert('Error: ', error));
+}
+
+function showUpdateCustomerProductModal(event){
+    console.log("show update customerproduct modal");
+    let modal_div = document.getElementById('update-customerproduct-modal');
+    let save_btn = document.getElementById('update-customerproduct-save');
+    modal_div.classList.add('active');
+    console.log(event.target.parentNode);
+    let customerproduct_id = event.target.parentNode.getAttribute('data-customerproduct-id');
+    save_btn.setAttribute('data-customerproduct-id', customerproduct_id);
+    console.log(customerproduct_id);
+}
 
 
 function showModal(event){

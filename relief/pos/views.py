@@ -54,7 +54,7 @@ class CustomerProductListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         customer = self.kwargs['pk']
-        return CustomerProduct.objects.filter(customer_id=customer)
+        return CustomerProduct.get_latest_customerproducts(customer)
 
     def get_context_data(self, **kwargs):
         context = super(CustomerProductListView, self).get_context_data(**kwargs)
@@ -284,14 +284,14 @@ class InvoiceSingleView(LoginRequiredMixin, TemplateView):
         customer = invoice.customer_id
         customer = get_object_or_404(Customer, pk=customer)
         route_list = Invoice.get_customer_routes_for_invoice(invoice_pk)
-        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
-        customerproduct_sum = Invoice.get_invoice_customerproduct_sum(route_list, customerproducts)
-        customerproduct_nett = Invoice.get_invoice_customerproduct_nett_amt(customerproduct_sum, customerproducts)
+        customerproducts_date_range = CustomerProduct.get_customerproducts_by_date(customer.pk, invoice.start_date, invoice.end_date)
+        customerproduct_sum = Invoice.get_invoice_customerproduct_sum(route_list, customerproducts_date_range)
+        customerproduct_nett = Invoice.get_invoice_customerproduct_nett_amt(customerproduct_sum, customerproducts_date_range)
         print(customerproduct_nett)
         context['customerproduct_nett'] = customerproduct_nett
         context['customerproduct_sum'] = customerproduct_sum
         context['invoice_route_list'] = route_list
-        context['customerproducts'] = customerproducts
+        context['customerproducts'] = customerproducts_date_range
         context['customer'] = customer
         context['invoice'] = invoice
         return context
