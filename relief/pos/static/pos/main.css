@@ -28,6 +28,9 @@ input[type=number]::-webkit-outer-spin-button {
     .route, .packing-sum{
         page-break-inside: avoid;
     }
+    li {
+        font-weight: bold;
+    }
 }
 
 h4 {

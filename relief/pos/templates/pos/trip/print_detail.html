@@ -57,11 +57,14 @@
                                 {% endfor %}
                             </ul>
                             {% endfor %}
-                        {% else %}
+                        {% endif %}
+                        {% if r.note %}
+                        {% if r.orderitem_set.all|length == 0 %}
                         <div class="h4">{{ r.index }}.</div>
                         {% endif %}
                         <div class="divider column col-12"></div>
                         <h5 class="column col-11">{{ r.note }}</h5>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
