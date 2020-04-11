@@ -3,7 +3,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from . import api
 
 urlpatterns = [
-    # path('api/customers/', api.CustomerList.as_view(), name='customer_list'),
+    path('api/customers/', api.CustomerList.as_view(), name='customer_list'),
     path('api/customers/<int:pk>/', api.CustomerDetail.as_view(), name='customer_detail'),
     path('api/customer/create/', api.CustomerCreate.as_view(), name='customer_create'),
     # path('api/customer/update/<int:pk>/', api.CustomerUpdate.as_view(), name='customer_update'),
@@ -20,9 +20,9 @@ urlpatterns = [
     # path('api/customers/<int:pk>/routes/', api.CustomerRouteList.as_view(), name='customerroute_list'),
     # path('api/customers/<int:pk>/invoices/', api.CustomerInvoiceList.as_view(), name='customerinvoice_list'),
     path('api/trips/', api.TripList.as_view(), name='trip_list'),
-    # path('api/trips/<int:pk>/', api.TripDetail.as_view(), name='trip_detail'),
+    path('api/trips/<int:pk>/', api.TripDetail.as_view(), name='api_trip_detail'),
     # path('api/trip/create/', api.TripCreate.as_view(), name='trip_create'),
-    # path('api/trip/update/<int:pk>/', api.TripUpdate.as_view(), name='trip_update'),
+    path('api/trip/update/<int:pk>/', api.TripUpdate.as_view(), name='trip_update'),
     # path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
     path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
     # path('api/invoices/', api.InvoiceList.as_view(), name='invoice_list'),

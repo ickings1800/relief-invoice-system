@@ -14,6 +14,7 @@ from .serializers import TripAddRouteSerializer, \
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, timedelta, date
+from django.db.models import Prefetch
 
 
 class CustomerList(ListAPIView):
@@ -109,11 +110,13 @@ class TripList(ListAPIView):
 
 
 class TripDetail(RetrieveAPIView):
-    queryset = Trip.objects.all()
-    serializer_class = TripListDetailUpdateSerializer
+    serializer_class = TripDetailSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return Trip.objects.prefetch_related(Prefetch('route_set', queryset=Route.objects.all().order_by('index')))
 
 
 class TripCreate(CreateAPIView):
@@ -127,8 +130,12 @@ class TripUpdate(UpdateAPIView):
     serializer_class = TripListDetailUpdateSerializer
     queryset = Trip.objects.all()
 
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
 
 class TripRouteCreate(CreateAPIView):

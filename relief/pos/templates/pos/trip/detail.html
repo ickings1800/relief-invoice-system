@@ -4,160 +4,86 @@
 {% load widget_tweaks %}
 {% block content %}
 <script type="module" src="{% static 'pos/js/trip_detail.js' %}"></script>
-<script src="https://raw.githack.com/SortableJS/Sortable/master/Sortable.js"></script>
-
-<title>{{ trip.date|date:"d M Y P" }}</title>
-<div class="container" id="print-page">
-    <div class="columns">
-        <div class="columns column col-12">
-            <div class="column col-12">
-                <a href="{% url 'pos:trip_index' %}">Back</a>
-                <h2>{{ trip.date|date:"d M Y P" }}</h2>
-            <div>
-            <p>
-                Trip Notes:<br>
-                {% if trip.notes %}
-                {{ trip.notes }}
-                {% endif %}
-            </p>
-            <a class="btn btn-sm my-2" href="{% url 'admin:pos_trip_change' trip.id %} ">Edit</a>
-            <a class="btn btn-primary btn-sm my-2" id="arrange-button">Arrange</a>
-            <a class="btn btn-sm btn-primary my-2 float-right" id="print" href="{% url 'pos:trip_print' trip.id %}">
-                Print
-            </a>
-            </div>
-            <div class="divider column col-12"></div>
-            </div>
-        </div>
-            <div class="column col-12">
-            <div id="routes">
-                {% for r in routes %}
-                <div class="columns col-12 route" data-route-id="{{ r.pk }}">
-                    <div class="columns column col-12">
-                            <div style="display:inline;" class="h4 column col-ml-auto">{{ r.index }}. {{ r.orderitem_set.first.customerproduct.customer.name }}</div>
-                            {% if r.do_number != "" and r.do_number != None %}
-                                <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">{{ r.do_number }}</a>
-                            {% else %}
-                                <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">D/O NUMBER</a>
-                            {% endif %}
-                    </div>
-
-                    {% if r.orderitem_set.all|length > 0 %}
-                        <div class="column col-6"></div>
-                        <ul class="packing-container column col-6 col-ml-auto">
-                            {% for method in packing %}
-                            <li>{{ method }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% for oi in r.orderitem_set.all %}
-                        <ul style="display:flex;" class="orderitem-container column col-6" data-orderitem-id="{{ oi.pk }}">
-                            <li style="flex:1">{{ oi.quantity }}</li>
-                            <li style="flex:8">{{ oi.customerproduct.product.name }}{% if oi.note %} 🡒 {{ oi.note }} {% endif %}</li>
-                        </ul>
-                        <ul class="packing-container column col-6" data-orderitem-id="{{ oi.pk }}">
-                            {% for method in packing %}
-                            <li >
-                                {% if oi.packing %}
-                                {% if oi.packing|keyvalueget:method != None %}
-                                {{ oi.packing|keyvalueget:method }}
-                                {% endif %}
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% endfor %}
-                    {% endif %}
-                    <div class="divider column col-12"></div>
-                    <h5 class="column col-11 note" data-route-id="{{ r.pk }}">{{ r.note }}</h5>
-                    <button class="delete btn btn-link column col-1"><i class="icon icon-delete float-right"></i></button>
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="columns col-12 packing-sum">
-                <div class="column col-6"></div>
-                <ul class="packing-container column col-6 col-ml-auto">
-                    {% for method in packing %}
-                    <li class="packing-label">{{ method }}</li>
-                    {% endfor %}
-                </ul>
-                <div class="column col-6"></div>
-                <ul id="total-packing-sum" class="packing-container column col-6" data-trip-id="{{ trip.pk }}"></ul>
-            </div>
-
-
-            <div class="divider column col-12"></div>
-
-            <h5 class="py-2">Add Customer</h5>
-            <form autocomplete="off" id="routeform">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label class="form-label">{{ form.customer.label }}</label>
-                    {% render_field form.customer class="form-input" name="cust" list="customers" id="customer" %}
-                </div>
-                <datalist id="customers">
-                {% for customer in customers %}
-                    <option data-value="{{ customer.pk }}" value="{{ customer.name }}">
-                {% endfor %}
-                </datalist>
-                <div class="form-group">
-                    <label class="form-label">{{ form.note.label }}</label>
-                    {% render_field form.note class="form-input" id="note" %}
-                </div>
-                <button class="btn btn-primary" value="Save" id="add-route" data-trip-id="{{ trip.pk }}">Save</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Route Edit Modal -->
-<div class="modal" id="edit-modal">
-  <a href="#close" class="modal-overlay" aria-label="Close"></a>
-  <div class="modal-container">
-    <div class="modal-header">
-      <a id="modal-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
-      <div id="customer-name" class="modal-title h5"></div>
-    </div>
-    <form id="edit-modal-body" action="" class="modal-body form-group columns"></form>
-      {% csrf_token %}
-      <div class="modal-footer">
-        <a id="modal-save" href="#save" class="btn btn-primary btn-lg my-2 float-right">Save</a>
-      </div>
-  </div>
-</div>
-
-<!-- DO Number Edit Modal -->
-<div class="modal modal-sm" id="do-modal">
-  <a href="#close" class="modal-overlay" aria-label="Close"></a>
-  <div class="modal-container do-modal-window">
-    <div class="modal-header">
-      <a id="do-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
-      <div id="do-title" class="modal-title h5">Edit D/O Number</div>
-    </div>
-    <form id="do-modal-body" action="" class="modal-body form-group columns">
-          <input class="form-input" type="number" id="do-number-input">
-    </form>
-      {% csrf_token %}
-      <div class="modal-footer">
-        <a id="do-save" href="#save" class="btn btn-primary float-right">Save</a>
-      </div>
-  </div>
-</div>
-
-<!-- Route Arrange Modal -->
-<div class="modal modal-sm" id="arrange-modal" data-trip-id="{{ trip.pk }}">
-  <a href="#close" class="modal-overlay" aria-label="Close"></a>
-  <div class="modal-container do-modal-window">
-    <div class="modal-header">
-        <a id="arrange-close" href="#close" class="btn btn-clear float-right" aria-label="Close"></a>
-        <div id="arrange-title" class="modal-title h5">Arrange Routes</div>
-    </div>
-    <ul class="menu draggable-list modal-body" id="arrange-menu"></ul>
-    <div class="modal-footer">
-        <div class="divider"></div>
-        <a class="btn btn-link btn-sm my-2" id="arrange-cancel-button">Cancel</a>
-        <a id="arrange-save" href="#save" class="btn btn-primary">Save</a>
-    </div>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/npm/sortablejs@1.8.4/Sortable.min.js"></script>
+<!-- CDNJS :: Vue.Draggable (https://cdnjs.com/) -->
+<script src="//cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.20.0/vuedraggable.umd.min.js"></script>
+<div id="app" data-trip-id="{{ trip.pk }}" data-pdf-url="{% url 'pos:trip_print' pk=trip.pk %}">
+{% verbatim %}
+    <trip-header
+        v-if="trip"
+        :trip="trip"
+        v-bind:trip_id="trip_id"
+        v-bind:pdf_url="pdfUrl"
+        @rearrangeroutes="minimize"
+        @showedittripnotemodal="showedittripnotemodal"
+        @showaddpackingmodal="showaddpackingmodal"
+        @deletepacking="deletepacking"
+        @rearrangepacking="rearrangepacking"
+        @refreshtripdate="refreshtripdate">
+    </trip-header>
+    <div class="divider"></div>
+    <routes-list v-if="routes"
+                 v-bind:arrangeroutes="show_routes"
+                 v-bind:trip_id="trip_id"
+                 v-bind:routes="routes"
+                 ref="routesList"
+                 @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
+                 @showeditorderitemnotemodal="showeditorderitemnotemodal"
+                 @showeditorderitempackingmodal="showeditorderitempackingmodal"
+                 @showdeleteroutemodal="showdeleteroutemodal"
+                 @showeditdonumbermodal="showeditdonumbermodal"
+                 @showeditroutenotemodal="showeditroutenotemodal"
+                 @showaddroutemodal="showaddroutemodal"
+    ></routes-list>
+    <packing-sum v-if="routes" v-if="trip" :trip="trip" v-bind:routes="routes"></packing-sum>
+    <edit-note-modal v-bind:opened="show_edit_trip_note_modal"
+                     v-bind:trip_id="trip_id"
+                     @showedittripnotemodal="showedittripnotemodal">
+    </edit-note-modal>
+    <edit-orderitem-quantity-modal
+            v-bind:opened="show_orderitem_quantity_modal"
+            v-bind:selected_orderitem_id="selected_orderitem_id"
+            @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
+    ></edit-orderitem-quantity-modal>
+    <edit-orderitem-note-modal
+            v-bind:opened="show_orderitem_note_modal"
+            v-bind:selected_orderitem_id="selected_orderitem_id"
+            @showeditorderitemnotemodal="showeditorderitemnotemodal"
+    ></edit-orderitem-note-modal>
+    <edit-orderitem-packing-modal
+            v-bind:opened="show_orderitem_packing_modal"
+            v-bind:selected_orderitem_id="selected_orderitem_id"
+            v-bind:selected_orderitem_packing_name="selected_orderitem_packing_name"
+            @showeditorderitempackingmodal="showeditorderitempackingmodal"
+    ></edit-orderitem-packing-modal>
+    <delete-route-modal
+            v-bind:opened="show_route_delete_modal"
+            v-bind:selected_route_id="selected_route_id"
+            @showdeleteroutemodal="showdeleteroutemodal"
+    ></delete-route-modal>
+    <do-number-modal
+            v-bind:opened="show_edit_do_number_modal"
+            v-bind:selected_route_id="selected_route_id"
+            @showeditdonumbermodal="showeditdonumbermodal"
+    ></do-number-modal>
+    <edit-route-note-modal
+        v-bind:opened="show_edit_route_note_modal"
+        v-bind:selected_route_id="selected_route_id"
+        @showeditroutenotemodal="showeditroutenotemodal">
+    </edit-route-note-modal>
+    <add-packing-modal
+        v-bind:opened="show_add_packing_modal"
+        v-bind:trip_id="trip_id"
+        @showaddpackingmodal="showaddpackingmodal">
+    </add-packing-modal>
+    <add-route-modal
+            v-bind:opened="show_add_route_modal"
+            v-bind:trip_id="trip_id"
+            v-bind:routes="routes"
+            v-bind:create_route_at_index="create_route_at_index"
+            @showaddroutemodal="showaddroutemodal">
+    </add-route-modal>
+{% endverbatim %}
 </div>
 {% endblock %}

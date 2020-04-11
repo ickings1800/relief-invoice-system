@@ -114,35 +114,22 @@ ul {
     margin:0;
 }
 
-ul li {
-padding-top:0;
-}
+
 
 .invoice-table th {
     border:none;
 }
 
-.row {
-    display:flex;
-    justify-content: space-evenly;
-}
 
 .col {
     flex: 1;
     text-align:center;
 }
 
-.orderitem-row {
-    margin:0
-}
 
 .route, .packing-sum {
-    margin-top:0.3rem;
-    margin-left:0;
-    margin-right:0;
     border: .05rem solid #e7e9ed;
-    border-radius: .1rem;
-    padding:.8rem;
+    border-radius: .4rem;
 }
 
 
@@ -155,24 +142,6 @@ padding-top:0;
     font-weight: 600;
 }
 
-.packing td {
-    border-bottom:0;
-}
-
-.packing th {
-    border-bottom-width:0;
-    border-bottom:0;
-    padding:0;
-}
-
-.packing {
-}
-
-.packing-sum {
-    margin-top: 0.3rem;
-    margin-left:0;
-    margin-right:0;
-}
 
 .modal.active .do-modal-window {
     max-width:960px;
@@ -188,25 +157,38 @@ font-size: 1vw;
 }
 
 .orderitem-container, .packing-container {
-    display:flex;
-    justify-content: space-between;
+    display:grid;
 }
 
+.packing-empty-space {
+    grid-column-start: 1;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 1;
+}
+
+.packing-sum-empty-space {
+    grid-column-start: 1;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 3;
+}
 
 .packing-container li {
-	flex-grow:1;
-	flex-basis: 0;
-	text-align: center;
-	margin-top:0;
-    border: 1px solid #50596c;
     font-weight:bold;
-    font-size: 1vh;
+    margin-top:0;
+    font-size:14px;
+}
+
+.border {
+	text-align: center;
+    border: 1px solid #50596c;
 }
 
 @media screen and (min-width: 1920px) {
-.packing-container li {
-     font-size: 1em;
-  }
+/* .packing-container li {
+     font-size: 1vw;
+  } */
 }
 
 #date-range {
@@ -246,4 +228,52 @@ font-size: 1vw;
 
 #customer-create-modal-window {
     max-width:none;
+}
+
+.add {
+    height:2rem;
+    background-color:rgba(128, 127, 226, 0.1);
+    text-align:center;
+    opacity:0.8;
+    font-size: .65rem;
+    font-weight: 600;
+}
+
+.expand-enter-active, .expand-leave-active {
+    transition: height 0.50s;
+}
+
+
+.expand-enter, .expand-leave-to {
+  height:0;
+}
+
+#app {
+    margin:1rem;
+}
+
+.clickable:hover {
+    background-color:rgba(128, 127, 226, 0.3);
+    border-radius: .2rem;
+}
+
+.note:hover {
+    background-color:rgba(128, 127, 226, 0.1);
+    border-radius: .2rem;
+}
+
+.light-caps {
+    opacity:0.8;
+    font-size: .65rem;
+    font-weight: 600;
+}
+
+#add-route-modal-body {
+    max-height: none;
+    overflow-y: unset;
+}
+
+#add-customer-menu {
+    overflow-y: scroll;
+    max-height: 12rem;
 }
