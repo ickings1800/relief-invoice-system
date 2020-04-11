@@ -14,77 +14,75 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="columns">
-            <div class="column col-12">
-                <h2>{{ trip.date|date:"d M Y P" }}</h2>
-                <p>
-                    Trip Notes:<br>
-                    {% if trip.notes %}
-                    {{ trip.notes }}
-                    {% endif %}
-                </p>
-                <div class="divider column col-12"></div>
-                <div id="routes">
-                    {% for r in routes %}
-                    <div class="columns col-12 route" data-route-id="{{ r.pk }}">
-                        {% if r.orderitem_set.all|length > 0 %}
-                        <div class="columns column col-12">
-                            <div class="h4">{{ r.index }}.</div>
-                            <div style="display:inline;" class="h4 mx-2">{{ r.orderitem_set.first.customerproduct.customer.name }}</div>
-                        </div>
-
-                            <div class="column col-6"></div>
-                            <ul class="packing-container column col-6 col-ml-auto">
-                                {% for method in packing %}
-                                <li>{{ method }}</li>
-                                {% endfor %}
-                            </ul>
-                            {% for oi in r.orderitem_set.all %}
-                            <ul style="display:flex;" class="orderitem-container column col-6" data-orderitem-id="{{ oi.pk }}">
-                                <li style="flex:1">{{ oi.quantity }}</li>
-                                <li style="flex:8">{{ oi.customerproduct.product.name }}{% if oi.note %} 🡒 {{ oi.note }} {% endif %}</li>
-                            </ul>
-                            <ul class="packing-container column col-6" data-orderitem-id="{{ oi.pk }}">
-                                {% for method in packing %}
-                                <li >
-                                    {% if oi.packing %}
-                                    {% if oi.packing|keyvalueget:method != None %}
-                                    {{ oi.packing|keyvalueget:method }}
-                                    {% endif %}
-                                    {% endif %}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% endfor %}
-                        {% endif %}
-                        {% if r.note %}
-                        {% if r.orderitem_set.all|length == 0 %}
-                        <div class="h4">{{ r.index }}.</div>
-                        {% endif %}
-                        <div class="divider column col-12"></div>
-                        <h5 class="column col-11">{{ r.note }}</h5>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <div class="columns col-12 packing-sum">
-                    <div class="column col-6"></div>
-                    <ul class="packing-container column col-6 col-ml-auto">
-                        {% for method in packing %}
-                        <li class="packing-label">{{ method }}</li>
-                        {% endfor %}
-                    </ul>
-                    <div class="column col-6"></div>
-                    <ul id="total-packing-sum" class="packing-container column col-6" data-trip-id="{{ trip.pk }}">
-                        {% for method in packing %}
-                        <li>{{ packing_sum|keyvalueget:method }}</li>
-                        {% endfor %}
-                    </ul>
+<div class="container" id="print-page">
+    <div class="columns">
+        <div class="columns column col-12">
+            <div class="column col-12"><h2>{{ trip.date|date:"d M Y P" }}</h2><div>
+                {% if trip.notes %}
+                <h4>{{ trip.notes }}</h4>
+                {% endif %}
                 </div>
                 <div class="divider column col-12"></div>
             </div>
         </div>
+            <div class="column col-12">
+            <div id="routes">
+                {% for r in routes %}
+                <div class="columns col-12 route my-2" data-route-id="{{ r.pk }}">
+                    <div class="columns column col-12">
+                            <div style="display:inline;" class="h4 column col-ml-auto">{{ r.index }}. {{ r.orderitem_set.first.customerproduct.customer.name }}</div>
+                            {% if r.do_number != "" and r.do_number != None %}
+                                <a href="#" class="btn btn-link text-right column col-2 do-number" data-route-id="{{ r.pk }}">{{ r.do_number }}</a>
+                            {% endif %}
+                    </div>
+
+                    {% if r.orderitem_set.all|length > 0 %}
+                        <ul class="packing-container column col-12" style="grid-template-columns: 1fr 3fr 2fr repeat({{ packing|length }}, minmax(0, 1fr));">
+                            <li class="packing-empty-space"></li>
+                            {% for method in packing %}
+                            <li class="border">{{ method }}</li>
+                            {% endfor %}
+                            {% for oi in r.orderitem_set.all %}
+                            <li>{{ oi.quantity }}</li>
+                            <li>{{ oi.customerproduct.product.name }}</li>
+                            <li>{% if oi.note %} 🡒 {{ oi.note }} {% endif %}</li>
+                            {% for method in packing %}
+                            <li class="border">
+                                {% if oi.packing %}
+                                {% if oi.packing|keyvalueget:method != None %}
+                                {{ oi.packing|keyvalueget:method }}
+                                {% endif %}
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                            {% endfor %}
+                        </ul>
+                        <!--<ul style="display:flex;" class="orderitem-container column col-6" data-orderitem-id="{{ oi.pk }}">-->
+                        <!--</ul>-->
+                        <!--<ul class="packing-container column col-6" data-orderitem-id="{{ oi.pk }}">-->
+                        <!--</ul>-->
+                    {% endif %}
+                    {% if r.note %}
+                    <div class="divider column col-12"></div>
+                    <h5 class="column col-12 note" data-route-id="{{ r.pk }}">{{ r.note }}</h5>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="columns col-12 packing-sum">
+                <ul class="packing-container column col-12" id="total-packing-sum" data-trip-id="{{ trip.pk }}"
+                 style="grid-template-columns: 1fr 3fr 2fr repeat({{ packing|length }}, minmax(0, 1fr));">
+                    <li class="packing-sum-empty-space"></li>
+                    {% for method in packing %}
+                    <li class="border">{{ method }}</li>
+                    {% endfor %}
+                    {% for method in packing %}
+                    <li class="border">{{ packing_sum|keyvalueget:method }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
     </div>
+</div>
 </body>
