@@ -87,7 +87,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 REST_FRAMEWORK = {
-    "DATETIME_FORMAT": "%d-%m-%Y %H:%M",
+    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S",
     "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
