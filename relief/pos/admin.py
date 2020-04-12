@@ -48,8 +48,8 @@ class AdminGroup(admin.ModelAdmin):
         return False
 
 
-admin.site.register(Group, AdminGroup)
-admin.site.register(Customer, AdminCustomer)
-admin.site.register(Product, AdminProduct)
-admin.site.register(Trip, AdminTrip)
-admin.site.register(CustomerProduct, AdminCustomerProduct)
+# admin.site.register(Group, AdminGroup)
+# admin.site.register(Customer, AdminCustomer)
+# admin.site.register(Product, AdminProduct)
+# admin.site.register(Trip, AdminTrip)
+# admin.site.register(CustomerProduct, AdminCustomerProduct)
