@@ -1,46 +1,26 @@
 {% extends 'pos/master/menu_nav.html' %}
+{% load index %}
+{% load static %}
+{% load widget_tweaks %}
 {% block content %}
-<div class="container">
-    <div class="columns">
-        <div class="column col-3">
-            <h2>Products</h2>
-        </div>
-        <div class="column col-mr-auto"></div>
-        <div class="column col-3">
-            <a  href="{% url 'admin:pos_product_add' %}" class="btn btn-primary btn-sm float-right button-action">
-                <i class="icon icon-plus"></i>&nbsp;Create
-            </a>
-        </div>
-    </div>
-    <div class="columns">
-        <div class="column col-12">
-            {% if product_list|length > 0 %}
-                <table class="table">
-                {% for product in product_list %}
-                <tr>
-                    <td>
-                        {{ product.name }}
-                    </td>
-                    <td>
-                        <a href="{% url 'admin:pos_product_change' product.id %}">
-                            <i class="icon icon-edit float-right"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-                </table>
-            {% else %}
-                <div class="empty">
-                      <p class="empty-title h5">You have no products.</p>
-                        <p class="empty-subtitle">Click the button to create one.</p>
-                      <div class="empty-action">
-                            <a href="{% url 'admin:pos_product_add' %}" class="btn btn-primary btn-sm button-action">
-                                <i class="icon icon-plus"></i>&nbsp;Create
-                            </a>
-                      </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+<script type="module" src="{% static 'pos/js/products.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<div id="app">
+{% verbatim %}
+    <product-list
+            @showcreateproductmodal="showcreateproductmodal"
+            @showeditproductmodal="showeditproductmodal"
+            v-bind:products="products">
+    </product-list>
+    <create-product-modal
+            @showcreateproductmodal="showcreateproductmodal"
+            v-bind:opened="show_product_create_modal">
+    </create-product-modal>
+    <edit-product-modal
+            @showeditproductmodal="showeditproductmodal"
+            v-bind:opened="show_product_edit_modal"
+            v-bind:product_id="selected_product_id">
+    </edit-product-modal>
 </div>
+{% endverbatim %}
 {% endblock %}
