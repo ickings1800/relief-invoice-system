@@ -1,3 +1,254 @@
+const draggable = window['vuedraggable'];
+
+var CreateCustomerModal = Vue.component('CreateCustomerModal', {
+  data: function () {
+      return {
+          name: null,
+          group_id: 1, // Default group
+          groups: [],
+          product_list: [],
+          selected_products: [],
+          show_create_tab: true,
+      }
+  },
+
+  template:`
+    <!-- Add Customer Modal -->
+    <div class="modal" id="create-customer-modal" v-bind:class="{ 'active': opened }">
+      <a href="#close" class="modal-overlay" aria-label="Close"></a>
+      <div class="modal-container customer-create-modal-window">
+        <div class="modal-header">
+            <ul class="step">
+                <li id="create-customer-tab" class="step-item" v-bind:class="{ active: show_create_tab }">
+                    <a href="#">Create Customer</a>
+                </li>
+                <li id="quote-tab" class="step-item" v-bind:class="{ active: !show_create_tab }">
+                    <a href="#">Quote</a>
+                </li>
+            </ul>
+        </div>
+        <div class="modal-body" id="create-customer-menu">
+            <!-- First step: creating customer -->
+            <form id="create-customer-form" class="form-horizontal" v-bind:class="{'d-none': !show_create_tab}">
+                <div class="form-group">
+                    <div class="col-3 col-sm-12">
+                        <label class="form-label" for="customer-create-name">Name:</label>
+                    </div>
+                    <div class="col-9 col-sm-12">
+                        <input class="form-input" type="text" maxlength="255" id="customer-create-name" v-model="name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-3 col-sm-12">
+                        <label class="form-label" for="customer-create-group">Group:</label>
+                    </div>
+                    <div class="col-9 col-sm-12">
+                        <select class="form-select" id="customer-create-group" v-model="group_id">
+                            <option v-for="g in groups" v-bind:value="g.id">{{ g.name }}</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Second step: creating customer products -->
+            <div id="create-customer-product" v-bind:class="{'d-none': show_create_tab}">
+                <ul id="menu-list">
+                    <li v-for="p, index in selected_products" class="columns">
+                        <span class="column col-11">{{ p.name }}</span>
+                        <a href="#" class="btn btn-link column col-1" v-on:click="removeQuote(index)">
+                            <i class="icon icon-minus"></i>
+                        </a>
+                    </li>
+                    <li id="create-customerproduct-row" class="columns">
+                      <select class="form-select column col-11" ref="quote_list">
+                          <option v-for="p in product_list" value="p.id">{{ p.name }}</option>
+                      </select>
+                        <a href="#" class="btn btn-link column col-1 float-right"
+                        id="create-customerproduct-row-btn"
+                        v-on:click="addQuote">
+                        <i class="icon icon-plus"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="divider"></div>
+            <a class="btn btn-link btn-sm my-2 float-left"
+            v-bind:class="{ 'd-none': show_create_tab }"
+            v-on:click="show_create_tab = !show_create_tab"
+            id="customer-create-back">Back</a>
+            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
+            <a id="customer-create-submit-button"
+             href="#save"
+             v-on:click="show_create_tab ? show_create_tab = false : saveCustomerQuote()"
+             class="btn btn-primary">{{ show_create_tab ? 'Next' : 'Save'}}</a>
+        </div>
+      </div>
+    </div>
+   `,
+   props: ['opened'],
+   components: {},
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+               this.getGroups();
+               this.getProducts();
+           }
+       }
+   },
+   methods: {
+       close: function(event){
+           console.log("create customer modal close");
+           this.selected_products = [];
+           this.name = null;
+           this.show_create_tab = false;
+           this.$emit('showcreatecustomermodal');
+       },
+       saveCustomerQuote: function(){
+           console.log('save customer quote');
+           let data = {'name': this.name, 'group': this.group_id};
+           createCustomer(data)
+           .then(res => res.json())
+           .then(res => {
+               this.selected_products.forEach(
+                   e => createCustomerProduct(res.id, {'customer': res.id, 'product': e.id}).then(res => res.json())
+               )
+           })
+           .then(() => this.close())
+           .catch(e => console.log(e));
+
+       },
+       addQuote: function(event){
+           console.log("add quote");
+           let quote_list = this.$refs.quote_list;
+           let selectedObj = this.product_list[quote_list.selectedIndex];
+           this.selected_products.push(selectedObj);
+           this.product_list = this.product_list.filter(p => p.id !== selectedObj.id);
+       },
+       removeQuote: function(event){
+            console.log("remove quote");
+            let index = event;
+            let selectedObj = this.selected_products[index];
+            this.product_list.push(selectedObj)
+            this.selected_products.splice(index, 1);
+       },
+       getGroups: function(){
+           getAllGroups().then(res => res.json()).then(res => this.groups = res);
+       },
+       getProducts: function(){
+           getAllProducts().then(res => res.json()).then(res => this.product_list = res);
+       }
+   }
+})
+
+var CustomerList = Vue.component('CustomerList', {
+  data: function () {
+      return {
+      }
+  },
+  created: function() {
+  },
+  template:`
+    <div class="container">
+        <div class="columns">
+            <div class="column col-3">
+                <h2>Customers</h2>
+            </div>
+            <div class="column col-mr-auto"></div>
+            <div class="column col-3">
+                <a class="btn btn-primary btn-sm float-right button-action" id="create-customer-button" v-on:click="$emit('showcreatecustomermodal')">
+                    <i class="icon icon-plus"></i>&nbsp;Create
+                </a>
+            </div>
+        </div>
+        <div class="columns">
+            <div class="column col-12">
+                <!-- standard Accordions example -->
+                <div class="accordion" v-for="group in customer_groups" :key="group.id">
+                  <input type="checkbox" v-bind:id="'accordion' + group.id" name="accordion-checkbox" hidden>
+                  <label class="accordion-header" v-bind:for="'accordion' + group.id">
+                    <i class="icon icon-arrow-right mr-1"></i>
+                    {{ group.name }}
+                  </label>
+                  <div class="accordion-body">
+                    <!-- Accordions content -->
+                      <div class="menu menu-nav" id="rowParent">
+                          <ul class="draggable-list" v-bind:id="'menu' + group.id" v-bind:data-group-id="group.id">
+                        <draggable v-bind="dragOptions" @end="customergroup_swap">
+                              <li class="menu-item"
+                              v-for="cg in group.customergroup_set"
+                              v-bind:data-customergroup-id="cg.id">
+                              <a v-bind:href="cg.url">{{ cg.customer_name }}</a>
+                              </li>
+                        </draggable>
+                          </ul>
+                      </div>
+                  </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  `,
+   props: ['customer_groups'],
+   components: {draggable, },
+   methods: {
+       customergroup_swap: function(event){
+           let draggable_list = event.target;
+           let group_id = event.target.parentNode.getAttribute('data-group-id');
+           let arrangement = Array.from(draggable_list.children)
+           .map(c => parseInt(c.getAttribute('data-customergroup-id'), 10))
+           updateCustomerGroupIndex(group_id, arrangement).then(res => res.json())
+       },
+   },
+   computed: {
+    dragOptions() {
+          return {
+            animation: 200,
+            group: "description",
+            disabled: false,
+            ghostClass: "ghost",
+            draggable: ".menu-item",
+          };
+        }
+    },
+})
+
+
+
+var app = new Vue({
+  el: '#app',
+  data: function () {
+      return {
+          customer_groups: [],
+          show_customer_create_modal: false,
+      }
+  },
+  created: function() {
+      console.log("created function");
+      this.getAllCustomers();
+  },
+  components: {
+      'create-customer-modal': CreateCustomerModal,
+      'customer-list': CustomerList,
+  },
+  methods: {
+      showcreatecustomermodal: function(event){
+          console.log("show create customer modal");
+          this.show_customer_create_modal = !this.show_customer_create_modal
+          if (this.show_customer_create_modal){
+          }
+          if (!this.show_customer_create_modal){
+              this.getAllCustomers()
+          }
+      },
+      getAllCustomers: function() {
+          getAllCustomers().then(res => res.json()).then(res => this.customer_groups = res);
+      }
+  }
+})
+
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -14,190 +265,70 @@ function getCookie(name) {
     return cookieValue;
 }
 
-window.onload = function(e){
-    let create_customer_cancel = document.getElementById('customer-create-cancel-button');
-    let create_customer_submit = document.getElementById('customer-create-submit-button');
-    let create_customer_btn = document.getElementById('create-customer-button');
-    let create_customerproduct_row_btn = document.getElementById('create-customerproduct-row-btn');
-    var el = Array.from(document.getElementsByClassName('draggable-list'));
-    console.log(el);
-    el.forEach(function(element){
-        Sortable.create(element, {
-          group: element.id,
-          animation: 100,
-          onEnd: function(event){
-            saveModal(event);
-          }
-        });
-    })
+function getAllCustomers() {
+      let url = 'http://localhost:8000/pos/api/groups/';
+      let response = fetch(url, {
+          method: 'GET', // or 'PUT'
+      });
+      return response;
+}
 
-    create_customer_btn.addEventListener("click", showCreateCustomerModal, false);
-    create_customer_cancel.addEventListener("click", closeCreateCustomerModal, false);
-    create_customer_submit.addEventListener("click", quoteCustomerTab, false);
-    create_customerproduct_row_btn.addEventListener("click", addCustomerProductRow, false);
-};
+function getAllGroups(){
+    let url = 'http://localhost:8000/pos/api/groups/all/';
+    let response = fetch(url, {
+        method: 'GET', // or 'PUT'
+    });
+    return response;
+}
 
-
-function addCustomerProductRow(event){
-    let quote_input = document.getElementById('create-customerproduct-quote');
-    let cp = document.getElementById('create-customerproduct-list');
-    let menu = document.getElementById('menu-list');
-    let create_customerproduct_row = document.getElementById('create-customerproduct-row');
-    if (quote_input.value === ""){
-        alert("Fill in quote box");
-    } else if (cp.options.length === 0){
-        alert("No products available");
-    } else {
-        let selected_value = cp.options[cp.selectedIndex].value;
-        let selected_product_name = cp.options[cp.selectedIndex].text;
-        let quote = quote_input.value;
-        let row_list = document.createElement('li');
-        row_list.classList.add('columns', 'create-customerproduct-row');
-        row_list.setAttribute('data-product-id', selected_value);
-        row_list.setAttribute('data-quote', quote_input.value);
-        row_list.setAttribute('data-product-name', selected_product_name);
-        row_list.setAttribute('data-list-index', cp.selectedIndex);
-        let row_product_name = document.createElement('div');
-        row_product_name.classList.add('column', 'col-7');
-        row_product_name.innerHTML = selected_product_name;
-        let row_separator = document.createElement('div');
-        row_separator.classList.add('column', 'col-1');
-        let row_quote = document.createElement('div');
-        row_quote.innerHTML = quote_input.value;
-        row_quote.classList.add('column', 'col-3');
-        let row_remove = document.createElement('a');
-        row_remove.classList.add('btn', 'btn-link', 'column', 'col-1');
-        row_remove.href = "#";
-        let remove_icon = document.createElement('i');
-        remove_icon.classList.add('icon', 'icon-minus');
-        row_remove.appendChild(remove_icon);
-        row_list.appendChild(row_product_name);
-        row_list.appendChild(row_separator);
-        row_list.appendChild(row_quote);
-        row_list.appendChild(row_remove);
-        menu.insertBefore(row_list, menu.childNodes[menu.childNodes.length - 2]);
-        row_remove.addEventListener("click", removeCustomerProductRow, false);
-        quote_input.value = "";
-        cp.remove(cp.selectedIndex);
-    }
+function getAllProducts(){
+    let url = 'http://localhost:8000/pos/api/products/';
+    let response = fetch(url, {
+        method: 'GET', // or 'PUT'
+    });
+    return response;
 }
 
 
-function removeCustomerProductRow(event){
-    console.log("Remove customerproduct row");
-    let row = event.target.parentNode.parentNode;
-    let menu = document.getElementById('menu-list');
-    let removed_product_id = row.getAttribute('data-product-id');
-    let removed_product_name = row.getAttribute('data-product-name');
-    let insert_list_index = row.getAttribute('data-list-index');
-    let create_customerproduct_list = document.getElementById('create-customerproduct-list');
-    let customerproduct_select = document.getElementById('create-customerproduct-list');
-    menu.removeChild(row);
-//    add product back into select list
-    let new_row = document.createElement('option');
-    new_row.value = removed_product_id;
-    new_row.innerHTML = removed_product_name;
-    customerproduct_select.insertBefore(new_row, customerproduct_select.children[insert_list_index]);
-}
-
-
-async function quoteCustomerTab(){
-    let quote_tab = document.getElementById('quote-tab');
-    let create_customer_tab = document.getElementById('create-customer-tab');
-    let menu_list = document.getElementById('create-customer-product');
-    let form = document.getElementById('create-customer-form');
-    let create_customer_submit = document.getElementById('customer-create-submit-button');
-    let prev_btn = document.getElementById('customer-create-back');
-    let customerproduct_list = document.getElementById('create-customerproduct-list');
-    let product_list = await getProducts();
-    create_customer_tab.classList.remove('active');
-    quote_tab.classList.add('active');
-    form.style.display = "none";
-    menu_list.style.display = "block";
-    create_customer_submit.innerHTML = "Create";
-    create_customer_submit.addEventListener("click", postCustomerAndQuote, false);
-    prev_btn.style.display = "block";
-    prev_btn.addEventListener("click", createCustomerTab, false);
-    product_list.forEach(function(element){
-        let product_row = document.createElement('option');
-        product_row.value = element.id;
-        product_row.innerHTML = element.name;
-        customerproduct_list.appendChild(product_row);
-    })
-}
-
-function getProducts(){
-    let url = `http://localhost:8000/pos/api/products/`;
-    return fetch(url, {
-      method: 'GET', // or 'PUT'
-      credentials: 'same-origin',
-      headers:{
+function createCustomer(data){
+    let url = 'http://localhost:8000/pos/api/customer/create/';
+    let response = fetch(url, {
+        method: 'POST', // or 'PUT'
+        credentials: 'same-origin',
+        body: JSON.stringify(data), // data can be `string` or {object}!
+        headers:{
         'X-CSRFToken': getCookie('csrftoken'),
         'Accept': 'application/json',
         'Content-Type': 'application/json'
-      }
-    }).then((response) => response.json())
-    .catch(error => console.error('Error: ', error));
+        }
+    })
+    return response;
 }
 
-function createCustomer(){
-    let url = `http://localhost:8000/pos/api/customer/create/`;
-    let product_id = document.getElementById('create-customerproduct-list');
-    let customer_name = document.getElementById('customer-create-name').value;
-    let customer_address = document.getElementById('customer-create-address').value;
-    let customer_postal = document.getElementById('customer-create-postal').value;
-    let customer_tel = document.getElementById('customer-create-tel').value;
-    let customer_fax = document.getElementById('customer-create-fax').value;
-    let customer_term = parseInt(document.getElementById('customer-create-term').value);
-    let customer_gst = parseInt(document.getElementById('customer-create-gst').value);
-    let customer_group = parseInt(document.getElementById('customer-create-group').value);
-
-    var data = {
-        "name": customer_name,
-        "address": customer_address,
-        "postal_code": customer_postal,
-        "tel_no": customer_tel,
-        "fax_no": customer_fax,
-        "term": customer_term,
-        "gst": customer_gst,
-        "group": customer_group
-    };
-
-    return fetch(url, {
-      method: 'POST', // or 'PUT'
-      credentials: 'same-origin',
-      body: JSON.stringify(data), // data can be `string` or {object}!
-      headers:{
+function createCustomerProduct(customer_id, data){
+    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/create/';
+    let response = fetch(url, {
+        method: 'POST', // or 'PUT'
+        credentials: 'same-origin',
+        body: JSON.stringify(data), // data can be `string` or {object}!
+        headers:{
         'X-CSRFToken': getCookie('csrftoken'),
         'Accept': 'application/json',
         'Content-Type': 'application/json'
-      }
-    }).then(response => response.json())
-    .catch(error => console.error('Error: ', error));
+        }
+    })
+    return response;
 }
 
 
-function createCustomerProducts(customer_id){
-    console.log('Creating Customer Products');
-     let customerproduct_rows = Array.from(document.getElementsByClassName('create-customerproduct-row'));
-     let customerproducts_promises = []
-     customerproduct_rows.forEach(async (element) => {
-        let product_id = element.getAttribute('data-product-id');
-        let quote_price = element.getAttribute('data-quote');
-        customerproducts_promises.push(createCustomerProduct(customer_id, product_id, quote_price));
-     });
-     return customerproducts_promises;
-}
 
-function createCustomerProduct(customer_id, product_id, quote_price){
-    console.log('Create Customer Product');
-    let url = `http://localhost:8000/pos/api/customers/${customer_id}/products/create/`;
+function updateCustomerGroupIndex(group_id, arrangement){
+    let url = `http://localhost:8000/pos/api/customergroup/swap/`;
     var data = {
-        "customer": customer_id,
-        "product": parseInt(product_id),
-        "quote_price": parseFloat(quote_price)
+        "group_id": group_id,
+        "arrangement": arrangement
     };
-    console.log(data);
+
     return fetch(url, {
       method: 'POST', // or 'PUT'
       credentials: 'same-origin',
@@ -208,93 +339,4 @@ function createCustomerProduct(customer_id, product_id, quote_price){
         'Content-Type': 'application/json'
       }
     }).catch(error => console.error('Error: ', error));
-}
-
-
-async function postCustomerAndQuote(event){
-    event.preventDefault();
-    console.log("Submit quote");
-//    POST quote
-    let created_customer = await createCustomer();
-    let url = `http://localhost:8000/pos/customers/detail/${created_customer.id}/`;
-    console.log(created_customer);
-    customerproducts_promises = createCustomerProducts(created_customer.id);
-    Promise.all(customerproducts_promises).then(function(e){
-        window.location.href = url;
-    });
-    closeCreateCustomerModal();
-}
-
-
-function createCustomerTab(){
-    let quote_tab = document.getElementById('quote-tab');
-    let create_customer_tab = document.getElementById('create-customer-tab');
-    let menu_list = document.getElementById('create-customer-product');
-    let form = document.getElementById('create-customer-form');
-    let create_customer_submit = document.getElementById('customer-create-submit-button');
-    let prev_btn = document.getElementById('customer-create-back');
-    create_customer_tab.classList.add('active');
-    quote_tab.classList.remove('active');
-    form.style.display = "block";
-    menu_list.style.display = "none";
-    create_customer_submit.innerHTML = "Next";
-    create_customer_submit.addEventListener("click", quoteCustomerTab, false);
-    prev_btn.style.display = "none";
-}
-
-
-function showCreateCustomerModal(event){
-    let modal_create_customer = document.getElementById('create-customer-modal');
-    let customer_tab = document.getElementById('create-customer-tab');
-    let prev_btn = document.getElementById('customer-create-back');
-    modal_create_customer.classList.add('active');
-    customer_tab.classList.add('active');
-    prev_btn.style.display = "none";
-}
-
-function closeCreateCustomerModal(event){
-    let modal_create_customer = document.getElementById('create-customer-modal');
-    let create_customer_tab = document.getElementById('create-customer-tab');
-    let quote_tab = document.getElementById('quote-tab');
-    let menu_list = document.getElementById('menu-list');
-    let customerproduct_rows = Array.from(document.getElementsByClassName('create-customerproduct-row'));
-    let customerproduct_list = document.getElementById('create-customerproduct-list');
-    modal_create_customer.classList.remove('active');
-    create_customer_tab.classList.remove('active');
-    quote_tab.classList.remove('active');
-    createCustomerTab();
-//    reset customerproduct rows
-    customerproduct_rows.forEach(function(element){
-        menu_list.removeChild(element);
-    });
-    customerproduct_list.innerHTML = "";
-}
-
-function saveModal(event){
-    console.log("save");
-    let customer_list = event.target;
-    console.log(event);
-    group_id = event.item.getAttribute('data-group-id');
-    let url = `http://localhost:8000/pos/api/customergroup/${group_id}/swap/`;
-    let list_items = Array.from(customer_list.children);
-    let arrangement = [];
-    list_items.forEach(function(item){
-        arrangement.push(parseInt(item.getAttribute('data-customergroup-id'), 10));
-    });
-    console.log(arrangement);
-    var data = {
-        "arrangement": arrangement
-    };
-
-    fetch(url, {
-      method: 'POST', // or 'PUT'
-      credentials: 'same-origin',
-      body: JSON.stringify(data), // data can be `string` or {object}!
-      headers:{
-        'X-CSRFToken': getCookie('csrftoken'),
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    }).then(response => response.json())
-    .catch(error => console.error('Error: ', error));
 }

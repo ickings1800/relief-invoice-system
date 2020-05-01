@@ -14,10 +14,46 @@ class TripAddRouteSerializer(serializers.Serializer):
         return Route(note=note, do_number=do_number)
 
 
+class CustomerGroupSerializer(serializers.HyperlinkedModelSerializer):
+    customer_name = serializers.SerializerMethodField()
+    group_id = serializers.SerializerMethodField()
+    group_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerGroup
+        fields = ('id', 'index', 'customer_name', 'customer_id', 'group_id', 'group_name', 'url')
+        extra_kwargs = {
+            'url': {'view_name': 'pos:customer_detail_view', 'lookup_field': 'id'},
+        }
+
+    def get_customer_name(self, obj):
+        return obj.customer.name
+
+    def get_group_id(self, obj):
+        return obj.group.id
+
+    def get_group_name(self, obj):
+        return obj.group.name
+
+
+class SimpleGroupListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ('id', 'name')
+
+
+class GroupListSerializer(serializers.ModelSerializer):
+    customergroup_set = CustomerGroupSerializer(many=True)
+
+    class Meta:
+        model = Group
+        fields = ('id', 'name', 'customergroup_set')
+
+
 class CustomerListDetailUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ('id', 'name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst')
+        fields = ('id', 'name')
 
 
 class CustomerCreateSerializer(serializers.ModelSerializer):
@@ -60,10 +96,19 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         fields = ('name', 'specification')
 
 
-class TripListDetailUpdateSerializer(serializers.ModelSerializer):
+class TripRouteCheckedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Route
+        fields = ('checked',)
+
+
+class TripListDetailUpdateSerializer(serializers.HyperlinkedModelSerializer):
+    route_set = TripRouteCheckedSerializer(many=True)
+
     class Meta:
         model = Trip
-        fields = ('id', 'date', 'notes', 'packaging_methods')
+        fields = ('url', 'pk', 'date', 'notes', 'packaging_methods', 'route_set')
+        extra_kwargs = {'url': {'view_name': 'pos:trip_detail', 'lookup_field': 'pk'}}
 
 
 class TripCreateSerializer(serializers.ModelSerializer):
@@ -74,13 +119,17 @@ class TripCreateSerializer(serializers.ModelSerializer):
 
 class CustomerProductListDetailSerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
+    product_id = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProduct
-        fields = ('id', 'quote_price', 'product')
+        fields = ('id', 'quote_price', 'product', 'product_id')
 
     def get_product(self, obj):
         return obj.product.name
+
+    def get_product_id(self, obj):
+        return obj.product.id
 
 
 class CustomerProductCreateSerializer(serializers.ModelSerializer):
@@ -136,7 +185,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct', 'customer', 'customer_id')
+        fields = ('id', 'driver_quantity', 'quantity', 'final_quantity', 'note', 'packing', 'customerproduct', 'customer', 'customer_id')
 
     def get_customerproduct(self, obj):
         return obj.customerproduct.product.name
@@ -153,7 +202,7 @@ class OrderItemUpdateDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct')
+        fields = ('id', 'driver_quantity', 'quantity', 'final_quantity', 'note', 'packing', 'customerproduct')
 
     def get_customerproduct(self, obj):
         return obj.customerproduct.product.name
@@ -172,7 +221,7 @@ class RouteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Route
-        fields = ('id', 'index', 'do_number', 'note', 'orderitem_set', 'trip_date', 'packing',)
+        fields = ('id', 'index', 'do_number', 'note', 'orderitem_set', 'trip_date', 'packing', 'checked')
 
     def get_trip_date(self, obj):
         return obj.trip.date.strftime("%d-%m-%Y")
@@ -185,7 +234,7 @@ class RouteSerializer(serializers.ModelSerializer):
 class RouteUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
-        fields = ('id', 'do_number', 'note')
+        fields = ('id', 'do_number', 'note', 'checked',)
 
 
 class TripDetailSerializer(serializers.ModelSerializer):

@@ -52,6 +52,35 @@ class Trip(models.Model):
         print("Create route")
         return route
 
+    def duplicate_trip(trip_id):
+        trip_copy = get_object_or_404(Trip, id=trip_id)
+        if trip_copy:
+            new_trip = Trip.objects.create(
+                date=trip_copy.date,
+                notes=trip_copy.notes,
+                packaging_methods=trip_copy.packaging_methods
+            )
+            new_trip.save()
+            for r in trip_copy.route_set.all():
+                orderitems = [OrderItem(quantity=oi.quantity,
+                                        driver_quantity=0,
+                                        note=oi.note,
+                                        customerproduct=oi.customerproduct,
+                                        packing=oi.packing) for oi in r.orderitem_set.all()]
+
+                # reset routes primary key to none so that can save to db.
+                r.pk = None
+                # reset do_number from previous trip
+                r.do_number = ""
+                r.invoice = None
+                r.trip = new_trip
+                r.save()
+                for oi in orderitems:
+                    oi.route = r
+                    oi.pk = None
+                    oi.save()
+            return new_trip
+
     def rearrange_trip_routes_after_delete(trip_id):
         route_list = Route.objects.filter(trip_id=trip_id).order_by('index')
         for i in range(len(route_list)):
@@ -257,9 +286,6 @@ class CustomerGroup(models.Model):
     index = models.IntegerField(null=True)
     customer = models.ForeignKey(Customer, on_delete=models.DO_NOTHING, null=True)
     group = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True)
-
-    class Meta:
-        unique_together = ('group', 'index')
 
     def customergroup_swap(customer_groups, customergroup_list_arrangement):
         if customergroup_list_arrangement and len(customergroup_list_arrangement) == len(customer_groups):
@@ -531,10 +557,12 @@ class Route(models.Model):
     note = models.TextField(null=True, blank=True, max_length=255)
     invoice = models.ForeignKey(Invoice, null=True, default=None, on_delete=models.SET_NULL)
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
+    checked = models.BooleanField(default=False)
 
     def get_customer_routes(customer_id):
         route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id) \
             .filter((Q(orderitem__quantity__gt=0) | Q(orderitem__driver_quantity__gt=0))) \
+            .order_by('trip__date')\
             .distinct()
         return route_list
 
@@ -551,7 +579,7 @@ class CustomerProduct(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quote_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
-    start_date = models.DateField(default=date.today(), null=False, blank=False)
+    start_date = models.DateField(auto_now_add=True, null=False, blank=False)
     end_date = models.DateField(null=True, blank=True)
 
     def get_latest_customerproducts(customer_id):
@@ -576,6 +604,7 @@ class CustomerProduct(models.Model):
 class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(default=0)
     driver_quantity = models.PositiveSmallIntegerField(default=0)
+    final_quantity = models.PositiveIntegerField(default=0)
     note = models.CharField(max_length=255, null=True, blank=True)
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     customerproduct = models.ForeignKey(CustomerProduct, on_delete=models.CASCADE)

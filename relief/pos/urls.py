@@ -6,9 +6,9 @@ from . import views
 app_name = 'pos'
 urlpatterns = [
     #  /pos/customers/
-    path('customers/', views.CustomerIndexView.as_view(), name='customer_index'),
+    path('customers/', views.CustomerIndexView, name='customer_index'),
     #  /pos/customers/detail/<pk>/
-    path('customers/detail/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail_view'),
+    path('customers/detail/<int:id>/', views.CustomerDetailView, name='customer_detail_view'),
     #  /pos/products/
     path('products/', views.ProductIndexView.as_view(), name='product_index'),
     #  /pos/trips/

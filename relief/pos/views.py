@@ -12,24 +12,12 @@ from hardcopy.views import PDFViewMixin, PNGViewMixin
 
 # Create your views here.
 
-class CustomerIndexView(LoginRequiredMixin, ListView):
+@login_required
+def CustomerIndexView(request):
     template_name = 'pos/customer/index.html'
-    context_object_name = 'group_dict'
 
-    def get_queryset(self):
-        group_dict = {}
-        groups = Group.objects.all()
-        for g in groups:
-            customer_groups = list(CustomerGroup.objects.filter(group_id=g.pk).order_by('index'))
-            group_dict[g.name] = customer_groups
-        return group_dict
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerIndexView, self).get_context_data(**kwargs)
-        context['products'] = Product.objects.all()
-        context['customer_groups'] = Group.objects.all()
-        return context
-
+    if request.method == 'GET':
+        return render(request, template_name)
 
 
 class ProductIndexView(LoginRequiredMixin, ListView):
@@ -63,18 +51,13 @@ class CustomerProductListView(LoginRequiredMixin, ListView):
         return context
 
 
-class CustomerDetailView(LoginRequiredMixin, DetailView):
-    model = Customer
+
+@login_required
+def CustomerDetailView(request, id):
     template_name = 'pos/customer/detail.html'
 
-    def get_context_data(self, **kwargs):
-        customer = self.kwargs['pk']
-        context = super(CustomerDetailView, self).get_context_data(**kwargs)
-        customer_group = get_object_or_404(CustomerGroup, customer_id=customer)
-        groups = Group.objects.all()
-        context['customer_group'] = customer_group
-        context['groups'] = groups
-        return context
+    if request.method == 'GET':
+        return render(request, template_name, {'customergroup_id': id})
 
 
 class CustomerRouteView(LoginRequiredMixin, ListView):

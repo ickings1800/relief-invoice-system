@@ -10,11 +10,30 @@ from .serializers import TripAddRouteSerializer, \
     CustomerCreateSerializer, ProductCreateSerializer, TripCreateSerializer, CustomerProductListDetailSerializer,\
     CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
     TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
-    InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer
+    InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer, GroupListSerializer, SimpleGroupListSerializer,\
+    CustomerGroupSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, timedelta, date
 from django.db.models import Prefetch
+
+
+class GroupList(ListAPIView):
+    serializer_class = SimpleGroupListSerializer
+    queryset = Group.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class CustomerGroupList(ListAPIView):
+    serializer_class = GroupListSerializer(many=True)
+
+    def get(self, request, *args, **kwargs):
+        groups = Group.objects.prefetch_related(Prefetch('customergroup_set',
+                                                         queryset=CustomerGroup.objects.all().order_by('index')))
+        gls = GroupListSerializer(groups, many=True, context={'request': request})
+        return Response(status=status.HTTP_200_OK, data=gls.data)
 
 
 class CustomerList(ListAPIView):
@@ -25,8 +44,8 @@ class CustomerList(ListAPIView):
 
 
 class CustomerDetail(RetrieveAPIView):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerListDetailUpdateSerializer
+    queryset = CustomerGroup.objects.all()
+    serializer_class = CustomerGroupSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
@@ -104,8 +123,8 @@ class TripList(ListAPIView):
             date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
             trips = Trip.get_trips_by_date(date_start_formatted, date_end_formatted)
         else:
-            trips = Trip.objects.all()
-        trip_serializer = TripListDetailUpdateSerializer(trips, many=True)
+            trips = Trip.objects.all().order_by('-date')
+        trip_serializer = TripListDetailUpdateSerializer(trips, many=True, context={'request': request})
         return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
 
 
@@ -124,6 +143,20 @@ class TripCreate(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+
+class TripDuplicate(CreateAPIView):
+    serializer_class = TripCreateSerializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            trip_id = self.kwargs['pk']
+            print(trip_id)
+            duplicated_trip = Trip.duplicate_trip(trip_id)
+            tcs = TripCreateSerializer(duplicated_trip)
+            return Response(status=status.HTTP_201_CREATED, data=tcs.data)
+        except Trip.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class TripUpdate(UpdateAPIView):
@@ -222,12 +255,14 @@ def route_arrange(request, pk):
 
 
 @api_view(['POST'])
-def customergroup_arrange(request, group_id):
+def customergroup_arrange(request):
     if request.method == 'POST':
-        customergroups = CustomerGroup.objects.filter(group_id=group_id)
-        customergroup_list_arrangement = request.data['arrangement']
-        CustomerGroup.customergroup_swap(customergroups, customergroup_list_arrangement)
-        return Response(status=status.HTTP_200_OK, data=request.data)
+        group_id = request.data['group_id']
+        if group_id:
+            customergroup_list_arrangement = request.data['arrangement']
+            customergroups = CustomerGroup.objects.filter(group_id=group_id)
+            CustomerGroup.customergroup_swap(customergroups, customergroup_list_arrangement)
+            return Response(status=status.HTTP_200_OK, data=request.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 

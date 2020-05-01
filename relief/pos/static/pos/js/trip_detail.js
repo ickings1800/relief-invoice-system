@@ -338,13 +338,14 @@ var RouteComponent = Vue.component('route-component', {
   data: function () {
       return {
           hovered: false,
+          checked: false,
       }
   },
   computed: {
       styles: function() {
           let packing_length = this.route.packing.length;
           return {
-              'grid-template-columns': '1fr 3fr 2fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
+              'grid-template-columns': '2fr 4fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
           }
       }
   },
@@ -361,6 +362,7 @@ var RouteComponent = Vue.component('route-component', {
         <input type="checkbox" v-bind:id="'accordion-'+ route.id" name="accordion-checkbox" :checked="minimize" hidden>
         <div class="columns column col-12 p-1">
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-if="route.orderitem_set.length > 0">
+                <label class="form-checkbox d-inline"><input type="checkbox" v-on:click="checkRoute(route.id)" v-model="checked"><i class="form-icon m-1"></i></label>
                 {{ routesorder.indexOf(route.id) + 1 }}. {{ route.orderitem_set[0].customer }}
             </label>
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-else>
@@ -381,9 +383,24 @@ var RouteComponent = Vue.component('route-component', {
                 <li class="packing-empty-space"></li>
                 <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
-                    <li class="clickable c-hand" @click="showeditorderitemquantitymodal" v-bind:data-orderitem-id="oi.id">{{ oi.quantity }}</li>
-                    <li>{{ oi.customerproduct }}</li>
-                    <li class="clickable c-hand" @click="showeditorderitemnotemodal" v-bind:data-orderitem-id="oi.id">{{ oi.note }}</li>
+                    <li class="clickable c-hand"
+                        v-bind:class="textColour(oi.quantity, oi.final_quantity)"
+                         @click="showeditorderitemquantitymodal"
+                         v-bind:data-orderitem-id="oi.id">
+                         {{ oi.quantity }}&nbsp;&#8594;&nbsp;{{ oi.final_quantity }}
+                     </li>
+                    <li class="clickable c-hand"
+                         @click="showeditorderitemnotemodal"
+                         v-bind:data-orderitem-id="oi.id"
+                         v-if="oi.note">
+                         {{ oi.customerproduct }}&#8594;{{ oi.note }}
+                     </li>
+                    <li class="clickable c-hand"
+                         @click="showeditorderitemnotemodal"
+                         v-bind:data-orderitem-id="oi.id"
+                         v-else>
+                         {{ oi.customerproduct }}
+                     </li>
                     <li v-for="method in route.packing"
                     v-if="oi.packing"
                     v-bind:data-orderitem-id="oi.id"
@@ -428,9 +445,22 @@ var RouteComponent = Vue.component('route-component', {
    components: {
    },
    created: function() {
+       this.checked = this.route.checked;
 //       console.log('route-component route prop', this.route.id)
    },
    methods: {
+        textColour: function(quantity, final_quantity) {
+          if (quantity === final_quantity) return 'text-success'
+          return 'text-warning'
+       },
+       checkRoute: function(event){
+           console.log("check route");
+           let data = { "checked": !this.checked };
+           let route_id = event;
+           putRouteData(route_id, data)
+           .then(res => res.json())
+           .then(res => this.checked = res.checked);
+       },
        showeditorderitemquantitymodal: function(event){
            console.log("show edit orderitem quantity modal");
            this.$emit('showeditorderitemquantitymodal', event);
@@ -473,7 +503,7 @@ var PackingSum = Vue.component('packing-sum', {
       styles: function() {
           let packing_length = Object.keys(this.packing_sum).length;
           return {
-              'grid-template-columns': '1fr 3fr 2fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
+              'grid-template-columns': '2fr 4fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
           }
       }
   },
@@ -688,6 +718,8 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
   data: function () {
       return {
           quantity: null,
+          driver_quantity: null,
+          final_quantity: null,
       }
   },
 
@@ -702,8 +734,12 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
             <div class="modal-body form-group">
             <!-- form input control -->
                 <div class="form-group">
-                  <label class="form-label" for="orderitem-quantity">Quantity</label>
-                  <input class="form-input" type="number" id="orderitem-quantity" placeholder="Enter Quantity" v-model="quantity">
+                  <label class="form-inline">Quantity</label>
+                  <input class="form-input" type="number" id="quantity" placeholder="Enter Quantity" v-model="quantity">
+                  <label class="form-inline">Driver Quantity</label>
+                  <input class="form-input" type="number" id="driver-quantity" placeholder="Enter Driver Quantity" v-model="driver_quantity">
+                  <label class="form-inline">Final Quantity</label>
+                  <input class="form-input" type="number" id="final-quantity" placeholder="Other" v-model="final_quantity">
                 </div>
             </div>
             <div class="modal-footer">
@@ -721,7 +757,12 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
                console.log("orderitem id is", this.selected_orderitem_id);
                this.getOrderItem();
            }
-       }
+       },
+       driver_quantity: function(val){
+           if (val) {
+               this.final_quantity = val;
+           }
+       },
    },
    methods: {
        close: function(event) {
@@ -733,13 +774,32 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
             var vm = this;
             getOrderItemDetails(this.selected_orderitem_id)
             .then(res => res.json())
-            .then(res => this.quantity = res.quantity)
+            .then(res => {
+                this.quantity = res.quantity;
+                this.driver_quantity = res.driver_quantity;
+                this.final_quantity = res.final_quantity;
+            }).then(() => {
+                // determine which one is selected
+               if (this.final_quantity === this.quantity){
+                   this.selected = "quantity";
+               }
+               else if (this.final_quantity === this.driver_quantity){
+                   this.selected = "driver_quantity";
+               }
+               else {
+                   this.selected = "final_quantity";
+               }
+            })
             .catch(e => console.log(e))
             console.log('orderitem quantity set');
        },
        saveOrderItemQuantity: function(event){
            console.log("save orderitem quantity");
-           let data = {"quantity": this.quantity};
+           let data = {
+               "quantity": this.quantity,
+               "driver_quantity": this.driver_quantity,
+               "final_quantity": this.final_quantity
+            };
            postOrderItemData(this.selected_orderitem_id, data)
                .then(res => res.json())
                .then(() => this.close())
