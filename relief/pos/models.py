@@ -248,6 +248,13 @@ class Group(models.Model):
     def __str__(self):
         return self.name
 
+    def group_create(name):
+        group_exists = Group.objects.filter(name=name)
+        if len(group_exists) > 0:
+            raise Exception("Group with the name of '{}' already exists.".format(name))
+        new_group = Group.objects.create(name=name)
+        return new_group
+
     def group_change(pk, group_id):
         if pk and group_id:
             customer_group = CustomerGroup.objects.get(pk=pk)
@@ -323,8 +330,8 @@ class Product(models.Model):
 class Invoice(models.Model):
     date_generated = models.DateField(auto_now=True)
     remark = models.CharField(max_length=255, null=True, blank=True)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
     minus = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
     original_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
@@ -341,20 +348,14 @@ class Invoice(models.Model):
     def get_customer_invoices(customer_id):
         return Invoice.objects.filter(route__orderitem__customerproduct__customer_id=customer_id).distinct('pk')
 
-    def get_next_invoice_number():
-        invoice_num_max = Invoice.objects.all().aggregate(models.Max('invoice_number'))
-        # this condition only occurs on the first invoice (with gst) created.
-        if invoice_num_max.get('invoice_number__max') is None:
-            return 0
+    def get_customer_latest_invoice(customer_id):
+        invoices = Invoice.objects.filter(customer_id=customer_id).order_by('-date_generated')
+        if len(invoices) > 0:
+            return invoices[0]
         else:
-            return invoice_num_max.get('invoice_number__max') + 1
+            return None
 
     def generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year, invoice_number, route_id_list):
-        invoice_exists = Invoice.objects.filter(invoice_year=invoice_year, invoice_number=invoice_number)
-        if invoice_exists.count() > 0:
-            raise ValueError("Invoice number {0} {1} already exists, generate a new number"
-                             .format(invoice_year,invoice_number))
-
         selected_routes = []
         for r in route_id_list:
             try:
@@ -364,12 +365,12 @@ class Invoice(models.Model):
             if route.invoice_id:
                 raise ValueError("Route ID:{0} has an Invoice".format(r))
             selected_routes.append(route)
-        invoice = Invoice(gst=int(customer_gst), start_date=start_date, end_date=end_date)
-        invoice.customer_id = customer_id
-        invoice.save()
-        original_total = 0
-        # check whether route already has an invoice, and ensure every route is found.
 
+        invoice = Invoice(customer_id=customer_id)
+        invoice.save()
+
+        # check whether route already has an invoice, and ensure every route is found.
+        original_total = 0
         for r in selected_routes:
             r.invoice = invoice
             orderitems = r.orderitem_set.all()
@@ -381,17 +382,19 @@ class Invoice(models.Model):
             r.save()
 
         net_total = original_total
+
+        # Invoice implementation not done yet. All values will be zero.
         # GST value is a whole number in model
-        gst = float(original_total) * (int(customer_gst) / 100)
+        if invoice.gst > 0:
+            gst = float(original_total) * (int(customer_gst) / 100)
+        else:
+            gst = 0
         invoice.net_total = net_total
         invoice.original_total = original_total
         invoice.net_gst = gst
         invoice.total_incl_gst = float(net_total) + gst
-        if int(customer_gst) > 0:
-            invoice.invoice_year = invoice_year
-            invoice.invoice_number = invoice_number
         invoice.save()
-        return invoice.pk
+        return invoice
 
     def export_invoice_to_pdf(invoice_id):
         invoice = get_object_or_404(Invoice, id=invoice_id)
@@ -559,9 +562,14 @@ class Route(models.Model):
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
     checked = models.BooleanField(default=False)
 
-    def get_customer_routes(customer_id):
-        route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id) \
-            .filter((Q(orderitem__quantity__gt=0) | Q(orderitem__driver_quantity__gt=0))) \
+    def get_customer_routes_for_invoice(customer_id):
+        route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id, checked=True, invoice=None)\
+            .order_by('trip__date')\
+            .distinct()
+        return route_list
+
+    def get_customer_detail_routes(customer_id):
+        route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id, invoice=None)\
             .order_by('trip__date')\
             .distinct()
         return route_list
@@ -591,7 +599,6 @@ class CustomerProduct(models.Model):
                                                        product_id=cp.product_id).latest('start_date')
             if latest_cp:
                 customerproducts.append(latest_cp)
-        print(customerproducts)
         return customerproducts
 
     def get_customerproducts_by_date(customer_id, start_date, end_date):

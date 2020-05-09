@@ -12,12 +12,18 @@
 {% verbatim %}
     <customer-list
             @showcreatecustomermodal="showcreatecustomermodal"
+            @showcreategroupmodal="showcreategroupmodal"
             v-bind:customer_groups="customer_groups">
     </customer-list>
     <create-customer-modal
             @showcreatecustomermodal="showcreatecustomermodal"
             v-bind:opened="show_customer_create_modal">
     </create-customer-modal>
+    <create-group-modal
+            @showcreategroupmodal="showcreategroupmodal"
+            @refreshcustomers="refreshcustomers"
+            v-bind:opened="show_create_group_modal">
+    </create-group-modal>
 </div>
 {% endverbatim %}
 {% endblock %}

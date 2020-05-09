@@ -1,5 +1,61 @@
 const draggable = window['vuedraggable'];
 
+var CreateGroupModal = Vue.component('CreateGroupModal', {
+  data: function () {
+      return {
+          name: null,
+      }
+  },
+
+  template:`
+    <!-- Add Customer Modal -->
+    <div class="modal" id="create-customer-modal" v-bind:class="{ 'active': opened }">
+      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click="close"></a>
+      <div class="modal-container customer-create-modal-window">
+        <div class="modal-header h6">Create Group</div>
+        <div class="modal-body">
+            <!-- form input control -->
+            <div class="form-group">
+            <label class="form-label" for="name">Name</label>
+            <input class="form-input" type="text" id="name" placeholder="Name" v-model="name">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="divider"></div>
+            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
+            <a id="customer-create-submit-button"
+             href="#save"
+             class="btn btn-primary" v-on:click.prevent="saveGroup">Submit</a>
+        </div>
+      </div>
+    </div>
+   `,
+   props: ['opened'],
+   components: {},
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+           }
+       }
+   },
+   methods: {
+       close: function(event){
+           console.log("create customer modal close");
+           this.name = null;
+           this.$emit('showcreategroupmodal');
+       },
+       saveGroup: function(event) {
+           console.log("save group");
+           let data = {"name": this.name}
+           createGroup(data).then(res => res.json())
+           .then(() => this.$emit('refreshcustomers'))
+           .then(() => this.close());
+       }
+   }
+})
+
+
 var CreateCustomerModal = Vue.component('CreateCustomerModal', {
   data: function () {
       return {
@@ -159,7 +215,10 @@ var CustomerList = Vue.component('CustomerList', {
             <div class="column col-mr-auto"></div>
             <div class="column col-3">
                 <a class="btn btn-primary btn-sm float-right button-action" id="create-customer-button" v-on:click="$emit('showcreatecustomermodal')">
-                    <i class="icon icon-plus"></i>&nbsp;Create
+                    <i class="icon icon-plus"></i>&nbsp;Create Customer
+                </a>
+                <a class="btn btn-primary btn-sm float-right button-action mx-2" v-on:click="$emit('showcreategroupmodal')">
+                    <i class="icon icon-plus"></i>&nbsp;Create Group
                 </a>
             </div>
         </div>
@@ -223,6 +282,7 @@ var app = new Vue({
       return {
           customer_groups: [],
           show_customer_create_modal: false,
+          show_create_group_modal: false,
       }
   },
   created: function() {
@@ -231,6 +291,7 @@ var app = new Vue({
   },
   components: {
       'create-customer-modal': CreateCustomerModal,
+      'create-group-modal': CreateGroupModal,
       'customer-list': CustomerList,
   },
   methods: {
@@ -242,6 +303,18 @@ var app = new Vue({
           if (!this.show_customer_create_modal){
               this.getAllCustomers()
           }
+      },
+    showcreategroupmodal: function(event){
+          console.log("show create group modal");
+          this.show_create_group_modal = !this.show_create_group_modal
+          if (this.show_customer_create_modal){
+          }
+          if (!this.show_create_group_modal){
+          }
+      },
+      refreshcustomers: function(event){
+          console.log("refresh customers");
+          this.getAllCustomers();
       },
       getAllCustomers: function() {
           getAllCustomers().then(res => res.json()).then(res => this.customer_groups = res);
@@ -307,6 +380,22 @@ function createCustomer(data){
 
 function createCustomerProduct(customer_id, data){
     let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/create/';
+    let response = fetch(url, {
+        method: 'POST', // or 'PUT'
+        credentials: 'same-origin',
+        body: JSON.stringify(data), // data can be `string` or {object}!
+        headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+        }
+    })
+    return response;
+}
+
+
+function createGroup(data){
+    let url = 'http://localhost:8000/pos/api/group/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
