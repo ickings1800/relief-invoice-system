@@ -11,9 +11,11 @@
             @showeditcustomernamemodal="showeditcustomernamemodal"
             @showeditcustomergroupmodal="showeditcustomergroupmodal"
             @showcreatecustomerproductmodal="showcreatecustomerproductmodal"
+            @showdeleteinvoicemodal="showdeleteinvoicemodal"
             v-bind:customer="customer" v-if="customer"
             v-bind:customerproducts="customerproducts" v-if="customerproducts"
-            v-bind:routes="routes" v-if="routes">
+            v-bind:routes="routes" v-if="routes"
+            v-bind:invoices="invoices" v-if="invoices">
     </customer-detail>
     <edit-customer-name-modal
             @showeditcustomernamemodal="showeditcustomernamemodal"
@@ -34,6 +36,12 @@
             v-bind:customer="customer"
             v-bind:opened="show_customerproduct_create_modal">
     </create-customer-product-modal>
+    <delete-invoice-modal
+            @showdeleteinvoicemodal="showdeleteinvoicemodal"
+            @refreshinvoices="refreshinvoices"
+            v-bind:selected_invoice_id="selected_invoice_id"
+            v-bind:opened="show_invoice_delete_modal">
+    </delete-invoice-modal>
 </div>
 {% endverbatim %}
 {% endblock %}

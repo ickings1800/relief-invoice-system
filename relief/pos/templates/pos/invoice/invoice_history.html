@@ -1,39 +1,21 @@
 {% extends 'pos/master/menu_nav.html' %}
+{% load index %}
+{% load static %}
+{% load widget_tweaks %}
 {% block content %}
-<div class="container">
-    <div class="columns">
-        <div class="column col-3">
-            <h2>Invoices</h2>
-        </div>
-    </div>
-    <div class="columns">
-        <div class="column col-12">
-            {% if invoice_list|length > 0 %}
-                <table class="table">
-                {% for invoice in invoice_list %}
-                <tr>
-                    <td>
-                        {{ invoice.date_generated|date:"d/m/y" }}
-                    </td>
-                    <td>
-                        <a href="{% url 'pos:invoice_view' invoice_pk=invoice.pk %}">
-                            {{ invoice.route_set.all.0.orderitem_set.all.0.customerproduct.customer.name }}
-                        </a>
-                    </td>
-                    <td>
-                        <a href="{% url 'pos:invoice_delete' pk=invoice.pk %}">
-                            <i class="icon icon-delete float-right"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-                </table>
-            {% else %}
-                <div class="empty">
-                      <p class="empty-title h2">You have no invoices.</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+<script type="module" src="{% static 'pos/js/invoice_history.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<div id="app">
+{% verbatim %}
+    <invoice-list
+            @showdetailinvoicemodal="showdetailinvoicemodal">
+    </invoice-list>
+    <invoice-detail-modal
+            v-if="selected_detail_invoice"
+            v-bind:selected_detail_invoice="selected_detail_invoice"
+            v-bind:opened="show_detail_invoice_modal"
+            @showdetailinvoicemodal="showdetailinvoicemodal"
+    ></invoice-detail-modal>
 </div>
+{% endverbatim %}
 {% endblock %}

@@ -115,9 +115,9 @@ ul {
 }
 
 
-
-.invoice-table th {
-    border:none;
+.invoice-table td, .invoice-table th {
+    border-bottom: .05rem solid #dadee4;
+    padding: 0rem .4rem;
 }
 
 

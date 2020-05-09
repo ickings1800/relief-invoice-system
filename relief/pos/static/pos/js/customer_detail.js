@@ -1,3 +1,48 @@
+var DeleteInvoiceModal = Vue.component('DeleteInvoiceModal', {
+  data: function () {
+      return {
+      }
+  },
+
+  template:`
+      <div class="modal" v-bind:class="{ active: opened }">
+        <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
+        <div class="modal-container">
+            <div class="modal-header">
+                <a href="#" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+                <div class="modal-title h5">Delete Invoice</div>
+            </div>
+            <div class="modal-body form-group">Delete this invoice (ID: {{ selected_invoice_id }})?</div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-link" v-on:click.prevent="close">Cancel</a>
+                <button class="btn btn-primary float-right" v-on:click.prevent="deleteInvoice(selected_invoice_id)">Delete</button>
+            </div>
+        </div>
+    </div>
+   `,
+   props: ['opened', 'selected_invoice_id'],
+   created: function() {
+   },
+   components: {},
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+           }
+       },
+   },
+   methods: {
+       close: function(){
+           this.$emit('showdeleteinvoicemodal');
+       },
+       deleteInvoice: function(event){
+           deleteInvoice(this.selected_invoice_id)
+           .then(() => this.$emit('refreshinvoices'))
+           .then(() => this.close());
+       },
+   }
+})
+
 var EditCustomerNameModal = Vue.component('EditCustomerNameModal', {
   data: function () {
       return {
@@ -203,6 +248,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
           show_profile_tab: true,
           show_quote_tab: false,
           show_orders_tab: false,
+          show_invoices_tab: false,
       }
   },
   created: function() {
@@ -221,6 +267,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                             <li class="tab-item" v-bind:class="{ active: show_profile_tab }" v-on:click.prevent="profile_tab_click"><a href="#">Profile</a></li>
                             <li class="tab-item" v-bind:class="{ active: show_quote_tab }" v-on:click.prevent="quote_tab_click"><a href="#">Quote</a></li>
                             <li class="tab-item" v-bind:class="{ active: show_orders_tab }" v-on:click.prevent="order_tab_click"><a href="#">Orders</a></li>
+                            <li class="tab-item" v-bind:class="{ active: show_invoices_tab }" v-on:click.prevent="invoice_tab_click"><a href="#">Invoices</a></li>
                         </ul>
                     </nav>
                     <div class="panel-body">
@@ -259,7 +306,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                         <table class="table" v-bind:class="{'d-none': !show_orders_tab}" v-if="routes.length > 0">
                             <tr v-for="r in routes" :key="r.id">
                                 <td>
-                                    <a href="#">{{ r.trip_date }}</a>
+                                    <a v-bind:href="r.trip_url">{{ r.trip_date }}</a>
                                 </td>
                                 <td>{{ r.do_number }}</td>
                                 <td>
@@ -276,6 +323,26 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                                 </a>
                           </div>
                         </div>
+
+                        <!-- customer invoices table -->
+                        <table class="table" v-bind:class="{'d-none': !show_invoices_tab}" v-if="invoices.length > 0">
+                            <tr>
+                                <th>Invoice ID</th>
+                                <th>Date Generated</th>
+                                <th>Remarks</th>
+                                <th>Delete</th>
+                            </tr>
+                            <tr v-for="i in invoices" :key="i.id">
+                                <td>{{ i.id }}</td>
+                                <td><a href="#">{{ i.date_generated }}</a></td>
+                                <td>{{ i.remark }}</td>
+                                <td><a href="#" v-on:click.prevent="$emit('showdeleteinvoicemodal', i.id)"><i class="icon icon-delete"></i></a></td>
+                            </tr>
+                        </table>
+                        <div class="empty" v-bind:class="{'d-none': !show_invoices_tab}" v-else>
+                            <p class="empty-title h5">Customer has no invoices</p>
+                            <p class="empty-subtitle">Go to the invoices tab to create one.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -283,23 +350,32 @@ var CustomerDetail = Vue.component('CustomerDetail', {
         </div>
     </div>
   `,
-   props: ['customer', 'customerproducts', 'routes',],
+   props: ['customer', 'customerproducts', 'routes', 'invoices'],
    components: {},
    methods: {
        profile_tab_click: function(event){
            this.show_profile_tab = true
            this.show_quote_tab = false
            this.show_orders_tab = false
+           this.show_invoices_tab = false
        },
        quote_tab_click: function(event){
            this.show_profile_tab = false
            this.show_quote_tab = true
            this.show_orders_tab = false
+           this.show_invoices_tab = false
        },
        order_tab_click: function(event){
            this.show_profile_tab = false
            this.show_quote_tab = false
            this.show_orders_tab = true
+           this.show_invoices_tab = false
+       },
+       invoice_tab_click: function(event){
+           this.show_profile_tab = false
+           this.show_quote_tab = false
+           this.show_orders_tab = false
+           this.show_invoices_tab = true
        }
    }
 })
@@ -314,10 +390,13 @@ var app = new Vue({
           show_customer_edit_name_modal: false,
           show_customer_edit_group_modal: false,
           show_customerproduct_create_modal: false,
+          show_invoice_delete_modal: false,
+          selected_invoice_id: null,
           customer: null,
           customergroup_id: null,
           customerproducts: [],
           routes: [],
+          invoices: [],
       }
   },
   created: function() {
@@ -333,6 +412,7 @@ var app = new Vue({
           if (val){
             this.refreshcustomerproducts();
             this.refreshcustomerroutes();
+            this.refreshinvoices();
           }
       }
   },
@@ -343,9 +423,19 @@ var app = new Vue({
   components: {
       'edit-customer-name-modal': EditCustomerNameModal,
       'edit-customer-group-modal': EditCustomerGroupModal,
+      'delete-invoice-modal': DeleteInvoiceModal,
       'customer-detail': CustomerDetail,
   },
   methods: {
+      showdeleteinvoicemodal: function(event){
+          console.log("show delete invoice modal");
+          this.show_invoice_delete_modal = !this.show_invoice_delete_modal
+          if (this.show_invoice_delete_modal){
+              this.selected_invoice_id = event;
+          }
+          if (!this.show_invoice_delete_modal){
+          }
+      },
       showcreatecustomerproductmodal: function(event){
           console.log("show create customerproduct modal");
           this.show_customerproduct_create_modal = !this.show_customerproduct_create_modal
@@ -381,6 +471,10 @@ var app = new Vue({
      refreshcustomerroutes: function(event){
          console.log("refresh customerroutes");
          getCustomerRoutes(this.customer.customer_id).then(res => res.json()).then(res => this.routes = res);
+     },
+     refreshinvoices: function(event){
+         console.log("refresh customerinvoices");
+         getCustomerInvoices(this.customer.customer_id).then(res => res.json()).then(res => this.invoices = res);
      }
   }
 })
@@ -481,4 +575,33 @@ function getAllGroups(){
           method: 'GET', // or 'PUT'
       });
       return response;
+}
+
+function getCustomerInvoices(customer_id){
+    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/invoices/';
+    let response = fetch(url, {
+      method: 'GET', // or 'PUT'
+    });
+  return response;
+}
+
+function getInvoiceDetails(invoice_id){
+    let url = 'http://localhost:8000/pos/api/invoices/' + invoice_id + '/';
+    let response = fetch(url, {
+      method: 'GET', // or 'PUT'
+    });
+  return response;
+}
+
+function deleteInvoice(invoice_id){
+    let url = 'http://localhost:8000/pos/api/invoices/' + invoice_id + '/delete/';
+    return fetch(url, {
+        method: 'DELETE', // or 'PUT'
+        credentials: 'same-origin',
+        headers:{
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+        }
+    }).catch(error => console.error('Error:', error));
 }

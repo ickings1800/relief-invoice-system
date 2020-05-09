@@ -66,7 +66,7 @@ class CustomerRouteView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        route_list = Route.get_customer_routes(customer.id)
+        route_list = Route.get_customer_routes_for_invoice(customer.id)
         return route_list
 
     def get_context_data(self, **kwargs):

@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from rest_framework.fields import SerializerMethodField
+
 from ..models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
 
 
@@ -40,6 +42,15 @@ class SimpleGroupListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ('id', 'name')
+
+
+class GroupCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ('name',)
+
+    def save(self):
+        return Group.group_create(self.validated_data['name'])
 
 
 class GroupListSerializer(serializers.ModelSerializer):
@@ -221,7 +232,7 @@ class RouteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Route
-        fields = ('id', 'index', 'do_number', 'note', 'orderitem_set', 'trip_date', 'packing', 'checked')
+        fields = ('id', 'index', 'do_number', 'note', 'trip_date', 'packing', 'checked', 'orderitem_set')
 
     def get_trip_date(self, obj):
         return obj.trip.date.strftime("%d-%m-%Y")
@@ -246,7 +257,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
 
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
-    route_set = RouteSerializer(many=True)
+    route_set = SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -266,15 +277,21 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
                   'date_generated',
                   'route_set')
 
+    def get_route_set(self, obj):
+        ordered_routes = obj.route_set.order_by('trip__date')
+        return RouteSerializer(ordered_routes, many=True, context=self.context).data
 
-class RouteListSerializer(serializers.ModelSerializer):
+
+
+class RouteListSerializer(serializers.HyperlinkedModelSerializer):
     invoice_number = serializers.SerializerMethodField()
     trip_date = serializers.SerializerMethodField()
+    trip_url = serializers.HyperlinkedIdentityField(view_name="pos:trip_detail", lookup_field="trip_id", lookup_url_kwarg="pk")
     orderitem_set = OrderItemSerializer(many=True)
 
     class Meta:
         model = Route
-        fields = ('id', 'index', 'do_number', 'note', 'invoice_number', 'trip_date', 'orderitem_set')
+        fields = ('trip_url', 'id', 'checked', 'index', 'do_number', 'note', 'invoice_number', 'trip_date', 'orderitem_set')
 
     def get_invoice_number(self, obj):
         if obj.invoice:
