@@ -83,6 +83,7 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
+.dev_env
 .env
 .venv
 env/
@@ -104,3 +105,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# seed sql
+seed.sql

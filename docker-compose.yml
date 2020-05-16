@@ -1,0 +1,22 @@
+#  .dev_env file to have POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
+#  POSTGRES_HOST, POSTGRES_PORT and django_settings_module to to be set.
+version: '3'
+services:
+  web:
+    build: .
+    env_file: .dev_env
+    command: python /code/relief/manage.py runserver 0.0.0.0:8000
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/code
+  db:
+    env_file: .dev_env
+    restart: always
+    image: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+    - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql

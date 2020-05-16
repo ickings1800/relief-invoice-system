@@ -16,6 +16,7 @@ BASE_DIR = os.path.dirname(os.path.realpath(os.path.dirname(__file__) + "/.."))
 print(BASE_DIR)
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# Remember to set SECRET_KEY env var!
 SECRET_KEY = os.environ['SECRET_KEY']
 
 
@@ -89,12 +90,12 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S",
     "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES':[
-        'rest_framework.permissions.IsAuthenticated',
-    ]
+    # 'DEFAULT_AUTHENTICATION_CLASSES': [
+    #     'rest_framework.authentication.SessionAuthentication',
+    # ],
+    # 'DEFAULT_PERMISSION_CLASSES':[
+    #     'rest_framework.permissions.IsAuthenticated',
+    # ]
 }
 
 # this disables Cross domain requests
@@ -125,7 +126,24 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
+STATIC_URL = '/static/'
+
 
 LOGIN_URL = '/pos/login/'
 LOGIN_REDIRECT_URL = '/pos/customers/'
 LOGOUT_REDIRECT_URL = '/pos/login'
+
+
+# Database
+# https://docs.djangoproject.com/en/2.0/ref/settings/#databases
+# Set DB_USER and DB_PASSWORD env var to load user and password
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.environ['POSTGRES_DB'],
+        'USER':os.environ['POSTGRES_USER'],
+        'PASSWORD':os.environ['POSTGRES_PASSWORD'],
+        'HOST':os.environ['POSTGRES_HOST'],
+        'PORT': os.environ['POSTGRES_PORT']
+    }
+}
