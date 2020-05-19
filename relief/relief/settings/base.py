@@ -11,14 +11,13 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import os
 
+# SECURITY WARNING: keep the secret key used in production secret!
+# Remember to set SECRET_KEY env var!
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.realpath(os.path.dirname(__file__) + "/.."))
 print(BASE_DIR)
-
-# SECURITY WARNING: keep the secret key used in production secret!
-# Remember to set SECRET_KEY env var!
-SECRET_KEY = os.environ['SECRET_KEY']
-
 
 # Application definition
 
@@ -87,15 +86,35 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
 REST_FRAMEWORK = {
     "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S",
     "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
-    # 'DEFAULT_AUTHENTICATION_CLASSES': [
-    #     'rest_framework.authentication.SessionAuthentication',
-    # ],
-    # 'DEFAULT_PERMISSION_CLASSES':[
-    #     'rest_framework.permissions.IsAuthenticated',
-    # ]
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
 }
 
 # this disables Cross domain requests
@@ -107,7 +126,6 @@ CORS_ALLOW_CREDENTIALS = True
 # this is the list of allowed origins for cross domain ajax
 CORS_ORIGIN_WHITELIST = (
     'http://127.0.0.1:80',
-    'http://192.168.2.69:80',
 )
 
 # Internationalization
@@ -128,11 +146,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 STATIC_URL = '/static/'
 
-
 LOGIN_URL = '/pos/login/'
 LOGIN_REDIRECT_URL = '/pos/customers/'
 LOGOUT_REDIRECT_URL = '/pos/login'
 
+DEBUG = False
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -141,9 +159,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': os.environ['POSTGRES_DB'],
-        'USER':os.environ['POSTGRES_USER'],
-        'PASSWORD':os.environ['POSTGRES_PASSWORD'],
-        'HOST':os.environ['POSTGRES_HOST'],
+        'USER': os.environ['POSTGRES_USER'],
+        'PASSWORD': os.environ['POSTGRES_PASSWORD'],
+        'HOST': os.environ['POSTGRES_HOST'],
         'PORT': os.environ['POSTGRES_PORT']
     }
 }
