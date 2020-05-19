@@ -1,3 +1,122 @@
+const draggable = window['vuedraggable'];
+const origin = location.origin;
+
+var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
+  data: function () {
+      return {
+          customerproducts: [],
+          customerroutes: [],
+          invoice_columns: [],
+      }
+  },
+
+  template:`
+      <div class="modal" v-bind:class="{ active: opened }">
+        <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
+        <div class="modal-container do-modal-window">
+            <div class="modal-header">
+                <a href="#" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+                <div class="modal-title h5">Invoice Detail: ID {{ selected_detail_invoice.id }}</div>
+            </div>
+            <div class="modal-body form-group">
+            <!--
+            <div class="btn-group btn-group-block">
+                <button class="btn">HTML</button>
+                <button class="btn disabled">CSV</button>
+                <button class="btn disabled">JSON</button>
+            </div>
+            -->
+            <draggable v-bind="dragOptions" @end="colrearrange" class="display-no-print">
+                <span v-for="col in invoice_columns"
+                    :key="col"
+                    v-bind:data-column-name="col"
+                    class="chip c-hand invoice-column">
+                    {{ col }}
+                </span>
+            </draggable>
+            <table class="invoice-table table my-2">
+                <tr>
+                    <th v-for="col in invoice_columns" :key="col" class="invoice-column">{{ col }}</th>
+                </tr>
+                <tr v-for="cr in customerroutes" :key="cr.id">
+                    <td v-for="col in invoice_columns" v-if="cr[col]">{{ cr[col] }}</td>
+                    <td v-else>&nbsp;</td>
+                </tr>
+            </table>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" v-on:click.prevent="close">Close</a>
+            </div>
+        </div>
+    </div>
+   `,
+   props: ['opened', 'selected_detail_invoice'],
+   created: function() {
+   },
+   computed: {
+    dragOptions() {
+          return {
+            animation: 200,
+            group: "description",
+            disabled: false,
+            ghostClass: "ghost",
+            draggable: ".invoice-column",
+          };
+        }
+    },
+   components: { draggable },
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+           }
+       },
+       selected_detail_invoice: function(){
+           console.log("refresh selected detail invnoice");
+           this.refreshInvoiceData();
+       },
+       customerproducts: function () {
+           this.invoice_columns = ['trip_date', ...this.customerproducts.map(cp => cp.product), 'do_number']
+       }
+   },
+   methods: {
+       close: function(){
+            this.$emit('showdetailinvoicemodal');
+       },
+       colrearrange: function (event) {
+           console.log("invoice col rearrange");
+           this.invoice_columns = Array.from(event.target.children).map(e => e.getAttribute('data-column-name'));
+           console.log(this.invoice_columns);
+       },
+       refreshInvoiceData: function() {
+           this.customerproducts = [];
+           this.customerroutes = [];
+           getCustomerProducts(this.selected_detail_invoice.customer)
+            .then(res => res.json())
+            .then(res => this.customerproducts = res)
+
+            this.selected_detail_invoice.route_set.forEach(cr => {
+               let row = {
+                    "id": cr.id,
+                    "checked": cr.checked,
+                    "index": cr.index,
+                    "do_number": cr.do_number,
+                    "note": cr.note,
+                    "invoice_number": cr.invoice_number,
+                    "trip_date": cr.trip_date,
+               };
+               cr.orderitem_set.forEach(oi => row[oi.customerproduct] = oi.final_quantity);
+               this.customerroutes.push(row);
+            });
+       }
+   },
+   beforeMount: function() {
+       this.refreshInvoiceData();
+   }
+})
+
+
+
 var DeleteInvoiceModal = Vue.component('DeleteInvoiceModal', {
   data: function () {
       return {
@@ -334,7 +453,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                             </tr>
                             <tr v-for="i in invoices" :key="i.id">
                                 <td>{{ i.id }}</td>
-                                <td><a href="#">{{ i.date_generated }}</a></td>
+                                <td><a href="#" v-on:click.prevent="$emit('showdetailinvoicemodal', i)">{{ i.date_generated }}</a></td>
                                 <td>{{ i.remark }}</td>
                                 <td><a href="#" v-on:click.prevent="$emit('showdeleteinvoicemodal', i.id)"><i class="icon icon-delete"></i></a></td>
                             </tr>
@@ -376,7 +495,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
            this.show_quote_tab = false
            this.show_orders_tab = false
            this.show_invoices_tab = true
-       }
+       },
    }
 })
 
@@ -391,7 +510,9 @@ var app = new Vue({
           show_customer_edit_group_modal: false,
           show_customerproduct_create_modal: false,
           show_invoice_delete_modal: false,
+          show_detail_invoice_modal: false,
           selected_invoice_id: null,
+          selected_detail_invoice: null,
           customer: null,
           customergroup_id: null,
           customerproducts: [],
@@ -460,6 +581,14 @@ var app = new Vue({
          if (!this.show_customer_edit_group_modal){
          }
      },
+     showdetailinvoicemodal: function(event){
+          this.show_detail_invoice_modal = !this.show_detail_invoice_modal;
+          if (this.show_detail_invoice_modal){
+              this.selected_detail_invoice = event;
+          }
+          if (!this.show_detail_invoice_modal){
+          }
+      },
      refreshcustomer: function(event){
          console.log("refresh customer object");
          getCustomerGroup(this.customergroup_id).then(res => res.json()).then(res => this.customer = res);

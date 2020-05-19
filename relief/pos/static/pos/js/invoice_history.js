@@ -3,6 +3,7 @@ var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
       return {
           customerproducts: [],
           customerroutes: [],
+          invoice_columns: [],
       }
   },
 
@@ -22,22 +23,23 @@ var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
                 <button class="btn disabled">JSON</button>
             </div>
             -->
-            <div>
-                <table class="invoice-table table my-2">
+            <draggable v-bind="dragOptions" @end="colrearrange" class="display-no-print">
+                <span v-for="col in invoice_columns"
+                    :key="col"
+                    v-bind:data-column-name="col"
+                    class="chip c-hand invoice-column">
+                    {{ col }}
+                </span>
+            </draggable>
+            <table class="invoice-table table my-2">
                 <tr>
-                    <th>Date</th>
-                    <th v-for="cp in customerproducts" :key="cp.id">{{ cp.product }}</th>
-                    <th>D/O</th>
+                    <th v-for="col in invoice_columns" :key="col" class="invoice-column">{{ col }}</th>
                 </tr>
                 <tr v-for="cr in customerroutes" :key="cr.id">
-                    <td>{{ cr.trip_date }}</td>
-                    <td v-for="cp in customerproducts" v-if="cr[cp.product]">{{ cr[cp.product].final_quantity }}</td>
-                    <td v-else>&nbsp;</td>
-                    <td v-if="cr.do_number">{{ cr.do_number }}</td>
+                    <td v-for="col in invoice_columns" v-if="cr[col]">{{ cr[col] }}</td>
                     <td v-else>&nbsp;</td>
                 </tr>
-                </table>
-            </div>
+            </table>
             </div>
             <div class="modal-footer">
                 <a href="#" class="btn" v-on:click.prevent="close">Close</a>
@@ -48,6 +50,17 @@ var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
    props: ['opened', 'selected_detail_invoice'],
    created: function() {
    },
+   computed: {
+    dragOptions() {
+          return {
+            animation: 200,
+            group: "description",
+            disabled: false,
+            ghostClass: "ghost",
+            draggable: ".invoice-column",
+          };
+        }
+    },
    components: {},
    watch: {
        opened: function(val){
@@ -58,11 +71,19 @@ var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
        selected_detail_invoice: function(){
            console.log("refresh selected detail invnoice");
            this.refreshInvoiceData();
+       },
+       customerproducts: function () {
+           this.invoice_columns = ['trip_date', ...this.customerproducts.map(cp => cp.product), 'do_number']
        }
    },
    methods: {
        close: function(){
             this.$emit('showdetailinvoicemodal');
+       },
+       colrearrange: function (event) {
+           console.log("invoice col rearrange");
+           this.invoice_columns = Array.from(event.target.children).map(e => e.getAttribute('data-column-name'));
+           console.log(this.invoice_columns);
        },
        refreshInvoiceData: function() {
            this.customerproducts = [];
@@ -81,7 +102,7 @@ var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
                     "invoice_number": cr.invoice_number,
                     "trip_date": cr.trip_date,
                };
-               cr.orderitem_set.forEach(oi => row[oi.customerproduct] = oi);
+               cr.orderitem_set.forEach(oi => row[oi.customerproduct] = oi.final_quantity);
                this.customerroutes.push(row);
             });
        }
