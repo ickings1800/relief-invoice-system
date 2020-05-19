@@ -156,6 +156,8 @@ class CustomerProductUpdateSerializer(serializers.ModelSerializer):
 
 
 class InvoiceListSerializer(serializers.ModelSerializer):
+    route_set = SerializerMethodField()
+
     class Meta:
         model = Invoice
         fields = ('id',
@@ -171,7 +173,12 @@ class InvoiceListSerializer(serializers.ModelSerializer):
                   'total_incl_gst',
                   'remark',
                   'customer',
-                  'date_generated')
+                  'date_generated',
+                  'route_set',)
+
+    def get_route_set(self, obj):
+        ordered_routes = obj.route_set.order_by('trip__date')
+        return RouteSerializer(ordered_routes, many=True, context=self.context).data
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):

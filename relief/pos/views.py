@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
@@ -6,9 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
-from .forms import   TripForm, TripDetailForm, OrderItemFormSet, RouteForm, CustomerForm
-from hardcopy.views import PDFViewMixin, PNGViewMixin
-
+from .forms import TripForm, TripDetailForm, OrderItemFormSet, RouteForm, CustomerForm
 
 # Create your views here.
 
@@ -146,48 +143,12 @@ class TripDetailView(LoginRequiredMixin, FormView):
         return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
 
 
-@login_required
-def print_trip_detail(request, pk):
-    template_name = 'pos/trip/print_detail.html'
-    trip = get_object_or_404(Trip, pk=pk)
-    routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
-    context = {'trip': trip, 'routes': routes}
-    if trip.packaging_methods:
-        packing = trip.packaging_methods.split(',')
-        context['packing'] = [e.strip() for e in packing]
-    return render(request, template_name, context)
-
-
-class TripDetailPrintView(LoginRequiredMixin, FormView):
-    model = Trip
-    template_name = 'pos/trip/print_detail.html'
-    form_class = TripDetailForm
-
-    def get_context_data(self, **kwargs):
-        context = super(TripDetailPrintView, self).get_context_data(**kwargs)
-        trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
-        context['trip'] = trip
-        context['routes'] = trip.route_set.all().order_by('index')
-        if trip.packaging_methods:
-            packing = trip.packaging_methods.split(',')
-            packing_sum = Trip.get_packing_sum(trip.pk)
-            context['packing'] = [e.strip() for e in packing]
-            context['packing_sum'] = packing_sum
-        return context
-
-
-class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
-    template_name = 'pos/trip/print_detail.html'
-    download_attachment = True
-
-
 class TripDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'pos/trip/trip_confirm_delete.html'
     model = Trip
 
     def get_object(self, queryset=None):
         return Trip.objects.get(pk=self.kwargs['pk'])
-
 
     def get_success_url(self):
         return reverse('pos:trip_index')
@@ -280,11 +241,6 @@ class InvoiceSingleView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class InvoiceSinglePDFView(PDFViewMixin, InvoiceSingleView):
-    template_name = 'pos/invoice/invoice_single_view.html'
-    download_attachment = True
-
-
 class InvoiceHistoryView(LoginRequiredMixin, ListView):
     template_name = 'pos/invoice/invoice_history.html'
     context_object_name = 'invoice_list'
@@ -293,14 +249,12 @@ class InvoiceHistoryView(LoginRequiredMixin, ListView):
         return Invoice.objects.all()
 
 
-
 class InvoiceDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'pos/invoice/invoice_confirm_delete.html'
     model = Invoice
 
     def get_object(self, queryset=None):
         return Invoice.objects.get(pk=self.kwargs['pk'])
-
 
     def get_success_url(self):
         return reverse('pos:invoice_history')

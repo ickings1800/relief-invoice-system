@@ -3,12 +3,13 @@
 {% load static %}
 {% load widget_tweaks %}
 {% block content %}
+<link rel="stylesheet" media="print" type="text/css" href="{% static 'pos/print.css' %}">
 <script type="module" src="{% static 'pos/js/trip_detail.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 <script src="//cdn.jsdelivr.net/npm/sortablejs@1.8.4/Sortable.min.js"></script>
 <!-- CDNJS :: Vue.Draggable (https://cdnjs.com/) -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.20.0/vuedraggable.umd.min.js"></script>
-<div id="app" data-trip-id="{{ trip.pk }}" data-pdf-url="{% url 'pos:trip_print' pk=trip.pk %}">
+<div id="app" data-trip-id="{{ trip.pk }}">
 {% verbatim %}
     <trip-header
         v-if="trip"
@@ -22,7 +23,6 @@
         @rearrangepacking="rearrangepacking"
         @refreshtripdate="refreshtripdate">
     </trip-header>
-    <div class="divider"></div>
     <routes-list v-if="routes"
                  v-bind:arrangeroutes="show_routes"
                  v-bind:trip_id="trip_id"

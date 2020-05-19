@@ -17,22 +17,6 @@ input[type=number]::-webkit-outer-spin-button {
     font-weight: 600;
     text-transform: uppercase;
 }
-@page {
-    margin:5mm 0 0 0;
-}
-@media print
-{
-    body{
-        zoom:80%;
-        margin: 5mm 5mm 5mm 5mm;
-    }
-    .route, .packing-sum{
-        page-break-inside: avoid;
-    }
-    li {
-        font-weight: bold;
-    }
-}
 
 h4 {
     margin:0;
@@ -177,18 +161,11 @@ font-size: 1vw;
 .packing-container li {
     font-weight:bold;
     margin-top:0;
-    font-size:14px;
 }
 
 .border {
 	text-align: center;
     border: 1px solid #50596c;
-}
-
-@media screen and (min-width: 1920px) {
-/* .packing-container li {
-     font-size: 1vw;
-  } */
 }
 
 #date-range {
@@ -273,4 +250,8 @@ font-size: 1vw;
 #add-customer-menu {
     overflow-y: scroll;
     max-height: 12rem;
+}
+
+#trip-notes {
+    font-size: 18px;
 }
