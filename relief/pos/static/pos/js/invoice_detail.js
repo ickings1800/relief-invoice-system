@@ -1,3 +1,5 @@
+const origin = location.origin;
+
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -68,7 +70,7 @@ async function getInvoiceNumber(){
     var invoice_year_input = document.getElementById('invoice-year');
     var invoice_number_input = document.getElementById('invoice-number');
     var customer_id = document.getElementById('customer').getAttribute('data-customer-id');
-    var url = 'http://localhost:8000/pos/api/invoice/getnewinvoicenumber/';
+    var url = origin + '/pos/api/invoice/getnewinvoicenumber/';
     var response = await fetch(url);
     var invoice_year = d.getFullYear();
     var invoice_number = await response.json();
@@ -94,7 +96,7 @@ async function createInvoice(event) {
     var gst = customer.gst;
     var remark = document.getElementById('remark').value;
     var route_ids = do_nums.map(do_input => do_input.getAttribute('data-route-id'));
-    var url = 'http://localhost:8000/pos/api/invoice/create/';
+    var url = origin + '/pos/api/invoice/create/';
     console.log(route_ids);
 
     if (gst_select.checked == false){
@@ -133,7 +135,7 @@ async function saveRouteDoNumber(){
     if (do_inputs.length > 0){
         do_inputs.forEach(function(element){
             var route_id = element.getAttribute('data-route-id');
-            var url = `http://localhost:8000/pos/api/routes/${route_id}/update/`;
+            var url = `${origin}/pos/api/routes/${route_id}/update/`;
             var do_number = element.value;
             var data = {
                 'id': route_id,
@@ -164,7 +166,7 @@ async function getRoutes(event) {
     var customer_id = refresh_btn.getAttribute('data-customer-id');
     var date_start = document.getElementById('start-date').value;
     var date_end = document.getElementById('end-date').value;
-    var url = `http://localhost:8000/pos/api/invoice/date_range/${customer_id}/?date_start=${date_start}&date_end=${date_end}`;
+    var url = `${origin}/pos/api/invoice/date_range/${customer_id}/?date_start=${date_start}&date_end=${date_end}`;
     route_rows.forEach(function(element){
         route_table.deleteRow(element.rowIndex);
     })
@@ -208,7 +210,7 @@ async function generateAddRowFields(date_start, date_end, customerproducts){
     var date_select = document.createElement('select');
     date_select.id = 'add-row-date';
     date_select.classList.add('form-select');
-    var trip_list_url = `http://localhost:8000/pos/api/trips/?date_start=${date_start}&date_end=${date_end}`;
+    var trip_list_url = `${origin}/pos/api/trips/?date_start=${date_start}&date_end=${date_end}`;
     var response = await fetch(trip_list_url);
     var data = await response.json();
     console.log(data);
@@ -259,7 +261,7 @@ async function addRouteForm(event){
     var trip_id = document.getElementById('add-row-date').value;
     var customer_id = refresh_btn.getAttribute('data-customer-id');
     var do_number = document.getElementById('add-do-number').value;
-    var url = `http://localhost:8000/pos/api/trips/${trip_id}/detail/routes/add/`;
+    var url = `${origin}/pos/api/trips/${trip_id}/detail/routes/add/`;
     var customerproducts = await getCustomerProducts(customer_id);
     console.log(url);
     var data = {
@@ -349,7 +351,7 @@ function addRouteTableRows(routeData, customerproducts){
 async function saveOrderItem(event){
     var orderitem_id = this.getAttribute('data-orderitem-id');
     var driver_quantity_input = document.getElementById('oi-driver-quantity').value;
-    var url = `http://localhost:8000/pos/api/orderitem/${orderitem_id}/update/`;
+    var url = `${origin}/pos/api/orderitem/${orderitem_id}/update/`;
     var data = {
         'id': orderitem_id,
         'driver_quantity': driver_quantity_input
@@ -388,7 +390,7 @@ async function showEditModal(event){
     var orderitem_id = this.getAttribute('data-orderitem-id');
     modal_save.setAttribute('data-orderitem-id', orderitem_id);
     var modal = document.getElementById('orderitem-modal');
-    var url = `http://localhost:8000/pos/api/orderitem/${orderitem_id}/`;
+    var url = `${origin}/pos/api/orderitem/${orderitem_id}/`;
     var response = await fetch(url);
     var data = await response.json();
     quantity_label.innerHTML = data.quantity;
@@ -398,14 +400,14 @@ async function showEditModal(event){
 
 
 async function getCustomerProducts(customer_id){
-    var url = `http://localhost:8000/pos/api/customers/${customer_id}/products/`;
+    var url = `${origin}/pos/api/customers/${customer_id}/products/`;
     var response = await fetch(url);
     var data = await response.json();
     return data;
 }
 
 async function getCustomer(customer_id){
-    var url = `http://localhost:8000/pos/api/customers/${customer_id}/`;
+    var url = `${origin}/pos/api/customers/${customer_id}/`;
     var response = await fetch(url);
     var data = await response.json();
     return data;

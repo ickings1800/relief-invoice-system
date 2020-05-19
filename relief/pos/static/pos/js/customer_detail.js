@@ -625,7 +625,7 @@ function getCookie(name) {
 }
 
 function getCustomerGroup(customer_id){
-      let url = 'http://localhost:8000/pos/api/customers/'+ customer_id + '/';
+      let url = origin + '/pos/api/customers/'+ customer_id + '/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -633,7 +633,7 @@ function getCustomerGroup(customer_id){
 }
 
 function getCustomerProducts(customer_id){
-      let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/';
+      let url = origin + '/pos/api/customers/' + customer_id + '/products/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -641,7 +641,7 @@ function getCustomerProducts(customer_id){
 }
 
 function getCustomerRoutes(customer_id){
-      let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/routes/';
+      let url = origin + '/pos/api/customers/' + customer_id + '/routes/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -649,7 +649,7 @@ function getCustomerRoutes(customer_id){
 }
 
 function saveCustomer(customer_id, data){
-    let url = 'http://localhost:8000/pos/api/customer/update/' + customer_id + '/';
+    let url = origin + '/pos/api/customer/update/' + customer_id + '/';
     return fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -663,7 +663,7 @@ function saveCustomer(customer_id, data){
 }
 
 function saveCustomerProduct(customer_id, data){
-    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/create/';
+    let url = origin + '/pos/api/customers/' + customer_id + '/products/create/';
     return fetch(url, {
       method: 'POST', // or 'PUT'
       credentials: 'same-origin',
@@ -677,7 +677,7 @@ function saveCustomerProduct(customer_id, data){
 }
 
 function changeCustomerGroup(customergroup_id, data){
-    let url = 'http://localhost:8000/pos/api/customergroup/' + customergroup_id + '/update/'
+    let url = origin + '/pos/api/customergroup/' + customergroup_id + '/update/'
     return fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -691,7 +691,7 @@ function changeCustomerGroup(customergroup_id, data){
 }
 
 function getAllProducts() {
-      let url = 'http://localhost:8000/pos/api/products/';
+      let url = origin + '/pos/api/products/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -699,7 +699,7 @@ function getAllProducts() {
 }
 
 function getAllGroups(){
-      let url = 'http://localhost:8000/pos/api/groups/';
+      let url = origin + '/pos/api/groups/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -707,7 +707,7 @@ function getAllGroups(){
 }
 
 function getCustomerInvoices(customer_id){
-    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/invoices/';
+    let url = origin + '/pos/api/customers/' + customer_id + '/invoices/';
     let response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -715,7 +715,7 @@ function getCustomerInvoices(customer_id){
 }
 
 function getInvoiceDetails(invoice_id){
-    let url = 'http://localhost:8000/pos/api/invoices/' + invoice_id + '/';
+    let url = origin + '/pos/api/invoices/' + invoice_id + '/';
     let response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -723,7 +723,7 @@ function getInvoiceDetails(invoice_id){
 }
 
 function deleteInvoice(invoice_id){
-    let url = 'http://localhost:8000/pos/api/invoices/' + invoice_id + '/delete/';
+    let url = origin + '/pos/api/invoices/' + invoice_id + '/delete/';
     return fetch(url, {
         method: 'DELETE', // or 'PUT'
         credentials: 'same-origin',

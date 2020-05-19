@@ -1,3 +1,5 @@
+const origin = location.origin;
+
 var Calendar = Vue.component('calendar', {
   data: function () {
       return {
@@ -527,7 +529,7 @@ function getCookie(name) {
 }
 
 function getAllTrips() {
-      let url = 'http://localhost:8000/pos/api/trips/';
+      let url = origin + '/pos/api/trips/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -535,7 +537,7 @@ function getAllTrips() {
 }
 
 function createTrip(data){
-    let url = 'http://localhost:8000/pos/api/trip/create/';
+    let url = origin + '/pos/api/trip/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
@@ -550,7 +552,7 @@ function createTrip(data){
 }
 
 function deleteTrip(trip_id){
-    let url = 'http://localhost:8000/pos/api/trip/' + trip_id + '/delete/';
+    let url = origin + '/pos/api/trip/' + trip_id + '/delete/';
     return fetch(url, {
         method: 'DELETE', // or 'PUT'
         credentials: 'same-origin',
@@ -563,7 +565,7 @@ function deleteTrip(trip_id){
 }
 
 function duplicateTrip(trip_id){
-    let url = 'http://localhost:8000/pos/api/trip/' + trip_id + '/duplicate/';
+    let url = origin + '/pos/api/trip/' + trip_id + '/duplicate/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',

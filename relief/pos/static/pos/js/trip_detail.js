@@ -1,5 +1,6 @@
 //var el;
 const draggable = window['vuedraggable'];
+const origin = location.origin;
 
 var Calendar = Vue.component('calendar', {
   data: function () {
@@ -235,7 +236,7 @@ var TripHeader = Vue.component('trip-header', {
              </calendar>
         </div>
     </div>
-    <draggable v-bind="dragOptions" @end="packingrearrange">
+    <draggable v-bind="dragOptions" @end="packingrearrange" class="display-no-print">
         <span v-for="pm in packaging_methods"
             @mouseover="hovered_methods[pm] = true"
             @mouseleave="hovered_methods[pm] = false"
@@ -247,11 +248,10 @@ var TripHeader = Vue.component('trip-header', {
         </span>
         <span class="chip"><a href="#"><i class="icon icon-plus m-1" @click="addpacking"></i></a></span>
     </draggable>
-    <a class="btn btn-link c-hand h5" v-if="trip && trip.notes !== null" @click="showedittripnotemodal">{{ trip.notes }}</a>
-    <a class="btn btn-link c-hand h5" v-else @click="showedittripnotemodal">Add a note</a>
     <div>
-        <a class="btn btn-sm" v-on:click="rearrange" href="#">Expand/Collapse</a>
-        <a class="btn btn-primary btn-sm float-right" v-bind:href="pdf_url">Print</a>
+        <button class="c-hand clickable btn btn-link" v-if="trip && trip.notes !== null" @click="showedittripnotemodal" id="trip-notes">{{ trip.notes }}</button>
+        <button class="btn btn-link c-hand h5 display-no-print" v-else @click="showedittripnotemodal">Add a note</button>
+        <button class="btn btn-sm d-block display-no-print" v-on:click="rearrange" href="#">Expand/Collapse</button>
     </div>
 
     </div>
@@ -339,6 +339,7 @@ var RouteComponent = Vue.component('route-component', {
       return {
           hovered: false,
           checked: false,
+          hide_final_quantity: false,
       }
   },
   computed: {
@@ -351,18 +352,18 @@ var RouteComponent = Vue.component('route-component', {
   },
   template:`
   <div @mouseover="hovered=true" @mouseleave="hovered=false" class="my-2 columns col-12 route">
-    <transition name="expand">
-        <div class="add column col-12" v-show="hovered">
-        <!-- route indexes starts from 1 in database but start at 0 here. -->
-            <a href="#" class="btn btn-link" v-show="hovered" v-on:click.prevent="showaddroutemodal" v-bind:data-insertIndex="route.index - 1">
-            <i class="icon icon-plus mx-2"></i>ADD DESTINATION
-            </a>
-        </div>
-    </transition>
+        <transition name="expand">
+            <div class="add column col-12 display-no-print" v-show="hovered">
+            <!-- route indexes starts from 1 in database but start at 0 here. -->
+                <a href="#" class="btn btn-link" v-show="hovered" v-on:click.prevent="showaddroutemodal" v-bind:data-insertIndex="route.index - 1">
+                <i class="icon icon-plus mx-2"></i>ADD DESTINATION
+                </a>
+            </div>
+        </transition>
         <input type="checkbox" v-bind:id="'accordion-'+ route.id" name="accordion-checkbox" :checked="minimize" hidden>
         <div class="columns column col-12 p-1">
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-if="route.orderitem_set.length > 0">
-                <label class="form-checkbox d-inline"><input type="checkbox" v-on:click="checkRoute(route.id)" v-model="checked"><i class="form-icon m-1"></i></label>
+                <label class="form-checkbox d-inline display-no-print"><input type="checkbox" v-on:click="checkRoute(route.id)" v-model="checked"><i class="form-icon m-1"></i></label>
                 {{ routesorder.indexOf(route.id) + 1 }}. {{ route.orderitem_set[0].customer }}
             </label>
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-else>
@@ -372,7 +373,7 @@ var RouteComponent = Vue.component('route-component', {
             v-if="route.do_number"
             v-bind:data-route-id="route.id"
             @click="showeditdonumbermodal">{{ route.do_number }}</a>
-            <a href="#" class="btn btn-link text-right column col-2 do-number light-caps"
+            <a href="#" class="btn btn-link text-right column col-2 do-number light-caps display-no-print"
             v-else-if="route.orderitem_set.length > 0"
             v-bind:data-route-id="route.id"
             @click="showeditdonumbermodal">ENTER D/O</a>
@@ -383,11 +384,12 @@ var RouteComponent = Vue.component('route-component', {
                 <li class="packing-empty-space"></li>
                 <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
-                    <li class="clickable c-hand"
+                     <li class="clickable c-hand"
                         v-bind:class="textColour(oi.quantity, oi.final_quantity)"
                          @click="showeditorderitemquantitymodal"
                          v-bind:data-orderitem-id="oi.id">
-                         {{ oi.quantity }}&nbsp;&#8594;&nbsp;{{ oi.final_quantity }}
+                         <span>{{ oi.quantity }}</span>
+                         <span class="display-no-print">&nbsp;&#8594;&nbsp;{{ oi.final_quantity }}</span>
                      </li>
                     <li class="clickable c-hand"
                          @click="showeditorderitemnotemodal"
@@ -414,25 +416,25 @@ var RouteComponent = Vue.component('route-component', {
                 </template>
             </ul>
 
-            <div v-show="route.orderitem_set.length > 0" class="divider column col-12"></div>
+            <div class="divider column col-12"></div>
             <div class="column col-11 note my-1 c-hand h5"
                 @click="showeditroutenotemodal"
                 v-bind:data-route-id="route.id"
                     v-if="route.note">
                 {{ route.note }}
             </div>
-            <div class="column col-11 note light-caps my-2 c-hand"
+            <div class="column col-11 note light-caps my-2 c-hand display-no-print"
                 @click="showeditroutenotemodal"
                 v-bind:data-route-id="route.id"
                 v-else>
                 <i class="icon icon-plus mx-2"></i>ADD A NOTE
             </div>
-            <button class="delete btn btn-link column col-1" @click="showdeleteroutemodal">
+            <button class="delete btn btn-link column col-1 display-no-print" @click="showdeleteroutemodal">
                 <i class="icon icon-delete float-right" v-bind:data-route-id="route.id"></i>
             </button>
         </div>
-        <transition name="expand">
-            <div class="add column col-12" v-show="hovered" v-if="index + 1 === routesorder.length">
+        <transition name="expand" class="display-no-print">
+            <div class="add column col-12 display-no-print" v-show="hovered" v-if="index + 1 === routesorder.length">
             <!-- route indexes starts from 1 in database but start at 0 here. -->
                 <a href="#" class="btn btn-link" v-show="hovered" v-on:click.prevent="showaddroutemodal" v-bind:data-insertIndex="route.index">
                     <i class="icon icon-plus mx-2"></i>ADD DESTINATION
@@ -443,6 +445,10 @@ var RouteComponent = Vue.component('route-component', {
    `,
    props: ['route', 'minimize', 'index', 'routesorder', 'index'],
    components: {
+   },
+   mounted: function (){
+//       window.addEventListener("beforeprint", (event) => {this.hide_final_quantity = true});
+//       window.addEventListener("afterprint", (event) => {this.hide_final_quantity = false});
    },
    created: function() {
        this.checked = this.route.checked;
@@ -1545,7 +1551,7 @@ function getCookie(name) {
 }
 
 function putDoNumber(route_id, data){
-    let url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
+    let url = origin + '/pos/api/routes/' + route_id + '/update/';
     return fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -1567,7 +1573,7 @@ async function showArrangeRouteModal(event){
     let arrangeList = document.getElementById('arrange-menu');
     let saveButton = document.getElementById('arrange-save');
     let trip_id = arrangeModal.getAttribute('data-trip-id');
-    let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/';
+    let url = origin + '/pos/api/trips/' + trip_id + '/detail/routes/';
     var response = await fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -1605,7 +1611,7 @@ async function showArrangeRouteModal(event){
 
 function postIndexOrderingData(index_ordering_array, trip_id){
     console.log("index ordering array", index_ordering_array);
-    let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/routes/arrange/';
+    let url = origin + '/pos/api/trips/' + trip_id + '/routes/arrange/';
     let parsed_ordered_array = index_ordering_array.map(e => parseInt(e));
     let data = {'id_arrangement': parsed_ordered_array};
     var response = fetch(url, {
@@ -1623,7 +1629,7 @@ function postIndexOrderingData(index_ordering_array, trip_id){
 
 
 function getRouteDetail(route_id){
-    let url ='http://localhost:8000/pos/api/routes/' + route_id + '/';
+    let url =origin + '/pos/api/routes/' + route_id + '/';
     let response = fetch(url, {
       method: 'GET', // or 'PUT'
     }).catch(e => console.log(e));
@@ -1778,7 +1784,7 @@ async function getTripPackingSum(){
     var total_packing_sum = document.getElementById('total-packing-sum');
     var trip_id = total_packing_sum.getAttribute('data-trip-id');
     total_packing_sum.innerHTML = "";
-    fetch('http://localhost:8000/pos/api/trip/' + trip_id + '/packingsum/')
+    fetch(origin + '/pos/api/trip/' + trip_id + '/packingsum/')
         .then(res => res.json())
         .then(function(response){
             console.log(total_packing_sum);
@@ -1987,7 +1993,7 @@ function addRouteCardDOM(route) {
 
 function postOrderItemData(orderitem_id, data){
     console.log("post order item data");
-    var url = 'http://localhost:8000/pos/api/orderitem/' + orderitem_id + '/update/';
+    var url = origin + '/pos/api/orderitem/' + orderitem_id + '/update/';
     var response = fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -2003,7 +2009,7 @@ function postOrderItemData(orderitem_id, data){
 
 
 function putRouteData(route_id, data) {
-    var url = 'http://localhost:8000/pos/api/routes/' + route_id + '/update/';
+    var url = origin + '/pos/api/routes/' + route_id + '/update/';
     return fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -2017,7 +2023,7 @@ function putRouteData(route_id, data) {
 }
 
 function postRoute(trip_id, data){
-    var url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/add/';
+    var url = origin + '/pos/api/trips/' + trip_id + '/detail/routes/add/';
     var response = fetch(url, {
       method: 'POST', // or 'PUT'
       credentials: 'same-origin',
@@ -2032,7 +2038,7 @@ function postRoute(trip_id, data){
 }
 
 function putTrip(trip_id, data){
-    let url = 'http://localhost:8000/pos/api/trip/update/' + trip_id.toString() + '/';
+    let url = origin + '/pos/api/trip/update/' + trip_id.toString() + '/';
     let response = fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
@@ -2047,7 +2053,7 @@ function putTrip(trip_id, data){
 }
 
 function deleteRoute(route_id){
-    let url = 'http://localhost:8000/pos/api/routes/' + route_id + '/delete/';
+    let url = origin + '/pos/api/routes/' + route_id + '/delete/';
     return fetch(url, {
       method: 'DELETE',
       credentials: 'same-origin',
@@ -2072,7 +2078,7 @@ function getCustomerId(customerName){
 
 function getTripDetails(trip_id){
     console.log("Get Trip Details");
-    let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/';
+    let url = origin + '/pos/api/trips/' + trip_id + '/';
     var response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -2081,7 +2087,7 @@ function getTripDetails(trip_id){
 
 function getRoutesDetails(trip_id){
     console.log("Get Routes Details");
-    let url = 'http://localhost:8000/pos/api/trips/' + trip_id + '/detail/routes/';
+    let url = origin + '/pos/api/trips/' + trip_id + '/detail/routes/';
     var response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -2090,7 +2096,7 @@ function getRoutesDetails(trip_id){
 
 function getOrderItemDetails(orderitem_id){
     console.log("Get OrderItem Details");
-    let url = 'http://localhost:8000/pos/api/orderitem/' + orderitem_id + '/';
+    let url = origin + '/pos/api/orderitem/' + orderitem_id + '/';
     var response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -2099,7 +2105,7 @@ function getOrderItemDetails(orderitem_id){
 
 async function getCustomers(){
     console.log("Get Customer Details");
-    let url = 'http://localhost:8000/pos/api/customers/';
+    let url = origin + '/pos/api/customers/';
     var response = await fetch(url, {
       method: 'GET', // or 'PUT'
     });

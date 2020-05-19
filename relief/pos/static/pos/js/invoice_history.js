@@ -1,3 +1,6 @@
+const draggable = window['vuedraggable'];
+const origin = location.origin;
+
 var InvoiceDetailModal = Vue.component('InvoiceDetailModal', {
   data: function () {
       return {
@@ -306,7 +309,7 @@ var app = new Vue({
 
 
 function getAllGroups(){
-    let url = 'http://localhost:8000/pos/api/groups/all/';
+    let url = origin + '/pos/api/groups/all/';
     let response = fetch(url, {
         method: 'GET', // or 'PUT'
     });
@@ -314,7 +317,7 @@ function getAllGroups(){
 }
 
 function getAllCustomers() {
-      let url = 'http://localhost:8000/pos/api/groups/';
+      let url = origin + '/pos/api/groups/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -322,7 +325,7 @@ function getAllCustomers() {
 }
 
 function getCustomerProducts(customer_id){
-      let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/';
+      let url = origin + '/pos/api/customers/' + customer_id + '/products/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -330,7 +333,7 @@ function getCustomerProducts(customer_id){
 }
 
 function getCheckedCustomerRoutes(customer_id){
-    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/routes/?checked=true';
+    let url = origin + '/pos/api/customers/' + customer_id + '/routes/?checked=true';
     let response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
@@ -338,7 +341,7 @@ function getCheckedCustomerRoutes(customer_id){
 }
 
 function getLatestCustomerInvoice(customer_id){
-      let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/invoices/latest/';
+      let url = origin + '/pos/api/customers/' + customer_id + '/invoices/latest/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -347,7 +350,7 @@ function getLatestCustomerInvoice(customer_id){
 
 
 function postInvoice(customer_id, route_list) {
-    let url = 'http://localhost:8000/pos/api/invoice/create/';
+    let url = origin + '/pos/api/invoice/create/';
     let data = {'customer': customer_id, 'route_id_list': route_list};
     return fetch(url, {
       method: 'POST', // or 'PUT'

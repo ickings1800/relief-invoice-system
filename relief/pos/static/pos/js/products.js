@@ -1,3 +1,5 @@
+const origin = location.origin;
+
 var EditProductModal = Vue.component('EditProductModal', {
   data: function () {
       return {
@@ -205,7 +207,7 @@ function getCookie(name) {
 }
 
 function getAllProducts() {
-      let url = 'http://localhost:8000/pos/api/products/';
+      let url = origin + '/pos/api/products/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -214,7 +216,7 @@ function getAllProducts() {
 
 
 function getProduct(product_id){
-    let url = 'http://localhost:8000/pos/api/products/' + product_id + '/';
+    let url = origin + '/pos/api/products/' + product_id + '/';
     let response = fetch(url, {
         method: 'GET', // or 'PUT'
     });
@@ -223,7 +225,7 @@ function getProduct(product_id){
 
 
 function createProduct(data){
-    let url = 'http://localhost:8000/pos/api/product/create/';
+    let url = origin + '/pos/api/product/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
@@ -239,7 +241,7 @@ function createProduct(data){
 
 
 function updateProduct(product_id, data){
-    let url = 'http://localhost:8000/pos/api/product/update/' + product_id + '/';
+    let url = origin + '/pos/api/product/update/' + product_id + '/';
     let response = fetch(url, {
       method: 'PUT', // or 'PUT'
       credentials: 'same-origin',

@@ -1,4 +1,5 @@
 const draggable = window['vuedraggable'];
+const origin = location.origin;
 
 var CreateGroupModal = Vue.component('CreateGroupModal', {
   data: function () {
@@ -339,7 +340,7 @@ function getCookie(name) {
 }
 
 function getAllCustomers() {
-      let url = 'http://localhost:8000/pos/api/groups/';
+      let url = origin + '/pos/api/groups/';
       let response = fetch(url, {
           method: 'GET', // or 'PUT'
       });
@@ -347,7 +348,7 @@ function getAllCustomers() {
 }
 
 function getAllGroups(){
-    let url = 'http://localhost:8000/pos/api/groups/all/';
+    let url = origin + '/pos/api/groups/all/';
     let response = fetch(url, {
         method: 'GET', // or 'PUT'
     });
@@ -355,7 +356,7 @@ function getAllGroups(){
 }
 
 function getAllProducts(){
-    let url = 'http://localhost:8000/pos/api/products/';
+    let url = origin + '/pos/api/products/';
     let response = fetch(url, {
         method: 'GET', // or 'PUT'
     });
@@ -364,7 +365,7 @@ function getAllProducts(){
 
 
 function createCustomer(data){
-    let url = 'http://localhost:8000/pos/api/customer/create/';
+    let url = origin + '/pos/api/customer/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
@@ -379,7 +380,7 @@ function createCustomer(data){
 }
 
 function createCustomerProduct(customer_id, data){
-    let url = 'http://localhost:8000/pos/api/customers/' + customer_id + '/products/create/';
+    let url = origin + '/pos/api/customers/' + customer_id + '/products/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
@@ -395,7 +396,7 @@ function createCustomerProduct(customer_id, data){
 
 
 function createGroup(data){
-    let url = 'http://localhost:8000/pos/api/group/create/';
+    let url = origin + '/pos/api/group/create/';
     let response = fetch(url, {
         method: 'POST', // or 'PUT'
         credentials: 'same-origin',
@@ -412,7 +413,7 @@ function createGroup(data){
 
 
 function updateCustomerGroupIndex(group_id, arrangement){
-    let url = `http://localhost:8000/pos/api/customergroup/swap/`;
+    let url = `${origin}/pos/api/customergroup/swap/`;
     var data = {
         "group_id": group_id,
         "arrangement": arrangement

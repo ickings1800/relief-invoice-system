@@ -1,3 +1,5 @@
+const origin = location.origin;
+
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -71,7 +73,7 @@ function handleErrors(response){
 }
 
 function postCustomerProduct(customerproduct_id, quote_price, start_date){
-    let url = `http://localhost:8000/pos/api/customerproduct/${customerproduct_id}/update/`;
+    let url = `${origin}/pos/api/customerproduct/${customerproduct_id}/update/`;
     let data = {"id":customerproduct_id, "quote_price": quote_price, "end_date": start_date};
     return fetch(url, {
       method: 'PUT', // or 'PUT'
@@ -151,7 +153,7 @@ function createCustomerProducts(customer_id){
 
 function createCustomerProduct(customer_id, product_id, quote_price){
     console.log('Create Customer Product');
-    let url = `http://localhost:8000/pos/api/customers/${customer_id}/products/create/`;
+    let url = `${origin}/pos/api/customers/${customer_id}/products/create/`;
     var data = {
         "customer": customer_id,
         "product": parseInt(product_id),
@@ -171,7 +173,7 @@ function createCustomerProduct(customer_id, product_id, quote_price){
 }
 
 function getProducts(customer_id){
-    let url = `http://localhost:8000/pos/api/products?customer_id=${customer_id}`;
+    let url = `${origin}/pos/api/products?customer_id=${customer_id}`;
     return fetch(url, {
       method: 'GET', // or 'PUT'
       credentials: 'same-origin',
