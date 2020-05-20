@@ -300,7 +300,11 @@ var TripHeader = Vue.component('trip-header', {
        deletepacking: function(pm, event){
            console.log("delete packing");
            this.packaging_methods = this.packaging_methods.filter(e => e !== pm);
-           let data = { packaging_methods: this.packaging_methods.join() };
+           console.log("DELETE PACKING", this.packaging_methods);
+           let data = { "packaging_methods": null }
+           if (this.packaging_methods.length > 0){
+               data = { "packaging_methods": this.packaging_methods.join(",") };
+           }
            console.log(data);
            putTrip(this.trip_id, data).then(() => this.$emit('deletepacking'));
        },
@@ -314,9 +318,20 @@ var TripHeader = Vue.component('trip-header', {
            putTrip(this.trip_id, data).then(() => this.$emit('rearrangepacking'));
        },
        refreshPackingChips: function(){
-           this.packaging_methods = this.trip.packaging_methods.split(",").map(pm => pm.trim());
-           this.hovered_methods = { };
-           this.trip.packaging_methods.split(",").map(pm => { this.$set(this.hovered_methods, pm.trim(), false )});
+           if (this.trip.packaging_methods !== null && this.trip.packaging_methods !== "") {
+               this.hovered_methods = { };
+               if (this.trip.packaging_methods.indexOf(",") === -1) {
+                   console.log("no comma");
+                   this.packaging_methods = [this.trip.packaging_methods.trim()]
+                   this.$set(this.hovered_methods, this.packaging_methods, false);
+               } else {
+                   console.log("comma")
+                   this.packaging_methods = this.trip.packaging_methods.split(",").map(pm => pm.trim());
+                   this.trip.packaging_methods.split(",").map(pm => { this.$set(this.hovered_methods, pm.trim(), false )});
+               }
+           } else {
+               this.packaging_methods = [];
+           }
        },
        setDisplayDate: function(dateString){
            let display_date = new Date(dateString);
@@ -342,14 +357,28 @@ var RouteComponent = Vue.component('route-component', {
           hide_final_quantity: false,
       }
   },
-  computed: {
-      styles: function() {
-          let packing_length = this.route.packing.length;
-          return {
-              'grid-template-columns': '2fr 4fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
+   computed: {
+      packingLength: function() {
+          console.log("Route Component Trip Watcher Packaging Method")
+          console.log("PACKING:", this.packing_methods);
+          if (this.packing_methods === null || this.packing_methods === ""){
+                console.log("packing methods is empty or null");
+                let packing_arr = [];
+                console.log("Packing array length: ", packing_arr.length)
+                return {'grid-template-columns': '2fr 4fr' };
+          }
+          else {
+              console.log("NOT NULL", this.packing_methods);
+              if (this.packing_methods.indexOf(",") === -1){
+                  let packing_arr = [this.packing_methods];
+                  return {'grid-template-columns':'2fr 4fr repeat(' + packing_arr.length + ', minmax(0, 1fr))'};
+              } else {
+                  let packing_arr = this.packing_methods.split(",");
+                  return {'grid-template-columns': '2fr 4fr repeat(' + packing_arr.length + ', minmax(0, 1fr))'};
+              }
           }
       }
-  },
+   },
   template:`
   <div @mouseover="hovered=true" @mouseleave="hovered=false" class="my-2 columns col-12 route">
         <transition name="expand">
@@ -380,7 +409,7 @@ var RouteComponent = Vue.component('route-component', {
         </div>
 
         <div class="accordion-body columns column col-12">
-            <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12" v-bind:style="styles">
+            <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12" v-bind:style="packingLength">
                 <li class="packing-empty-space"></li>
                 <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
@@ -443,7 +472,7 @@ var RouteComponent = Vue.component('route-component', {
         </transition>
     </div>
    `,
-   props: ['route', 'minimize', 'index', 'routesorder', 'index'],
+   props: ['route', 'minimize', 'index', 'routesorder', 'index', 'packing_methods'],
    components: {
    },
    mounted: function (){
@@ -502,29 +531,45 @@ var RouteComponent = Vue.component('route-component', {
 var PackingSum = Vue.component('packing-sum', {
   data: function () {
       return {
-          packing_sum: {}
+          packing_sum: {},
+          packing_arr: [],
       }
   },
   computed: {
-      styles: function() {
-          let packing_length = Object.keys(this.packing_sum).length;
-          return {
-              'grid-template-columns': '2fr 4fr repeat(' + packing_length.toString() + ', minmax(0, 1fr))'
+      packingLength: function() {
+          console.log("Route Component Trip Watcher Packaging Method")
+          console.log("PACKING:", this.packing_methods);
+          if (this.packing_methods === null || this.packing_methods === ""){
+                console.log("packing methods is empty or null");
+                console.log("Packing array length: ", this.packing_arr.length)
+                return {'grid-template-columns': '2fr 4fr'};
+          }
+          else {
+              console.log("NOT NULL", this.packing_methods);
+              if (this.packing_methods.indexOf(",") === -1){
+                  this.packing_arr = [this.packing_methods.trim()];
+                  return {'grid-template-columns':'2fr 4fr repeat(' + this.packing_arr.length + ', minmax(0, 1fr))'};
+              } else {
+                  this.packing_arr = this.packing_methods.split(",").map(pm => pm.trim());
+                  return {'grid-template-columns': '2fr 4fr repeat(' + this.packing_arr.length + ', minmax(0, 1fr))'};
+              }
           }
       }
   },
   template:`
     <div class="packing-sum columns column 12">
-        <ul class="packing-container column col-12" v-bind:style="styles">
+        <ul class="packing-container column col-12" v-bind:style="packingLength">
             <li class="packing-sum-empty-space"></li>
-            <li class="border" v-for="(value, name) in packing_sum">{{ name }}</li>
+            <li class="border" v-for="name in packing_arr">{{ name }}</li>
             <li class="packing-sum-empty-space"></li>
-            <li class="border" v-for="(value, name) in packing_sum">{{ value }}</li>
+            <li class="border" v-for="name in packing_arr">{{ packing_sum[name] }}</li>
         </ul>
     </div>
    `,
-   props: ['trip', 'routes'],
+   props: ['trip', 'routes', 'packing_methods'],
    created: function() {
+   },
+   mounted: function() {
        this.refreshPackingSum();
    },
    watch: {
@@ -535,23 +580,29 @@ var PackingSum = Vue.component('packing-sum', {
        trip: function(){
            console.log("trip watcher");
            this.refreshPackingSum();
-       }
+       },
    },
    methods: {
        refreshPackingSum: function(){
-           let packaging_methods = this.trip.packaging_methods.split(',').map(pm => pm.trim())
            this.packing_sum = {};
-           console.log(packaging_methods);
-           packaging_methods.forEach(pm => { this.$set(this.packing_sum, pm, 0); });
-           this.routes.forEach(r => {
-               r.orderitem_set.forEach(oi => {
-                   if (oi.packing !== null){
-                       Object.keys(oi.packing).forEach(k => {
-                           this.$set(this.packing_sum, k, this.packing_sum[k] += parseInt(oi.packing[k], 10));
-                       });
-                   }
-               })
-           });
+           this.packing_arr = [];
+           if (this.packing_methods !== null){
+               if (this.packing_methods.indexOf(",") === -1){
+                   this.packing_arr = [this.packing_methods.trim()];
+               } else {
+                   this.packing_arr = this.packing_methods.split(",").map(pm => pm.trim());
+               }
+               this.packing_arr.forEach(pm => { this.$set(this.packing_sum, pm, 0); });
+               this.routes.forEach(r => {
+                   r.orderitem_set.forEach(oi => {
+                       if (oi.packing !== null){
+                           Object.keys(oi.packing).forEach(k => {
+                               this.$set(this.packing_sum, k, this.packing_sum[k] += parseInt(oi.packing[k], 10));
+                           });
+                       }
+                   })
+               });
+           }
        }
    }
 })
@@ -565,14 +616,16 @@ var RouteList = Vue.component('routes-list', {
   },
 
   template:`
-  <div class="accordion">
+  <div class="accordion" v-if="routes.length > 0">
       <draggable v-bind="dragOptions" @end="indexchange">
-          <route-component v-for="(route, index) in routes"
+          <route-component
+          v-for="(route, index) in routes"
           :key="route.id"
           :route="route"
           :routesorder="routes_id_ordering"
           :data-attribute-id="route.id"
           :index="index"
+          :packing_methods="packing_methods"
           v-bind:minimize="arrangeroutes"
           @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
           @showeditorderitemnotemodal="showeditorderitemnotemodal"
@@ -583,8 +636,13 @@ var RouteList = Vue.component('routes-list', {
           @showaddroutemodal="showaddroutemodal"></route-component>
       </draggable>
   </div>
+    <div class="empty" v-else>
+        <p class="empty-title h5">Trip has no routes</p>
+        <p class="empty-subtitle">Click the button to create one.</p>
+        <button class="btn btn-primary " v-on:click.prevent="showaddroutemodal">Create</button>
+</div>
    `,
-   props: ['arrangeroutes', 'trip_id', 'routes'],
+   props: ['arrangeroutes', 'trip_id', 'routes', 'packing_methods'],
    watch: {
        routes:function (val){
            if (val) {
@@ -879,7 +937,7 @@ var OrderItemNoteModal = Vue.component('OrderItemNoteModal', {
 var OrderItemPackingModal = Vue.component('OrderItemPackingModal', {
   data: function () {
       return {
-          packing: null,
+          packing: {},
           packing_input: null,
       }
   },
@@ -925,7 +983,7 @@ var OrderItemPackingModal = Vue.component('OrderItemPackingModal', {
             var vm = this;
             getOrderItemDetails(this.selected_orderitem_id)
             .then(res => res.json())
-            .then(res => this.packing = res.packing)
+            .then(res => { if (res.packing) { this.packing = res.packing } })
             .then(() => this.packing_input = this.packing[this.selected_orderitem_packing_name])
             .catch(e => console.log(e))
             console.log('orderitem quantity set');
@@ -933,9 +991,10 @@ var OrderItemPackingModal = Vue.component('OrderItemPackingModal', {
        saveOrderItemPacking: function(event){
            console.log("save orderitem packing");
            this.packing[this.selected_orderitem_packing_name] = this.packing_input;
-           let data = {"packing": this.packing};
+           let data = {'packing': this.packing};
            postOrderItemData(this.selected_orderitem_id, data)
                .then(res => res.json())
+               .then(res => console.log(res))
                .then(() => this.close())
                .catch(e => console.log(e))
        }
@@ -1160,11 +1219,12 @@ var AddPackingModal = Vue.component('AddPackingModal', {
        },
        saveMethod: async function(event){
            console.log("save method");
-           let packaging_methods = null;
+           let packaging_methods = [];
            let trip = await getTripDetails(this.trip_id)
                            .then(res => res.json())
-                           .then(res => packaging_methods = res.packaging_methods.split(","))
-                           .then(() => packaging_methods = packaging_methods.map(e => e.trim()))
+                           .then(res => { if (res.packaging_methods) { packaging_methods = res.packaging_methods.split(",") } })
+                           .then(res => { if (packaging_methods) { packaging_methods = packaging_methods.map(e => e.trim()) }})
+
 
            packaging_methods.push(this.method.trim());
 
@@ -1376,6 +1436,7 @@ var app = new Vue({
       return {
           trip_id: null,
           trip: null,
+          packing_methods: null,
           pdfUrl : null,
           routes: null,
           show_routes:true,
@@ -1394,6 +1455,13 @@ var app = new Vue({
           show_add_route_modal: false,
       }
   },
+   watch: {
+       trip: function(val){
+           if (val) {
+               this.packing_methods = this.trip.packaging_methods;
+           }
+       }
+   },
   created: function() {
       console.log("created function");
   },
@@ -1511,7 +1579,7 @@ var app = new Vue({
           this.refreshRoutes(this.trip_id);
       },
       getTrip: async function(){
-          getTripDetails(this.trip_id).then(res => res.json()).then(res => this.trip = res)
+          getTripDetails(this.trip_id).then(res => res.json()).then(res => this.trip = res).then(res => console.log(res))
       },
       getAllRoutes: function(trip_id){
            return getRoutesDetails(this.trip_id);
@@ -1993,6 +2061,7 @@ function addRouteCardDOM(route) {
 
 function postOrderItemData(orderitem_id, data){
     console.log("post order item data");
+    console.log("POST ORDERITEM:", data);
     var url = origin + '/pos/api/orderitem/' + orderitem_id + '/update/';
     var response = fetch(url, {
       method: 'PUT', // or 'PUT'
@@ -2082,6 +2151,8 @@ function getTripDetails(trip_id){
     var response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
+    console.log(url)
+    console.log(response);
     return response;
 }
 
@@ -2091,6 +2162,8 @@ function getRoutesDetails(trip_id){
     var response = fetch(url, {
       method: 'GET', // or 'PUT'
     });
+    console.log(url);
+    console.log(response);
     return response;
 }
 

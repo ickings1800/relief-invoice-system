@@ -27,6 +27,7 @@
                  v-bind:arrangeroutes="show_routes"
                  v-bind:trip_id="trip_id"
                  v-bind:routes="routes"
+                 v-bind:packing_methods="packing_methods"
                  ref="routesList"
                  @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
                  @showeditorderitemnotemodal="showeditorderitemnotemodal"
@@ -36,7 +37,7 @@
                  @showeditroutenotemodal="showeditroutenotemodal"
                  @showaddroutemodal="showaddroutemodal"
     ></routes-list>
-    <packing-sum v-if="routes" v-if="trip" :trip="trip" v-bind:routes="routes"></packing-sum>
+    <packing-sum v-if="routes" v-if="trip" v-bind:trip="trip" v-bind:routes="routes" v-bind:packing_methods="packing_methods"></packing-sum>
     <edit-note-modal v-bind:opened="show_edit_trip_note_modal"
                      v-bind:trip_id="trip_id"
                      @showedittripnotemodal="showedittripnotemodal">
