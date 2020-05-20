@@ -111,8 +111,11 @@ ul {
 }
 
 
-.route, .packing-sum {
+.route {
     border: .05rem solid #e7e9ed;
+}
+
+.packing-sum, .route {
     border-radius: .4rem;
 }
 
@@ -178,8 +181,9 @@ font-size: 1vw;
     opacity:1;
 }
 
+
 .accordion input:checked~.accordion-body, .accordion[open] .accordion-body {
-    max-height: fit-content;
+    max-height: initial;
 }
 
 #group-change-modal {

@@ -223,31 +223,27 @@ var CustomerList = Vue.component('CustomerList', {
                 </a>
             </div>
         </div>
-        <div class="columns">
-            <div class="column col-12">
-                <!-- standard Accordions example -->
-                <div class="accordion" v-for="group in customer_groups" :key="group.id">
-                  <input type="checkbox" v-bind:id="'accordion' + group.id" name="accordion-checkbox" hidden>
-                  <label class="accordion-header" v-bind:for="'accordion' + group.id">
-                    <i class="icon icon-arrow-right mr-1"></i>
-                    {{ group.name }}
-                  </label>
-                  <div class="accordion-body">
-                    <!-- Accordions content -->
-                      <div class="menu menu-nav" id="rowParent">
-                          <ul class="draggable-list" v-bind:id="'menu' + group.id" v-bind:data-group-id="group.id">
-                        <draggable v-bind="dragOptions" @end="customergroup_swap">
-                              <li class="menu-item"
-                              v-for="cg in group.customergroup_set"
-                              v-bind:data-customergroup-id="cg.id">
-                              <a v-bind:href="cg.url">{{ cg.customer_name }}</a>
-                              </li>
-                        </draggable>
-                          </ul>
-                      </div>
-                  </div>
-                </div>
-            </div>
+        <!-- standard Accordions example -->
+        <div class="accordion" v-for="group in customer_groups" :key="group.id">
+          <input type="checkbox" v-bind:id="'accordion' + group.id" name="accordion-checkbox" hidden>
+          <label class="accordion-header" v-bind:for="'accordion' + group.id">
+            <i class="icon icon-arrow-right mr-1"></i>
+            {{ group.name }}
+          </label>
+          <div class="accordion-body">
+            <!-- Accordions content -->
+              <div class="menu menu-nav" id="rowParent">
+                  <ul class="draggable-list" v-bind:id="'menu' + group.id" v-bind:data-group-id="group.id">
+                <draggable v-bind="dragOptions" @end="customergroup_swap">
+                      <li class="menu-item"
+                      v-for="cg in group.customergroup_set"
+                      v-bind:data-customergroup-id="cg.id">
+                      <a v-bind:href="cg.url">{{ cg.customer_name }}</a>
+                      </li>
+                </draggable>
+                  </ul>
+              </div>
+          </div>
         </div>
     </div>
   `,
