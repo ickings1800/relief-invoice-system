@@ -109,6 +109,3 @@ venv.bak/
 
 # seed sql
 seed.sql
-
-# migrations
-./relief/pos/migrations/
