@@ -415,7 +415,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                           <p class="empty-title h5">Customer has no quote</p>
                             <p class="empty-subtitle">Click the button to create one.</p>
                           <div class="empty-action">
-                                <a href="#" class="btn btn-primary btn-sm button-action">
+                                <a href="#" class="btn btn-primary btn-sm button-action" v-on:click.prevent="$emit('showcreatecustomerproductmodal')">
                                     <i class="icon icon-plus"></i>&nbsp;Create
                                 </a>
                           </div>
@@ -435,12 +435,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                         </table>
                         <div class="empty" v-bind:class="{'d-none': !show_orders_tab}" v-else>
                           <p class="empty-title h5">Customer has no orders</p>
-                            <p class="empty-subtitle">Select a trip and create one.</p>
-                          <div class="empty-action">
-                                <a href="#" class="btn btn-primary btn-sm button-action">
-                                    <i class="icon icon-plus"></i>&nbsp;Create
-                                </a>
-                          </div>
+                            <p class="empty-subtitle">Go to trips and create one.</p>
                         </div>
 
                         <!-- customer invoices table -->
