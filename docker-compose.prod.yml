@@ -13,7 +13,7 @@ services:
     env_file:
       - .prod_env
     volumes:
-      - static_files:/code/relief/static/
+      - static_files:/home/relief/relief/static/
     ports:
       - 8000:8000
     command: /bin/sh -c "pwd && cd ./relief/ && gunicorn -w 4 relief.wsgi -b 0.0.0.0:8000"

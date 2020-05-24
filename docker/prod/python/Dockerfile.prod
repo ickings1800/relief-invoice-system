@@ -1,16 +1,19 @@
 FROM python:3.6
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-RUN mkdir /code
-COPY . /home/Relief
-WORKDIR /home/Relief
-RUN pip install --no-cache-dir -r requirements/prod.txt
 
 COPY ./docker/prod/python/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
-
 RUN useradd relief
-RUN usermod -aG users relief
-RUN chown -R relief:users /home/Relief && chmod -R 755 /home/Relief
+RUN usermod -aG relief relief
+RUN chmod +x /entrypoint.sh
+COPY --chown=relief:relief . /home/relief
+WORKDIR /home/relief
+RUN mkdir /home/relief/relief/static/
+RUN chown relief:relief /home/relief/relief/static
+
+# puts a file inside the directory so that permissions are correct
+RUN touch /home/relief/relief/static/DJANGO_COLLECTSTATIC_DIR
+VOLUME /home/relief/relief/static
+RUN pip install --no-cache-dir -r requirements/prod.txt
 USER relief
+ENTRYPOINT ["/entrypoint.sh"]
