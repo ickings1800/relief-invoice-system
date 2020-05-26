@@ -21,7 +21,6 @@ urlpatterns = [
     path('api/customerproduct/<int:pk>/', api.CustomerProductDetail.as_view(), name='customerproduct_detail'),
     path('api/customerproduct/<int:pk>/update/', api.CustomerProductUpdate.as_view(), name='customerproduct_update'),
     path('api/customers/<int:pk>/routes/', api.CustomerRouteList.as_view(), name='customerroute_list'),
-    path('api/customers/<int:pk>/invoices/', api.CustomerInvoiceList.as_view(), name='customerinvoice_list'),
     path('api/trips/', api.TripList.as_view(), name='trip_list'),
     path('api/trips/<int:pk>/', api.TripDetail.as_view(), name='api_trip_detail'),
     path('api/trip/create/', api.TripCreate.as_view(), name='trip_create'),
@@ -29,11 +28,6 @@ urlpatterns = [
     path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
     path('api/trip/<int:pk>/duplicate/', api.TripDuplicate.as_view(), name='trip_duplicate'),
     path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
-    # path('api/invoices/', api.InvoiceList.as_view(), name='invoice_list'),
-    path('api/invoice/date_range/<int:pk>/', api.InvoiceDateRange.as_view(), name='customer_invoice_route_daterange'),
-    path('api/invoices/<int:pk>/', api.InvoiceDetail.as_view(), name='invoice_detail'),
-    path('api/invoice/create/', api.InvoiceCreate.as_view(), name='invoice_create'),
-    path('api/invoices/<int:pk>/delete/', api.InvoiceDelete.as_view(), name='invoice_delete'),
     path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),
     path('api/trips/<int:pk>/detail/routes/add/', api.TripRouteCreate.as_view(), name='trip_route_create'),
     path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
@@ -42,7 +36,6 @@ urlpatterns = [
     path('api/orderitem/<int:pk>/', api.OrderItemDetail.as_view(), name='orderitem_detail'),
     path('api/orderitem/<int:pk>/update/', api.OrderItemUpdate.as_view(), name='orderitem_update'),
     path('api/trips/<int:pk>/routes/arrange/', api.route_arrange, name='route_arrange'),
-    path('api/customers/<int:pk>/invoices/latest/', api.get_customer_latest_invoice, name='get_customer_latest_invoice_id')
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

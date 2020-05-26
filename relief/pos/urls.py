@@ -15,10 +15,6 @@ urlpatterns = [
     path('trips/', views.TripIndexView.as_view(), name='trip_index'),
     #  /pos/trips/detail/<int:pk>/
     path('trip/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
-    #  /pos/invoice/invoice_history/
-    path('invoice/invoice_history', views.InvoiceHistoryView.as_view(), name='invoice_history'),
-    #  /pos/invoice/<invoice_pk>/
-    path('invoice/<int:invoice_pk>/', views.InvoiceSingleView.as_view(), name='invoice_view'),
     #  /pos/login
     path('login/', auth_views.LoginView.as_view(template_name='pos/login.html'), name='login'),
     #  /pos/logout

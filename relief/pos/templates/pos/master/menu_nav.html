@@ -16,7 +16,6 @@
           <a href="{% url 'pos:customer_index' %}" class="btn btn-link">Customer</a>
           <a href="{% url 'pos:trip_index' %}" class="btn btn-link">Trips</a>
           <a href="{% url 'pos:product_index' %}" class="btn btn-link">Products</a>
-          <a href="{% url 'pos:invoice_history' %}" class="btn btn-link">Invoices</a>
       </div>
       <div class="column col-2 text-right">
           {% if user.is_authenticated %}
