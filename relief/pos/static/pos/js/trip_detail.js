@@ -354,7 +354,6 @@ var RouteComponent = Vue.component('route-component', {
       return {
           hovered: false,
           checked: false,
-          hide_final_quantity: false,
       }
   },
    computed: {
@@ -414,13 +413,12 @@ var RouteComponent = Vue.component('route-component', {
                 <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
                      <li class="clickable c-hand"
-                        v-bind:class="textColour(oi.quantity, oi.final_quantity)"
                         v-on:click.stop="showeditorderitemquantitymodal"
                          v-bind:data-orderitem-id="oi.id">
                          <!-- span element may be clicked instead of li, bind orderitem id for edit quantity modal -->
                          <span v-bind:data-orderitem-id="oi.id">{{ oi.quantity }}</span>
                          <span v-bind:data-orderitem-id="oi.id" class="display-no-print">
-                             &nbsp;&#8594;&nbsp;{{ oi.final_quantity }}
+                             &nbsp;&#8594;&nbsp;{{ oi.driver_quantity }}
                          </span>
                      </li>
                     <li class="clickable c-hand"
@@ -479,18 +477,12 @@ var RouteComponent = Vue.component('route-component', {
    components: {
    },
    mounted: function (){
-//       window.addEventListener("beforeprint", (event) => {this.hide_final_quantity = true});
-//       window.addEventListener("afterprint", (event) => {this.hide_final_quantity = false});
    },
    created: function() {
        this.checked = this.route.checked;
 //       console.log('route-component route prop', this.route.id)
    },
    methods: {
-        textColour: function(quantity, final_quantity) {
-          if (quantity === final_quantity) return 'text-success'
-          return 'text-warning'
-       },
        checkRoute: function(event){
            console.log("check route");
            let data = { "checked": !this.checked };
@@ -788,7 +780,6 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
       return {
           quantity: null,
           driver_quantity: null,
-          final_quantity: null,
       }
   },
 
@@ -807,8 +798,6 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
                   <input class="form-input" type="number" id="quantity" placeholder="Enter Quantity" v-model.number="quantity">
                   <label class="form-inline">Driver Quantity</label>
                   <input class="form-input" type="number" id="driver-quantity" placeholder="Enter Driver Quantity" v-model.number="driver_quantity">
-                  <label class="form-inline">Final Quantity</label>
-                  <input class="form-input" type="number" id="final-quantity" placeholder="Other" v-model.number="final_quantity">
                 </div>
             </div>
             <div class="modal-footer">
@@ -827,9 +816,9 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
                this.getOrderItem();
            }
        },
-       driver_quantity: function(val){
+       quantity: function(val){
            if (val) {
-               this.final_quantity = val;
+               this.driver_quantity = val;
            }
        },
    },
@@ -846,7 +835,6 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
             .then(res => {
                 this.quantity = res.quantity;
                 this.driver_quantity = res.driver_quantity;
-                this.final_quantity = res.final_quantity;
             }).catch(e => console.log(e))
             console.log('orderitem quantity set');
        },
@@ -855,7 +843,6 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
            let data = {
                "quantity": this.quantity,
                "driver_quantity": this.driver_quantity,
-               "final_quantity": this.final_quantity
             };
            postOrderItemData(this.selected_orderitem_id, data)
                .then(res => res.json())

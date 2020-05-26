@@ -203,7 +203,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'final_quantity', 'note', 'packing', 'customerproduct', 'customer', 'customer_id')
+        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct', 'customer', 'customer_id')
 
     def get_customerproduct(self, obj):
         return obj.customerproduct.product.name
@@ -220,7 +220,7 @@ class OrderItemUpdateDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'final_quantity', 'note', 'packing', 'customerproduct')
+        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct')
 
     def get_customerproduct(self, obj):
         return obj.customerproduct.product.name

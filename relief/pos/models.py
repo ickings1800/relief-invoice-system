@@ -354,7 +354,6 @@ class CustomerProduct(models.Model):
 class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(default=0)
     driver_quantity = models.PositiveSmallIntegerField(default=0)
-    final_quantity = models.PositiveIntegerField(default=0)
     note = models.CharField(max_length=255, null=True, blank=True)
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     customerproduct = models.ForeignKey(CustomerProduct, on_delete=models.CASCADE)
