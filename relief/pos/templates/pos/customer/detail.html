@@ -14,6 +14,9 @@
             @showeditcustomernamemodal="showeditcustomernamemodal"
             @showeditcustomergroupmodal="showeditcustomergroupmodal"
             @showcreatecustomerproductmodal="showcreatecustomerproductmodal"
+            @showdeletecustomerproductmodal="showdeletecustomerproductmodal"
+            @showdeletecustomermodal="showdeletecustomermodal"
+            @refreshcustomerproducts="refreshcustomerproducts"
             v-bind:customer="customer" v-if="customer"
             v-bind:customerproducts="customerproducts" v-if="customerproducts"
             v-bind:routes="routes" v-if="routes">
@@ -37,6 +40,18 @@
             v-bind:customer="customer"
             v-bind:opened="show_customerproduct_create_modal">
     </create-customer-product-modal>
+    <delete-customer-product-modal
+            @showdeletecustomerproductmodal="showdeletecustomerproductmodal"
+            @refreshcustomerproducts="refreshcustomerproducts"
+            v-bind:customerproduct_id="delete_customerproduct_id"
+            v-bind:customer="customer"
+            v-bind:opened="show_customerproduct_delete_modal">
+    </delete-customer-product-modal>
+    <delete-customer-modal
+            @showdeletecustomermodal="showdeletecustomermodal"
+            v-bind:customer="customer"
+            v-bind:opened="show_customer_delete_modal">
+    </delete-customer-modal>
 </div>
 {% endverbatim %}
 {% endblock %}

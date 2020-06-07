@@ -4,3 +4,4 @@ django-widget-tweaks==1.4.2
 djangorestframework==3.9.0
 psycopg2-binary
 pytz==2018.5
+django-hardcopy==0.1.4

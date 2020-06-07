@@ -134,7 +134,7 @@ class CustomerProductListDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomerProduct
-        fields = ('id', 'quote_price', 'product', 'product_id')
+        fields = ('id', 'quote_price', 'product', 'product_id', 'index', 'start_date', 'end_date')
 
     def get_product(self, obj):
         return obj.product.name
@@ -147,6 +147,13 @@ class CustomerProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProduct
         fields = ('customer', 'product', 'quote_price')
+
+    def create(self, validated_data):
+        customer_id = validated_data.get('customer')
+        existing_customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+        validated_data['index'] = len(existing_customerproducts)
+        print(validated_data)
+        return super(CustomerProductCreateSerializer, self).create(validated_data)
 
 
 class CustomerProductUpdateSerializer(serializers.ModelSerializer):
@@ -198,15 +205,19 @@ class InvoiceCreateSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     customerproduct = serializers.SerializerMethodField()
+    customerproduct_index = serializers.SerializerMethodField()
     customer = serializers.SerializerMethodField()
     customer_id = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct', 'customer', 'customer_id')
+        fields = ('id', 'driver_quantity', 'quantity', 'note', 'packing', 'customerproduct', 'customerproduct_index', 'customer', 'customer_id')
 
     def get_customerproduct(self, obj):
         return obj.customerproduct.product.name
+
+    def get_customerproduct_index(self, obj):
+        return obj.customerproduct.index
 
     def get_customer(self, obj):
         return obj.customerproduct.customer.name

@@ -305,6 +305,10 @@ class Route(models.Model):
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
     checked = models.BooleanField(default=False)
 
+    # Route automatically defaults to order by index ascending in database model level
+    class Meta:
+        ordering = ['index']
+
     def get_customer_routes_for_invoice(customer_id):
         route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer_id, checked=True, invoice=None)\
             .order_by('trip__date')\
@@ -330,24 +334,26 @@ class CustomerProduct(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quote_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
-    start_date = models.DateField(auto_now_add=True, null=False, blank=False)
+    start_date = models.DateField(auto_now_add=True)
     end_date = models.DateField(null=True, blank=True)
+    index = models.PositiveIntegerField(null=False)
+
+    # Customerproduct automatically defaults to order by index ascending
+    class Meta:
+        ordering = ['index']
 
     def get_latest_customerproducts(customer_id):
-        customerproduct_ids = CustomerProduct.objects.filter(customer_id=customer_id).distinct('product_id')
-        customerproducts = []
-        for cp in customerproduct_ids:
-            latest_cp = CustomerProduct.objects.filter(Q(end_date__isnull=True) | Q(end_date__gte=date.today()),
-                                                       customer_id=cp.customer_id,
-                                                       product_id=cp.product_id).latest('start_date')
-            if latest_cp:
-                customerproducts.append(latest_cp)
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+        # for cp in customerproduct_ids:
+        #     latest_cp = CustomerProduct.objects.filter(Q(end_date__isnull=True) | Q(end_date__gte=date.today()),
+        #                                                customer_id=cp.customer_id,
+        #                                                product_id=cp.product_id).latest('start_date').order_by('index')
         return customerproducts
 
     def get_customerproducts_by_date(customer_id, start_date, end_date):
         customerproducts = CustomerProduct.objects.filter(customer_id=customer_id,
-                                                          start_date__lte=start_date,
-                                                          end_date__gte=end_date)
+                                                          start_date__gte=start_date,
+                                                          end_date__lte=end_date)
         return customerproducts
 
 
@@ -360,5 +366,13 @@ class OrderItem(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     packing = JSONField(null=True, blank=True)
 
+    # Orderitem automatically defaults to order by index ascending depending on customerproduct
     class Meta:
         unique_together = ('route', 'customerproduct')
+        ordering = ['customerproduct__index']
+
+    def get_orderitem_summary_by_date(customer_id, start_date, end_date):
+        return OrderItem.objects.filter(route__trip__date__lte=end_date,
+                                        route__trip__date__gte=start_date,
+                                        customerproduct__customer_id=customer_id)\
+            .order_by('route__trip__date')

@@ -221,6 +221,7 @@ var TripHeader = Vue.component('trip-header', {
   template:`
   <div>
     <!-- basic dropdown button -->
+    <a href="print/" class="btn btn-primary btn-lg d-inline-block float-right mx-2">Print</a>
     <div class="dropdown" v-bind:class="{ active: dropdown_active }">
         <h2 class="clickable c-hand" v-if="trip" v-on:click.prevent="dropdown_active = !dropdown_active">
         {{ display_date }}-{{ display_month }}-{{ display_year }} {{ display_hours }}:{{ display_mins }}
@@ -353,7 +354,6 @@ var RouteComponent = Vue.component('route-component', {
   data: function () {
       return {
           hovered: false,
-          checked: false,
       }
   },
    computed: {
@@ -391,7 +391,6 @@ var RouteComponent = Vue.component('route-component', {
         <input type="checkbox" v-bind:id="'accordion-'+ route.id" name="accordion-checkbox" :checked="minimize" hidden>
         <div class="columns column col-12 p-1">
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-if="route.orderitem_set.length > 0">
-                <label class="form-checkbox d-inline display-no-print"><input type="checkbox" v-on:click="checkRoute(route.id)" v-model="checked"><i class="form-icon m-1"></i></label>
                 {{ routesorder.indexOf(route.id) + 1 }}. {{ route.orderitem_set[0].customer }}
             </label>
             <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-else>
@@ -409,17 +408,12 @@ var RouteComponent = Vue.component('route-component', {
 
         <div class="accordion-body columns column col-12">
             <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12" v-bind:style="packingLength">
-                <li class="packing-empty-space"></li>
-                <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
-                     <li class="clickable c-hand"
+                     <li class="clickable c-hand quantity-input"
                         v-on:click.stop="showeditorderitemquantitymodal"
                          v-bind:data-orderitem-id="oi.id">
                          <!-- span element may be clicked instead of li, bind orderitem id for edit quantity modal -->
-                         <span v-bind:data-orderitem-id="oi.id">{{ oi.quantity }}</span>
-                         <span v-bind:data-orderitem-id="oi.id" class="display-no-print">
-                             &nbsp;&#8594;&nbsp;{{ oi.driver_quantity }}
-                         </span>
+                         <span v-bind:data-orderitem-id="oi.id">{{ showQuantity(oi.quantity, oi.driver_quantity) }}</span>
                      </li>
                     <li class="clickable c-hand"
                          v-on:click.prevent="showeditorderitemnotemodal"
@@ -479,18 +473,8 @@ var RouteComponent = Vue.component('route-component', {
    mounted: function (){
    },
    created: function() {
-       this.checked = this.route.checked;
-//       console.log('route-component route prop', this.route.id)
    },
    methods: {
-       checkRoute: function(event){
-           console.log("check route");
-           let data = { "checked": !this.checked };
-           let route_id = event;
-           putRouteData(route_id, data)
-           .then(res => res.json())
-           .then(res => this.checked = res.checked);
-       },
        showeditorderitemquantitymodal: function(event){
            console.log("show edit orderitem quantity modal");
            this.$emit('showeditorderitemquantitymodal', event);
@@ -519,7 +503,14 @@ var RouteComponent = Vue.component('route-component', {
            console.log("show add route modal");
            let insertIndex = event.target.getAttribute('data-insertIndex');
            this.$emit('showaddroutemodal', event, insertIndex);
-       }
+       },
+       showQuantity: function(quantity, driver_quantity) {
+          if (!quantity && !driver_quantity) {
+              if (quantity === 0 && driver_quantity === 0)
+                  return 'XX';
+          }
+          return quantity.toString() + " " + String.fromCodePoint(8594) +  " " + driver_quantity.toString();
+      }
    }
 })
 
@@ -552,8 +543,8 @@ var PackingSum = Vue.component('packing-sum', {
       }
   },
   template:`
-    <div class="packing-sum columns column 12">
-        <ul class="packing-container column col-12" v-bind:style="packingLength">
+    <div class="packing-sum columns column 12 route">
+        <ul class="packing-container column col-12 " v-bind:style="packingLength">
             <li class="packing-sum-empty-space"></li>
             <li class="border" v-for="name in packing_arr">{{ name }}</li>
             <li class="packing-sum-empty-space"></li>
@@ -780,6 +771,8 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
       return {
           quantity: null,
           driver_quantity: null,
+          customer_name: null,
+          customer_product_name: null,
       }
   },
 
@@ -789,7 +782,7 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
         <div class="modal-container">
             <div class="modal-header">
                 <a href="#" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
-                <div class="modal-title h5">Edit Quantity</div>
+                <div class="modal-title h5">Edit {{ customer_name }} {{ customer_product_name }}</div>
             </div>
             <div class="modal-body form-group">
             <!-- form input control -->
@@ -833,8 +826,11 @@ var OrderItemQuantityModal = Vue.component('OrderItemQuantityModal', {
             getOrderItemDetails(this.selected_orderitem_id)
             .then(res => res.json())
             .then(res => {
+                console.log(res);
                 this.quantity = res.quantity;
                 this.driver_quantity = res.driver_quantity;
+                this.customer_name = res.customer;
+                this.customer_product_name = res.customerproduct;
             }).catch(e => console.log(e))
             console.log('orderitem quantity set');
        },

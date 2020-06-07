@@ -1,6 +1,134 @@
 const draggable = window['vuedraggable'];
 const origin = location.origin;
 
+var DeleteCustomerModal = Vue.component('DeleteCustomerModal', {
+  data: function () {
+      return {
+          routes: null,
+          customerproducts: null,
+      }
+  },
+
+  template:`
+        <div class="modal" v-bind:class="{ active: opened }">
+            <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
+            <div class="modal-container">
+                <div class="modal-header">
+                    <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+                    <div v-if="customer" class="modal-title h5">Delete {{ customer.customer_name }}</div>
+                </div>
+                <div class="modal-body">
+                    <label v-if="customer" class="form-label">Delete {{ customer.customer_name }}</label>
+                </div>
+                <div class="modal-footer">
+                    <div class="divider"></div>
+                    <a class="btn btn-link btn-sm my-2" v-on:click.prevent="close">Cancel</a>
+                    <a href="#" class="btn btn-primary " v-on:click="deleteCustomer">Delete</a>
+                </div>
+            </div>
+        </div>
+   `,
+   props: ['opened', 'customer'],
+   components: {},
+   created: function(){
+
+   },
+   watch: {
+       opened: function (val){
+           if (val) {
+               console.log("opened is true");
+               this.getCustomerProducts(this.customer.customer_id);
+               this.getCustomerRoutes(this.customer.customer_id);
+           }
+       },
+   },
+   methods: {
+       close: function(event){
+           console.log("delete customerproduct modal close");
+           this.$emit('showdeletecustomermodal');
+       },
+       getCustomerRoutes: function(customer_id){
+           console.log("get customer routes");
+           getCustomerRoutes(this.customer.customer_id)
+           .then(res => res.json())
+           .then(res => this.routes = res)
+       },
+       getCustomerProducts: function(customer_id){
+           console.log("get customerproducts");
+           getCustomerProducts(this.customer.customer_id)
+           .then(res => res.json())
+           .then(res => this.customerproducts = res)
+       },
+       deleteCustomer: function(event){
+           console.log("delete customer");
+           deleteCustomer(this.customer.customer_id, {})
+           .then(() => this.close())
+           .then(() => window.location.href=origin + '/pos/customers/')
+       },
+   }
+})
+
+var DeleteCustomerProductModal = Vue.component('DeleteCustomerProductModal', {
+  data: function () {
+      return {
+          customerproducts: null,
+          selected_customerproduct: null,
+      }
+  },
+
+  template:`
+        <div class="modal" v-bind:class="{ active: opened }">
+            <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
+            <div class="modal-container">
+                <div class="modal-header">
+                    <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+                    <div class="modal-title h5">Delete Customer Product</div>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" v-if="selected_customerproduct">Delete {{ customer.customer_name }} {{ selected_customerproduct.product }}</label>
+                </div>
+                <div class="modal-footer">
+                    <div class="divider"></div>
+                    <a class="btn btn-link btn-sm my-2" v-on:click.prevent="close">Cancel</a>
+                    <a href="#" class="btn btn-primary " v-on:click="deleteCustomerProduct">Delete</a>
+                </div>
+            </div>
+        </div>
+   `,
+   props: ['opened', 'customer', 'customerproduct_id'],
+   components: {},
+   created: function(){
+
+   },
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+               this.getCustomerProducts(this.customer.customer_id);
+           }
+       }
+   },
+   methods: {
+       close: function(event){
+           console.log("delete customerproduct modal close");
+           this.$emit('showdeletecustomerproductmodal');
+       },
+       getCustomerProducts: function(customer_id){
+           console.log("get customerproducts");
+           getCustomerProducts(this.customer.customer_id)
+           .then(res => res.json())
+           .then(res => this.customerproducts = res)
+           .then(res => this.selected_customerproduct = res.filter(cp => cp.id == this.customerproduct_id)[0])
+       },
+       deleteCustomerProduct: function(event){
+           deleteCustomerProduct(this.customerproduct_id, {})
+           .then(() => this.$emit("refreshcustomerproducts"))
+           .then(() => this.close())
+       },
+   }
+})
+
+
 var EditCustomerNameModal = Vue.component('EditCustomerNameModal', {
   data: function () {
       return {
@@ -205,7 +333,8 @@ var CustomerDetail = Vue.component('CustomerDetail', {
       return {
           show_profile_tab: true,
           show_quote_tab: false,
-          show_orders_tab: false
+          show_orders_tab: false,
+          customerproduct_list_ids: null
       }
   },
   created: function() {
@@ -217,6 +346,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                 <div class="panel">
                     <div class="panel-header text-center">
                         <div class="panel-title h3 mt-10">{{ this.customer.customer_name }}</div>
+                        <button class="btn btn-primary float-right"  v-on:click.prevent="$emit('showdeletecustomermodal')">Delete Customer</button>
                     </div>
                     <div>
                     <nav class="panel-nav">
@@ -240,14 +370,12 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                         </table>
 
                         <!-- customerproduct table -->
-                        <table class="table" v-bind:class="{'d-none': !show_quote_tab}" v-if="customerproducts.length > 0">
-                            <tr v-for="cp in customerproducts" :key="cp.id">
-                                <td>{{ cp.product }}</td>
-                            </tr>
-                            <tr>
-                                <td><button class="btn btn-primary" v-on:click.prevent="$emit('showcreatecustomerproductmodal')">Create Quote</button></td>
-                            </tr>
-                        </table>
+                        <draggable class="menu" v-bind="dragOptions" @end="swapCustomerProduct" v-bind:class="{'d-none': !show_quote_tab}" v-if="customerproducts.length > 0">
+                            <div v-for="cp in customerproducts" :key="cp.id" class="menu-item c-hand" v-bind:data-customerproduct-id="cp.id" href="#">
+                                <a v-on:click.prevent="$emit('showdeletecustomerproductmodal', cp.id)">{{ cp.product }}</a>
+                            </div>
+                            <button class="btn btn-primary" v-on:click.prevent="$emit('showcreatecustomerproductmodal')">Create Quote</button>
+                        </draggable>
                         <div class="empty" v-bind:class="{'d-none': !show_quote_tab}" v-else>
                           <p class="empty-title h5">Customer has no quote</p>
                             <p class="empty-subtitle">Click the button to create one.</p>
@@ -282,7 +410,7 @@ var CustomerDetail = Vue.component('CustomerDetail', {
     </div>
   `,
    props: ['customer', 'customerproducts', 'routes'],
-   components: {},
+   components: { draggable, },
    methods: {
        profile_tab_click: function(event){
            this.show_profile_tab = true
@@ -298,7 +426,30 @@ var CustomerDetail = Vue.component('CustomerDetail', {
            this.show_profile_tab = false
            this.show_quote_tab = false
            this.show_orders_tab = true
+       },
+       swapCustomerProduct: function(event){
+           console.log(event)
+           let customer_id = this.customer.customer_id;
+           let customerproduct_ids = Array.from(event.target.children)
+           .filter(e => e.classList.contains('menu-item'))
+           .map(e => parseInt(e.getAttribute('data-customerproduct-id')));
+           console.log(customerproduct_ids);
+           let data = {'arrangement': customerproduct_ids}
+           swapCustomerProduct(customer_id, data)
+           .then(res => res.json())
+           .then(() => this.$emit('refreshcustomerproducts'))
        }
+   },
+   computed: {
+       dragOptions() {
+          return {
+            animation: 200,
+            group: "description",
+            disabled: false,
+            ghostClass: "ghost",
+            draggable: ".menu-item",
+          };
+        }
    }
 })
 
@@ -312,10 +463,13 @@ var app = new Vue({
           show_customer_edit_name_modal: false,
           show_customer_edit_group_modal: false,
           show_customerproduct_create_modal: false,
+          show_customerproduct_delete_modal: false,
+          show_customer_delete_modal: false,
           customer: null,
           customergroup_id: null,
           customerproducts: [],
           routes: [],
+          delete_customerproduct_id: null,
       }
   },
   created: function() {
@@ -341,9 +495,19 @@ var app = new Vue({
   components: {
       'edit-customer-name-modal': EditCustomerNameModal,
       'edit-customer-group-modal': EditCustomerGroupModal,
+      'delete-customer-product-modal': DeleteCustomerProductModal,
+      'delete-customer-modal': DeleteCustomerModal,
       'customer-detail': CustomerDetail,
   },
   methods: {
+       showdeletecustomermodal: function(event){
+          console.log("show create customerproduct modal");
+          this.show_customer_delete_modal = !this.show_customer_delete_modal
+          if (this.show_customer_delete_modal){
+          }
+          if (!this.show_customer_delete_modal){
+          }
+      },
       showcreatecustomerproductmodal: function(event){
           console.log("show create customerproduct modal");
           this.show_customerproduct_create_modal = !this.show_customerproduct_create_modal
@@ -366,6 +530,15 @@ var app = new Vue({
          if (this.show_customer_edit_group_modal){
          }
          if (!this.show_customer_edit_group_modal){
+         }
+     },
+     showdeletecustomerproductmodal: function(event){
+         console.log("show edit customer product delete modal");
+         this.show_customerproduct_delete_modal = !this.show_customerproduct_delete_modal
+         if (this.show_customerproduct_delete_modal){
+             this.delete_customerproduct_id = event;
+         }
+         if (!this.show_customerproduct_delete_modal){
          }
      },
      refreshcustomer: function(event){
@@ -464,6 +637,51 @@ function changeCustomerGroup(customergroup_id, data){
       }
     }).catch(error => console.error('Error: ', error));
 }
+
+function swapCustomerProduct(customer_id, data){
+    let url = origin + '/pos/api/customers/' + customer_id + '/customerproduct/arrangement/';
+
+        return fetch(url, {
+          method: 'POST', // or 'PUT'
+          credentials: 'same-origin',
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }).catch(error => console.error('Error: ', error));
+}
+
+function deleteCustomerProduct(customerproduct_id, data){
+    let url = origin + '/pos/api/customerproduct/' + customerproduct_id + '/delete/';
+    return fetch(url, {
+          method: 'DELETE', // or 'PUT'
+          credentials: 'same-origin',
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }).catch(error => console.error('Error: ', error));
+}
+
+
+function deleteCustomer(customer_id, data){
+    let url = origin + '/pos/api/customer/' + customer_id + '/delete/';
+    return fetch(url, {
+          method: 'DELETE', // or 'PUT'
+          credentials: 'same-origin',
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers:{
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }).catch(error => console.error('Error: ', error));
+}
+
 
 function getAllProducts() {
       let url = origin + '/pos/api/products/';

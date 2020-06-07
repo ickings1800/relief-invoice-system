@@ -1,33 +1,29 @@
 @page {
     size: A4;
+    margin: 2mm 2mm 2mm 2mm;
 }
-
-@media print
-{
-    body{
-        zoom: 80%;
-        margin: 2mm 2mm 2mm 2mm;
-    }
-    .route, .packing-sum{
-        page-break-inside: avoid;
-    }
-    li {
-        font-weight: bold;
-    }
-    span {
-        font-size: large;
-        font-weight: bold;
-    }
-    .display-no-print {
-        display:none !important;
-    }
-    * {
-        color: #000 !important;
-    }
-    .text-primary, .text-secondary, .text-dark, .text-light, .text-success, .text-warning, .text-error {
-        color: #000 !important;
-    }
-    #trip-notes {
-        font-size: 24px;
-    }
+body {
+    zoom: .7;
+}
+.route, .packing-sum{
+    page-break-inside: avoid;
+}
+li {
+    font-weight: bold;
+}
+span {
+    font-size: large;
+    font-weight: bold;
+}
+.display-no-print {
+    display:none !important;
+}
+* {
+    color: #000 !important;
+}
+.text-primary, .text-secondary, .text-dark, .text-light, .text-success, .text-warning, .text-error {
+    color: #000 !important;
+}
+#trip-notes {
+    font-size: 24px;
 }

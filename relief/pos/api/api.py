@@ -11,7 +11,7 @@ from .serializers import TripAddRouteSerializer, \
     CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
     TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
     InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer, GroupListSerializer, SimpleGroupListSerializer,\
-    CustomerGroupSerializer, GroupCreateSerializer
+    CustomerGroupSerializer, GroupCreateSerializer, OrderItemSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, timedelta, date
@@ -193,8 +193,7 @@ class TripRouteCreate(CreateAPIView):
 class TripRouteList(ListAPIView):
     def get(self, request, *args, **kwargs):
         try:
-            trip = Trip.objects.get(pk=self.kwargs['pk'])
-            routes = trip.route_set.all().order_by('index')
+            routes = Route.objects.filter(trip_id=self.kwargs['pk'])
         except Trip.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         route_serializer = RouteSerializer(instance=routes, many=True)
@@ -203,7 +202,7 @@ class TripRouteList(ListAPIView):
 
 class OrderItemDetail(RetrieveAPIView):
     queryset = OrderItem.objects.all()
-    serializer_class = OrderItemUpdateDetailSerializer
+    serializer_class = OrderItemSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
@@ -476,3 +475,58 @@ def get_customer_latest_invoice(request, pk):
             invoice_serializer = InvoiceDetailSerializer(instance=invoice)
             return Response(status=status.HTTP_200_OK, data={'invoice': invoice_serializer.data})
         return Response(status=status.HTTP_200_OK, data={'invoice': None})
+
+
+@api_view(['POST'])
+def customerproduct_arrangement(request, pk):
+    if request.method == 'POST':
+        customer = get_object_or_404(Customer, id=pk)
+        customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+        all_customerproducts_ids = [cp.id for cp in customerproducts]
+        arrangement = request.data.get('arrangement')
+        print(arrangement)
+        print(all_customerproducts_ids)
+        if len(list(set(all_customerproducts_ids) - set(arrangement))) == 0:
+            for cp in customerproducts:
+                change_index = arrangement.index(cp.pk)
+                cp.index = change_index
+                cp.save()
+            refresh_customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+            customerproduct_serializer = CustomerProductListDetailSerializer(instance=refresh_customerproducts, many=True)
+            return Response(data=customerproduct_serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Not all customerproducts is in the list"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def customerproduct_delete(request, pk):
+    if request.method == 'DELETE':
+        customerproduct = get_object_or_404(CustomerProduct, id=pk)
+        orderitems = OrderItem.objects.filter(customerproduct_id=customerproduct.pk)
+        print("orderitems: ", orderitems)
+        if len(orderitems) == 0:
+            customerproduct.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({"error": "Customerproduct has references to it"}, status=status.HTTP_400_BAD_REQUEST)
+            # Dont implement soft delete for now
+            # customerproduct.end_date = date.today()
+            # customerproduct.save()
+            # customerproduct_serializer = CustomerProductListDetailSerializer(instance=customerproduct)
+            # return Response(customerproduct_serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+def customer_delete(request, pk):
+    if request.method == 'DELETE':
+        customer = get_object_or_404(Customer, id=pk)
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
+        customerroutes = Route.get_customer_detail_routes(customer.pk)
+        if len(customerproducts) == 0 and len(customerroutes) == 0:
+            customergroup = CustomerGroup.objects.filter(customer_id=customer.pk)
+            customergroup.delete()
+            customer.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            # Dont implement soft delete for now
+            return Response({"error": "Customer has references to it"}, status=status.HTTP_400_BAD_REQUEST)

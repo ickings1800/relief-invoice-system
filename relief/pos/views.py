@@ -4,8 +4,11 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
+from hardcopy.views import PDFViewMixin
+from datetime import datetime, timedelta
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
 from .forms import TripForm, TripDetailForm, OrderItemFormSet, RouteForm, CustomerForm
+import csv
 
 # Create your views here.
 
@@ -275,3 +278,87 @@ class InvoiceCustomerView(LoginRequiredMixin, ListView):
         customer = get_object_or_404(Customer, id=self.kwargs['pk'])
         context['customer'] = customer
         return context
+
+
+@login_required
+def print_trip_detail(request, pk):
+    template_name = 'pos/trip/print_detail.html'
+    trip = get_object_or_404(Trip, pk=pk)
+    routes = Route.objects.filter(trip_id=trip.pk).order_by('index')
+    context = {'trip': trip, 'routes': routes}
+    if trip.packaging_methods:
+        packing = trip.packaging_methods.split(',')
+        context['packing'] = [e.strip() for e in packing]
+    return render(request, template_name, context)
+
+
+class TripDetailPrintView(LoginRequiredMixin, FormView):
+    model = Trip
+    template_name = 'pos/trip/print_detail.html'
+    form_class = TripDetailForm
+
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailPrintView, self).get_context_data(**kwargs)
+        trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
+
+        # only assign an index for routes with orderitems quantity more than zero
+        def all_quantity_zero(orderitems):
+            for oi in orderitems:
+                if oi.quantity > 0:
+                    return False
+            return True
+
+        assign_index = []
+        index = 1
+        trip_routes = Route.objects.filter(trip_id=self.kwargs['pk'])
+        for route in trip_routes:
+            if not all_quantity_zero(route.orderitem_set.all()):
+                assign_index.append({str(index) + ".": route})
+                index += 1
+            else:
+                assign_index.append({"": route})
+        context['trip'] = trip
+        context['routes'] = assign_index
+        if trip.packaging_methods:
+            packing = trip.packaging_methods.split(',')
+            packing_sum = Trip.get_packing_sum(trip.pk)
+            context['packing'] = [e.strip() for e in packing]
+            context['packing_sum'] = packing_sum
+        return context
+
+
+class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
+    template_name = 'pos/trip/print_detail.html'
+    download_attachment = True
+
+
+def orderitem_summary(request, pk):
+    if request.method == 'GET':
+        customer = get_object_or_404(Customer, pk=pk)
+        date_start_string = request.GET.get('date_start')
+        date_end_string = request.GET.get('date_end')
+        if date_start_string and date_end_string:
+            date_start = datetime.strptime(date_start_string, "%d/%m/%Y")
+            date_end = datetime.strptime(date_end_string, "%d/%m/%Y")
+            date_end += timedelta(hours=23, minutes=59, seconds=59)
+            summary_routes = Route.get_customer_routes_orderitems_by_date(date_start, date_end, customer.pk)
+            #  currently get the latest customerproducts. to be change to date range
+            customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="summary.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['DATE'] + [cp.product.name for cp in customerproducts] + ['D/O'])
+            writer.writerow([])
+            for route in summary_routes:
+                route_orderitems = route.orderitem_set.all()
+                orderitem_dict = dict()
+                for oi in route_orderitems:
+                    orderitem_dict[oi.customerproduct.product.name] = oi.driver_quantity
+                writer.writerow(
+                    [str(route.trip.date.strftime("%d/%m/%Y"))] +
+                    [orderitem_dict[cp.product.name] for cp in customerproducts] +
+                    [route.do_number]
+                )
+            return response
+        else:
+            return HttpResponse(status=400)
