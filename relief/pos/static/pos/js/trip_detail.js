@@ -408,6 +408,8 @@ var RouteComponent = Vue.component('route-component', {
 
         <div class="accordion-body columns column col-12">
             <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12" v-bind:style="packingLength">
+                <li class="packing-empty-space"></li>
+                <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
                      <li class="clickable c-hand quantity-input"
                         v-on:click.stop="showeditorderitemquantitymodal"
