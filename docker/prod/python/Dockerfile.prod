@@ -15,6 +15,6 @@ RUN chown relief:relief /home/relief/relief/static
 RUN touch /home/relief/relief/static/DJANGO_COLLECTSTATIC_DIR
 VOLUME /home/relief/relief/static
 RUN pip install --no-cache-dir -r requirements/prod.txt
-RUN apk add chromium
+RUN apt-get chromium
 USER relief
 ENTRYPOINT ["/entrypoint.sh"]
