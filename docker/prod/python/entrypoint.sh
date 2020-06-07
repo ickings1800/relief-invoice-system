@@ -2,4 +2,4 @@
 python ./relief/manage.py collectstatic --noinput
 
 echo "Running command '$*'"
-exec /bin/bash -c "$*"
+exec /bin/sh -c "$*"
