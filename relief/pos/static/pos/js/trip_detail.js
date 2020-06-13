@@ -221,7 +221,7 @@ var TripHeader = Vue.component('trip-header', {
   template:`
   <div>
     <!-- basic dropdown button -->
-    <a href="print/" class="btn btn-primary btn-lg d-inline-block float-right mx-2">Print</a>
+    <a href="print/test/" class="btn btn-primary btn-lg d-inline-block float-right mx-2">Print</a>
     <div class="dropdown" v-bind:class="{ active: dropdown_active }">
         <h2 class="clickable c-hand" v-if="trip" v-on:click.prevent="dropdown_active = !dropdown_active">
         {{ display_date }}-{{ display_month }}-{{ display_year }} {{ display_hours }}:{{ display_mins }}
