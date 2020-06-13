@@ -367,6 +367,10 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                                 <td>Group:</td>
                                 <td><a href="#" v-on:click.prevent="$emit('showeditcustomergroupmodal')">{{this.customer.group_name}}</a></td>
                             </tr>
+                            <tr>
+                                <td>UUID:</td>
+                                <td><a href="#">{{this.customer.uuid}}</a></td>
+                            </tr>
                         </table>
 
                         <!-- customerproduct table -->

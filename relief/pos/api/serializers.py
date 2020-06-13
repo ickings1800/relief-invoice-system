@@ -20,10 +20,11 @@ class CustomerGroupSerializer(serializers.HyperlinkedModelSerializer):
     customer_name = serializers.SerializerMethodField()
     group_id = serializers.SerializerMethodField()
     group_name = serializers.SerializerMethodField()
+    uuid = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerGroup
-        fields = ('id', 'index', 'customer_name', 'customer_id', 'group_id', 'group_name', 'url')
+        fields = ('id', 'index', 'customer_name', 'customer_id', 'group_id', 'group_name', 'url', 'uuid')
         extra_kwargs = {
             'url': {'view_name': 'pos:customer_detail_view', 'lookup_field': 'id'},
         }
@@ -36,6 +37,9 @@ class CustomerGroupSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_group_name(self, obj):
         return obj.group.name
+
+    def get_uuid(self, obj):
+        return obj.customer.url
 
 
 class SimpleGroupListSerializer(serializers.ModelSerializer):

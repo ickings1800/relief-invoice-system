@@ -332,9 +332,9 @@ class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
     download_attachment = True
 
 
-def orderitem_summary(request, pk):
+def orderitem_summary(request, customer_uuid):
     if request.method == 'GET':
-        customer = get_object_or_404(Customer, pk=pk)
+        customer = get_object_or_404(Customer, url=customer_uuid)
         date_start_string = request.GET.get('date_start')
         date_end_string = request.GET.get('date_end')
         if date_start_string and date_end_string:

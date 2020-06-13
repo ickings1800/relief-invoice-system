@@ -20,7 +20,7 @@ urlpatterns = [
     #  /pos/trip/detail<int:pk>/print/test/
     path('trip/detail/<int:pk>/print/test/', views.TripDetailPrintView.as_view(), name='trip_detail_test'),
     #  /pos/orderitem/summary/
-    path('orderitem/<int:pk>/summary/', views.orderitem_summary, name='orderitem_summary'),
+    path('orderitem/<uuid:customer_uuid>/summary/', views.orderitem_summary, name='orderitem_summary'),
     #  /pos/login
     path('login/', auth_views.LoginView.as_view(template_name='pos/login.html'), name='login'),
     #  /pos/logout

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.postgres.fields import JSONField
 from rest_framework.exceptions import APIException
 from datetime import date
+import uuid
 
 # Create your models here.
 
@@ -151,6 +152,7 @@ class Customer(models.Model):
     fax_no = models.CharField(max_length=8, null=True, blank=True)
     term = models.PositiveSmallIntegerField(null=True, blank=True)
     gst = models.DecimalField(default=7, max_digits=1, decimal_places=0)
+    url = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     def __str__(self):
         return self.name
