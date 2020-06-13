@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h2>{{ trip.date|date:"d M Y P" }}</h2>
+    <h2>{{ trip.date|date:"d M Y g:i A" }}</h2>
     {% if trip.notes %}
     <h4>{{ trip.notes }}</h4>
     {% endif %}
