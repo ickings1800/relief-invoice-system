@@ -9,70 +9,44 @@ from .serializers import TripAddRouteSerializer, \
     TripListDetailUpdateSerializer, CustomerListDetailUpdateSerializer, ProductListDetailUpdateSerializer, \
     CustomerCreateSerializer, ProductCreateSerializer, TripCreateSerializer, CustomerProductListDetailSerializer,\
     CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
-    TripDetailSerializer, OrderItemUpdateDetailSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
-    InvoiceCreateSerializer, InvoiceDetailSerializer, CustomerGroupUpdateSerializer, GroupListSerializer, SimpleGroupListSerializer,\
-    CustomerGroupSerializer, GroupCreateSerializer, OrderItemSerializer
+    TripDetailSerializer, OrderItemUpdateSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
+    InvoiceDetailSerializer, GroupListSerializer, GroupCreateSerializer, OrderItemSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, timedelta, date
 from django.db.models import Prefetch
+from django.conf import settings
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2 import TokenExpiredError
+from decimal import Decimal, ROUND_UP
+import requests
+import json
 
+refresh_url = "https://api.freshbooks.com/auth/oauth/token"
+client_id = settings.FRESHBOOKS_CLIENT_ID
+client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+
+extra = {
+    'client_id': client_id,
+    'client_secret': client_secret,
+}
+
+def token_updater(request, token):
+    request.session['oauth_token'] = token
 
 class GroupList(ListAPIView):
-    serializer_class = SimpleGroupListSerializer
+    serializer_class = GroupListSerializer
     queryset = Group.objects.all()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
 
-class CustomerGroupList(ListAPIView):
-    serializer_class = GroupListSerializer(many=True)
-
-    def get(self, request, *args, **kwargs):
-        groups = Group.objects.prefetch_related(Prefetch('customergroup_set',
-                                                         queryset=CustomerGroup.objects.all().order_by('index')))
-        gls = GroupListSerializer(groups, many=True, context={'request': request})
-        return Response(status=status.HTTP_200_OK, data=gls.data)
-
-
 class CustomerList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        customers = Customer.objects.all()
+        customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
-
-
-class CustomerDetail(RetrieveAPIView):
-    queryset = CustomerGroup.objects.all()
-    serializer_class = CustomerGroupSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
-class CustomerUpdate(UpdateAPIView):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerListDetailUpdateSerializer
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-
-class CustomerCreate(CreateAPIView):
-    serializer_class = CustomerCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        print(request.data)
-        return self.create(request, *args, **kwargs)
-
-
-class CustomerGroupUpdate(UpdateAPIView):
-    queryset = CustomerGroup.objects.all()
-    serializer_class = CustomerGroupUpdateSerializer
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
 
 
 class ProductList(ListAPIView):
@@ -87,29 +61,20 @@ class ProductList(ListAPIView):
         product_serializer = ProductListDetailUpdateSerializer(products, many=True)
         return Response(status=status.HTTP_200_OK, data=product_serializer.data)
 
+@api_view(['GET'])
+def product_detail(request, pk):
+    if (request.method == 'GET'):
+        product = Product.objects.get(pk=pk)
+        if (product):
+            token = request.session['oauth_token']
+            try:
+                product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
 
-class ProductDetail(RetrieveAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductListDetailUpdateSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
-class ProductCreate(CreateAPIView):
-    serializer_class = ProductCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
-
-class ProductUpdate(UpdateAPIView):
-    serializer_class = ProductListDetailUpdateSerializer
-    queryset = Product.objects.all()
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
+            return Response(status=status.HTTP_200_OK, data=product_detail)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 class TripList(ListAPIView):
     def get(self, request, *args, **kwargs):
@@ -210,7 +175,7 @@ class OrderItemDetail(RetrieveAPIView):
 
 class OrderItemUpdate(UpdateAPIView):
     queryset = OrderItem.objects.all()
-    serializer_class = OrderItemUpdateDetailSerializer
+    serializer_class = OrderItemUpdateSerializer
 
     def put(self, request, *args, **kwargs):
         print(request.data)
@@ -253,25 +218,16 @@ def route_arrange(request, pk):
         return Response(status=status.HTTP_200_OK, data=request.data)
 
 
-@api_view(['POST'])
-def customergroup_arrange(request):
-    if request.method == 'POST':
-        group_id = request.data['group_id']
-        if group_id:
-            customergroup_list_arrangement = request.data['arrangement']
-            customergroups = CustomerGroup.objects.filter(group_id=group_id)
-            CustomerGroup.customergroup_swap(customergroups, customergroup_list_arrangement)
-            return Response(status=status.HTTP_200_OK, data=request.data)
-    return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
 @api_view(['PUT'])
-def group_change(request, pk):
+def update_grouping(request):
     if request.method == 'PUT':
-        group_id = request.data['group']
-        Group.group_change(pk, group_id)
-        return Response(status=status.HTTP_200_OK, data=request.data)
-    return Response(status=status.HTTP_400_BAD_REQUEST)
+        group_id = request.data.get('group_id', None)
+        arrangement = request.data.get('arrangement', None)
+        if group_id and isinstance(arrangement, list):
+            customers = CustomerGroup.update_grouping(group_id, arrangement)
+            customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
+            return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 
 @api_view(['POST'])
@@ -282,7 +238,7 @@ def group_create(request):
             if group_create_serializer.is_valid():
                 new_group = group_create_serializer.save()
                 print(type(new_group))
-                group_list_serializer = SimpleGroupListSerializer(new_group)
+                group_list_serializer = GroupListSerializer(new_group)
                 return Response(status=status.HTTP_201_CREATED, data=group_list_serializer.data)
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
         except Exception as group_name_exists:
@@ -303,13 +259,8 @@ class RouteDelete(DestroyAPIView):
 
 class CustomerProductList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        start_date = request.data.get('start_date')
-        end_date = request.data.get('end_date')
         customer_id = self.kwargs['pk']
-        if start_date and end_date:
-            customerproducts = CustomerProduct.get_customerproducts_by_date(customer_id, start_date, end_date)
-        else:
-            customerproducts = CustomerProduct.get_latest_customerproducts(customer_id)
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
         customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
 
@@ -334,19 +285,27 @@ class CustomerProductUpdate(UpdateAPIView):
     serializer_class = CustomerProductUpdateSerializer
 
     def put(self, request, *args, **kwargs):
-        customerproduct_id = request.data.get('id')
-        new_quote_price = request.data.pop('quote_price')
-        new_start_date = request.data.get('end_date')
-        existing_customerproduct = CustomerProduct.objects.get(id=customerproduct_id)
-        if datetime.strptime(new_start_date, '%Y-%m-%d').date() <= existing_customerproduct.start_date:
-            return Response({"error": "End date is earlier than or equal to start date"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            new_customerproduct = CustomerProduct(customer_id=existing_customerproduct.customer_id,
-                                                  product_id=existing_customerproduct.product_id,
-                                                  quote_price=new_quote_price,
-                                                  start_date=new_start_date)
-            new_customerproduct.save()
-            return self.update(request, *args, **kwargs)
+        def get_freshbooks_tax(freshbooks_tax_id):
+            token = request.session['oauth_token']
+            freshbooks_account_id = request.session['freshbooks_account_id']
+            try:
+                freshbooks = OAuth2Session(client_id, token=token)
+                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
+                    .format(freshbooks_account_id, freshbooks_tax_id)).json()
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+
+            tax = res.get('response').get('result').get('tax')
+            return tax
+
+        freshbooks_tax_id = request.data.get('freshbooks_tax_1', None)
+        quote_price = request.data.get('quote_price', None)
+        if freshbooks_tax_id:
+            get_valid_tax = get_freshbooks_tax(freshbooks_tax_id)
+            if not get_valid_tax.get('taxid'):
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+        return self.update(request, *args, **kwargs)
 
 
 class CustomerRouteList(ListAPIView):
@@ -393,8 +352,10 @@ class InvoiceDetail(RetrieveAPIView):
 
 class InvoiceList(ListAPIView):
     def get(self, request, *args, **kwargs):
-        invoices = Invoice.objects.all()
-        invoice_serializer = InvoiceListSerializer(invoices, many=True)
+        invoices = Invoice.objects.select_related('customer').all()
+        invoice_serializer = InvoiceListSerializer(
+            invoices, many=True, context={'request': request}
+        )
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
 
 
@@ -428,34 +389,174 @@ class InvoiceDateRange(ListAPIView):
             return Response(status.HTTP_400_BAD_REQUEST)
 
 
-class InvoiceDelete(DestroyAPIView):
-    queryset = Invoice.objects.all()
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-
-class InvoiceCreate(CreateAPIView):
-    serializer_class = InvoiceCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        customer_id = request.data.get('customer')
-        customer_gst = request.data.get('gst')
-        start_date = request.data.get('start_date')
-        end_date = request.data.get('end_date')
-        invoice_year = request.data.get('invoice_year')
-        invoice_number = request.data.get('invoice_number')
-        route_id_list = request.data.get('route_id_list')
-        if len(route_id_list) > 0:
-            try:
-                invoice = Invoice.generate_invoice(customer_id, customer_gst, start_date, end_date, invoice_year,
-                                                  invoice_number, route_id_list)
-            except ValueError as e:
-                return Response({str(e)}, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['PUT'])
+def unlink_invoice(request, pk):
+    if request.method == 'PUT':
+        unlink_invoice = Invoice.objects.prefetch_related(
+            'orderitem_set'
+        ).get(pk=pk)
+        if unlink_invoice:
+            unlink_orderitems = unlink_invoice.orderitem_set.all()
+            for oi in unlink_orderitems:
+                oi.invoice = None
+                oi.save()
+            unlink_invoice.delete()
+            return Response(status.HTTP_204_NO_CONTENT)
         else:
-            return Response({'Route list is empty'}, status=status.HTTP_400_BAD_REQUEST)
-        invoice_serializer = InvoiceDetailSerializer(instance=invoice)
-        return Response(data=invoice_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(status.HTTP_404_NOT_FOUND)
+    return Response(status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def hard_delete_invoice(request, pk):
+    if request.method == 'DELETE':
+        delete_invoice = Invoice.objects.prefetch_related(
+            'orderitem_set', 'orderitem_set__route'
+        ).get(pk=pk)
+        delete_route_ids = []
+        delete_orderitems = []
+        if delete_invoice:
+            delete_orderitems = delete_invoice.orderitem_set.all()
+            for oi in delete_orderitems:
+                delete_route_ids.append(oi.route.pk)
+                oi.delete()
+            for route_id in set(delete_route_ids):
+                delete_route = Route.objects.get(pk=route_id)
+                if delete_route.orderitem_set.count() == 0:
+                    delete_route.delete()
+            delete_invoice.delete()
+            return Response(status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status.HTTP_404_NOT_FOUND)
+    return Response(status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+def create_invoice(request):
+    if request.method == 'POST':
+        customer_id = request.data.get('customer_id')
+        create_date = request.data.get('create_date')
+        orderitems_id = request.data.get('orderitems_id')
+        invoice_number = request.data.get('invoice_number')
+        po_number = request.data.get('po_number')
+        discount = request.data.get('discount', 0) #  in percentage
+        discount_description = request.data.get('discount_description', None)
+
+        print(customer_id, create_date, orderitems_id, invoice_number, po_number, discount, discount_description)
+
+        try:
+            invoice_customer = Customer.objects.get(pk=customer_id)
+            invoice_orderitems = OrderItem.objects.filter(pk__in=orderitems_id)
+            parsed_create_date = datetime.strptime(create_date, "%Y-%m-%d")
+            invoice_discount_percentage = Decimal(discount)
+        except Exception as e:
+            print(str(e))
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
+
+        client_id = settings.FRESHBOOKS_CLIENT_ID
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks = OAuth2Session(client_id, token=token)
+        invoice_create_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices'.format(freshbooks_account_id)
+        headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
+
+        print(invoice_customer, invoice_orderitems, parsed_create_date)
+
+        freshbooks_client_id = invoice_customer.freshbooks_client_id
+
+        if len(invoice_orderitems) > 0:
+            invoice_lines = []
+            routes_id_list = [orderitem.route.pk for orderitem in invoice_orderitems]
+
+            for orderitem in invoice_orderitems:
+                tax_id = orderitem.customerproduct.freshbooks_tax_1
+                if tax_id:
+                    try:
+                        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(freshbooks_account_id, tax_id)).json()
+                    except TokenExpiredError as e:
+                        token = freshbooks.refresh_token(refresh_url, **extra)
+                        token_updater(request, token)
+
+                    tax = res.get('response').get('result').get('tax')
+                    #  get freshbooks tax
+                    invoice_line =  {
+                      "type": 0,
+                      "description": "DATE: {0} D/O: {1}".format(
+                          datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                          orderitem.route.do_number
+                      ),
+                      "taxName1": tax.get('name'),
+                      "taxAmount1": tax.get('amount'),
+                      "name": orderitem.customerproduct.product.name,
+                      "qty": orderitem.driver_quantity,
+                      "unit_cost": { "amount": str(orderitem.unit_price) }
+                    }
+
+                    invoice_lines.append(invoice_line)
+                else:
+                    invoice_line =  {
+                      "type": 0,
+                      "description": "DATE: {0} D/O: {1}".format(
+                          datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                          orderitem.route.do_number
+                      ),
+                      "name": orderitem.customerproduct.product.name,
+                      "qty": orderitem.driver_quantity,
+                      "unit_cost": { "amount": str(orderitem.unit_price) }
+                    }
+                    invoice_lines.append(invoice_line)
+
+            net_total = 0
+            for orderitem in invoice_orderitems:
+                net_total += (orderitem.driver_quantity * orderitem.unit_price)
+
+            body = {
+                "invoice": {
+                  "customerid": freshbooks_client_id,
+                  "invoice_number": invoice_number,
+                  "po_number": po_number,
+                  "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
+                  "discount_value": discount,
+                  "discount_description": discount_description,
+                  "lines": [line for line in invoice_lines]
+                }
+            }
+            #  create invoice
+            print(json.dumps(body))
+            response = freshbooks.post(invoice_create_url, data=json.dumps(body), headers=headers)
+            if response.status_code == 200:
+                print(response)
+                invoice_number = response.json()\
+                                        .get('response')\
+                                        .get('result')\
+                                        .get('invoice')\
+                                        .get('invoice_number')
+
+                gst_decimal = Decimal(invoice_customer.gst / 100)
+                net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+                minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
+                total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+                new_invoice = Invoice(
+                    minus=minus,
+                    remark=discount_description,
+                    net_total=net_total,
+                    gst=invoice_customer.gst,
+                    net_gst=net_gst,
+                    total_incl_gst=total_incl_gst,
+                    invoice_number=invoice_number,
+                    customer=invoice_customer,
+                    pivot=invoice_customer.pivot_invoice
+                )
+                new_invoice.save()
+
+                for orderitem in invoice_orderitems:
+                    orderitem.invoice = new_invoice
+                    orderitem.save()
+
+                return Response(data=response.json(), status=status.HTTP_201_CREATED)
+    return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 
 @api_view(['GET'])
@@ -481,7 +582,7 @@ def get_customer_latest_invoice(request, pk):
 def customerproduct_arrangement(request, pk):
     if request.method == 'POST':
         customer = get_object_or_404(Customer, id=pk)
-        customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
         all_customerproducts_ids = [cp.id for cp in customerproducts]
         arrangement = request.data.get('arrangement')
         print(arrangement)
@@ -491,7 +592,7 @@ def customerproduct_arrangement(request, pk):
                 change_index = arrangement.index(cp.pk)
                 cp.index = change_index
                 cp.save()
-            refresh_customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+            refresh_customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
             customerproduct_serializer = CustomerProductListDetailSerializer(instance=refresh_customerproducts, many=True)
             return Response(data=customerproduct_serializer.data, status=status.HTTP_200_OK)
         else:
@@ -530,3 +631,408 @@ def customer_delete(request, pk):
         else:
             # Dont implement soft delete for now
             return Response({"error": "Customer has references to it"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_all_quotes(request):
+    if (request.method == 'GET'):
+        customer_id = request.GET.get('customer_id', None)
+        customerproducts = CustomerProduct.objects.select_related('customer', 'product')
+        if customer_id:
+            customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+        customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
+        return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_all_taxes(request):
+    if (request.method == 'GET'):
+        client_id = settings.FRESHBOOKS_CLIENT_ID
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks = OAuth2Session(client_id, token=token)
+        page = 1
+        taxes_arr = []
+        while(True):
+            print(page)
+            print(freshbooks_account_id, page)
+            try:
+                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes?page={1}".format(freshbooks_account_id, page)).json()
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes?page={1}".format(freshbooks_account_id, page)).json()
+            except Exception:
+                print('Invalid Grant Error')
+            print(res)
+            max_pages = res.get('response')\
+                            .get('result')\
+                            .get('pages')
+
+            curr_page = res.get('response')\
+                            .get('result')\
+                            .get('page')
+
+            taxes = res.get('response')\
+                            .get('result')\
+                            .get('taxes')
+
+            for tax in taxes:
+                taxes_arr.append(tax)
+            if curr_page == max_pages:
+                break
+            else:
+                page += 1
+
+        return Response(status=status.HTTP_200_OK, data=taxes_arr)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+@api_view(['POST'])
+def bulk_import_orders(request):
+    if (request.method == 'POST'):
+        dataArr = request.data
+        #  TODO: use a serializer to save model object instead
+        error_rows = []
+        for row in dataArr:
+            customer_id = row.get('selectedCustomer').get('id')
+            customerproduct_id = row.get('selectedProduct').get('id')
+            quantity = row.get('quantity')
+            date = row.get('date')
+            do_number = row.get('do_number')
+
+            customer_exists = Customer.objects.get(id=customer_id)
+            customerproduct_exists = CustomerProduct.objects.get(id=customerproduct_id)
+            route_exists = Route.objects.filter(do_number=do_number, date=date)
+            parsedDateTime = datetime.strptime(date, '%Y-%m-%d')
+
+            if (customer_exists and customerproduct_exists):
+                if (len(route_exists) > 0):
+                    route = route_exists[0]
+                    new_orderitem = OrderItem(
+                        quantity=quantity, 
+                        driver_quantity=quantity,
+                        unit_price=customerproduct_exists.quote_price,
+                        customerproduct=customerproduct_exists,
+                        route=route)
+                    new_orderitem.save()
+                else:
+                    route = Route(do_number=do_number, date=date)
+                    route.save()
+                    new_orderitem = OrderItem(
+                        quantity=quantity, 
+                        driver_quantity=quantity,
+                        unit_price=customerproduct_exists.quote_price,
+                        customerproduct=customerproduct_exists,
+                        route=route)
+                    new_orderitem.save()
+            else:
+                error_rows.append(row)
+
+        if (len(error_rows) > 0):
+            return Response(status=status.HTTP_200_OK, data=error_rows)
+        return Response(status=status.HTTP_201_CREATED, data=request.data)
+
+@api_view(['GET'])
+def get_filter_orderitem_rows(request):
+    if (request.method == 'GET'):
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        do_number = request.GET.get('do_number')
+        customer_ids = request.GET.get('customer_ids')
+
+        parsed_start_date = None
+        parsed_end_date = None
+        parsed_customer_ids = None
+        
+        try:
+            if start_date:
+                parsed_start_date = datetime.strptime(start_date, '%Y-%m-%d')
+
+            if end_date:
+                parsed_end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+            if customer_ids:
+                parsed_customer_ids = customer_ids.split(';')
+
+        except ValueError:
+            return Response(status=HTTP_400_BAD_REQUEST)
+
+        orderitem_qset = OrderItem.objects.select_related(
+            'route',
+            'customerproduct',
+            'customerproduct__customer',
+            'customerproduct__product'
+        )
+
+        if parsed_start_date:
+            orderitem_qset = orderitem_qset.filter(route__date__gte=parsed_start_date)
+        if parsed_end_date:
+            orderitem_qset = orderitem_qset.filter(route__date__lte=parsed_end_date)
+        if parsed_customer_ids:
+            orderitem_qset = orderitem_qset.filter(customerproduct__customer_id__in=parsed_customer_ids)
+
+        orderitem_qset = orderitem_qset.filter(invoice__isnull=True)
+
+        rows = list(orderitem_qset)
+        orderitem_serializer = OrderItemSerializer(rows, many=True)
+        return Response(status=status.HTTP_200_OK, data=orderitem_serializer.data)
+
+
+@api_view(['GET'])
+def get_freshbooks_products(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    freshbooks_account_id = request.session['freshbooks_account_id']
+    token = request.session['oauth_token']
+    freshbooks = OAuth2Session(client_id, token=token)
+    page = 1
+    item_arr = []
+    while(True):
+        print(page)
+        try:
+            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+
+        print(res)
+        max_pages = res.get('response')\
+                        .get('result')\
+                        .get('pages')
+
+        curr_page = res.get('response')\
+                        .get('result')\
+                        .get('page')
+
+        items = res.get('response')\
+                        .get('result')\
+                        .get('items')
+
+        for item in items:
+            item_arr.append(item)
+        if curr_page == max_pages:
+            break
+        else:
+            page += 1
+    return Response(status=status.HTTP_200_OK, data=item_arr)
+
+
+@api_view(['GET'])
+def get_freshbooks_import_clients(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    freshbooks_account_id = request.session['freshbooks_account_id']
+    token = request.session['oauth_token']
+    existing_freshbooks_clients = Customer.objects.filter(freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False)
+    existing_client_ids = [client.freshbooks_client_id for client in existing_freshbooks_clients]
+    try:
+        freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
+    except TokenExpiredError as e:
+        token = freshbooks.refresh_token(refresh_url, **extra)
+        token_updater(request, token)
+
+    not_exists_freshbooks_client = []
+    for client in freshbooks_clients:
+        if str(client.get('id')) not in existing_client_ids:
+            not_exists_freshbooks_client.append(client)
+    return Response(status=status.HTTP_200_OK, data=not_exists_freshbooks_client)
+
+
+@api_view(['POST'])
+def import_freshbooks_clients(request):
+    if request.method == 'POST':
+        client_id = settings.FRESHBOOKS_CLIENT_ID
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        token = request.session['oauth_token']
+        import_client_ids = request.data.get('freshbooks_id_list')
+        valid_import_client_ids = []
+        for import_client_id in import_client_ids:
+            valid_client = Customer.get_freshbooks_client(freshbooks_account_id, import_client_id, token)
+            print(valid_client)
+            res = valid_client.get('response').get('result').get('client')
+            if res.get('id'):
+                valid_import_client_ids.append(res)
+            else:
+                return Response(status=status.HTTP_404_NOT_FOUND, data=import_client_ids)
+        try:
+            Customer.import_freshbooks_clients(valid_import_client_ids, freshbooks_account_id, token)
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+
+        return Response(status=status.HTTP_201_CREATED, data=import_client_ids)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_freshbooks_import_products(request):
+    if request.method == 'GET':
+        client_id = settings.FRESHBOOKS_CLIENT_ID
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        token = request.session['oauth_token']
+        existing_freshbooks_products = Product.objects.filter(freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False)
+        existing_product_ids = [product.freshbooks_item_id for product in existing_freshbooks_products]
+        try:
+            freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+            freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
+
+        not_exists_freshbooks_products = []
+        for product in freshbooks_products:
+            if str(product.get('id')) not in existing_product_ids:
+                not_exists_freshbooks_products.append(product)
+        return Response(status=status.HTTP_200_OK, data=not_exists_freshbooks_products)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def import_freshbooks_products(request):
+    if request.method == 'POST':
+        client_id = settings.FRESHBOOKS_CLIENT_ID
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        token = request.session['oauth_token']
+        import_product_ids = request.data.get('freshbooks_id_list')
+        valid_import_product_list = []
+        for import_product_id in import_product_ids:
+            try:
+                valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+                valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
+            print(valid_product)
+            res = valid_product.get('response').get('result').get('item')
+            if res.get('id'):
+                valid_import_product_list.append(res)
+            else:
+                return Response(status=status.HTTP_404_NOT_FOUND, data=import_product_ids)
+        print(valid_import_product_list)
+        Product.freshbooks_import_products(valid_import_product_list, freshbooks_account_id, token)
+        return Response(status=status.HTTP_201_CREATED, data=valid_import_product_list)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['GET'])
+def get_freshbooks_clients(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    freshbooks_account_id = request.session['freshbooks_account_id']
+    token = request.session['oauth_token']
+    try:
+        freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
+    except TokenExpiredError as e:
+        token = freshbooks.refresh_token(refresh_url, **extra)
+        token_updater(request, token)
+
+    return Response(status=status.HTTP_200_OK, data=freshbooks_clients)
+
+
+@api_view(['PUT'])
+def link_customer(request):
+    if request.method == 'PUT':
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        token = request.session['oauth_token']
+        customer_id = request.data.get('customer_id')
+        freshbooks_client_id = request.data.get('freshbooks_client_id', None)
+        pivot_invoice = request.data.get('pivot_invoice', False)
+        freshbooks_client = None
+        if not customer_id:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        customer_obj = Customer.objects.get(pk=customer_id)
+        if not customer_obj:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        customer_obj.pivot_invoice = pivot_invoice
+        if freshbooks_client_id:
+            try:
+                response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+
+            freshbooks_client = response.get('response').get('result').get('client')
+        if freshbooks_client_id and freshbooks_client:
+            customer_obj.freshbooks_client_id = str(freshbooks_client.get('id'));
+            customer_obj.save()
+            customer_serializer = CustomerListDetailUpdateSerializer(customer_obj)
+            return Response(data=customer_serializer.data, status=status.HTTP_200_OK)
+        if not freshbooks_client_id:
+            customer_obj.freshbooks_client_id = None;
+            customer_obj.freshbooks_account_id = None;
+            customer_obj.save()
+            customer_serializer = CustomerListDetailUpdateSerializer(customer_obj)
+            return Response(data=customer_serializer.data, status=status.HTTP_200_OK)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+def link_product(request):
+    if request.method == 'PUT':
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        token = request.session['oauth_token']
+        product_id = request.data.get('product_id')
+        freshbooks_item_id = request.data.get('freshbooks_item_id', None)
+        freshbooks_product = None
+        if not product_id:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        product_obj = Product.objects.get(pk=product_id)
+        if not product_obj:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if freshbooks_item_id:
+            try:
+                response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+                response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
+
+            freshbooks_product = response.get('response').get('result').get('item')
+        if freshbooks_item_id and freshbooks_product:
+            product_obj.freshbooks_item_id = str(freshbooks_product.get('id'));
+            product_obj.save()
+            product_serializer = ProductListDetailUpdateSerializer(product_obj)
+            return Response(data=product_serializer.data, status=status.HTTP_200_OK)
+        if not freshbooks_item_id:
+            product_obj.freshbooks_item_id = None;
+            product_obj.freshbooks_account_id = None;
+            product_obj.save()
+            product_serializer = ProductListDetailUpdateSerializer(product_obj)
+            return Response(data=product_serializer.data, status=status.HTTP_200_OK)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['DELETE'])
+def orderitem_delete(request, pk):
+    if request.method == 'DELETE':
+        orderitem = OrderItem.objects.select_related('route').get(id=pk)
+        route = orderitem.route
+        if orderitem:
+            orderitem.delete()
+            if route.orderitem_set.count() == 0:
+                route.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def customer_sync(request):
+    if request.method == 'POST':
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        try:
+            Customer.update_freshbooks_clients(freshbooks_account_id, token)
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+        except Exception as err:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
+        customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
+        return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)

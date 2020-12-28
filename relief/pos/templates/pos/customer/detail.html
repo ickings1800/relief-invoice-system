@@ -11,15 +11,16 @@
 <div id="app" data-customergroup-id="{{ customergroup_id }}">
 {% verbatim %}
     <customer-detail
-            @showeditcustomernamemodal="showeditcustomernamemodal"
-            @showeditcustomergroupmodal="showeditcustomergroupmodal"
-            @showcreatecustomerproductmodal="showcreatecustomerproductmodal"
-            @showdeletecustomerproductmodal="showdeletecustomerproductmodal"
-            @showdeletecustomermodal="showdeletecustomermodal"
-            @refreshcustomerproducts="refreshcustomerproducts"
-            v-bind:customer="customer" v-if="customer"
-            v-bind:customerproducts="customerproducts" v-if="customerproducts"
-            v-bind:routes="routes" v-if="routes">
+        @showeditcustomernamemodal="showeditcustomernamemodal"
+        @showeditcustomergroupmodal="showeditcustomergroupmodal"
+        @showcreatecustomerproductmodal="showcreatecustomerproductmodal"
+        @showdeletecustomerproductmodal="showdeletecustomerproductmodal"
+        @showdeletecustomermodal="showdeletecustomermodal"
+        @showlinkfreshbooksmodal="showlinkfreshbooksmodal"
+        @refreshcustomerproducts="refreshcustomerproducts"
+        v-bind:customer="customer" v-if="customer"
+        v-bind:customerproducts="customerproducts" v-if="customerproducts"
+        v-bind:routes="routes" v-if="routes">
     </customer-detail>
     <edit-customer-name-modal
             @showeditcustomernamemodal="showeditcustomernamemodal"
@@ -52,6 +53,12 @@
             v-bind:customer="customer"
             v-bind:opened="show_customer_delete_modal">
     </delete-customer-modal>
+    <link-freshbooks-modal
+        @showlinkfreshbooksmodal="showlinkfreshbooksmodal"
+        @refreshcustomer="refreshcustomer"
+        v-bind:customer="customer"
+        v-bind:opened="show_link_freshbooks_modal">
+    </link-freshbooks-modal>
 </div>
 {% endverbatim %}
 {% endblock %}

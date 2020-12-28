@@ -1,13 +1,10 @@
-FROM python:3.6-alpine
+FROM python:3.6-buster
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 RUN mkdir /code
 WORKDIR /code
 COPY . /code/
 RUN \
- apk add --no-cache python3 postgresql-libs && \
- apk add --no-cache --virtual .build-deps gcc python3-dev musl-dev postgresql-dev && \
- python3 -m pip install -r ./requirements/local.txt --no-cache-dir && \
- apk --purge del .build-deps
-
-RUN apk add chromium
+ apt-get install python3.6 && \
+ apt-get install libjpeg-dev zlib1g-dev && \
+ python3 -m pip install -r ./requirements/local.txt --no-cache-dir

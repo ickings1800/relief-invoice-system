@@ -14,6 +14,9 @@ RUN chown relief:relief /home/relief/relief/static
 # puts a file inside the directory so that permissions are correct
 RUN touch /home/relief/relief/static/DJANGO_COLLECTSTATIC_DIR
 VOLUME /home/relief/relief/static
+RUN apk add build-base python-dev py-pip jpeg-dev zlib-dev
+ENV LIBRARY_PATH=/lib:/usr/lib
+
 RUN \
  apk add --no-cache python3 postgresql-libs && \
  apk add --no-cache --virtual .build-deps gcc python3-dev musl-dev postgresql-dev && \

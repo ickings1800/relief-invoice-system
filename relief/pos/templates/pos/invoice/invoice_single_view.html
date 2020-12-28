@@ -1,120 +1,94 @@
-<!DOCTYPE html>
+{% extends 'pos/master/menu_nav.html' %}
 {% load index %}
 {% load static %}
 {% load widget_tweaks %}
-<html lang="en">
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-        <meta charset="UTF-8">
-        <!--inline css because django-hardcopy does not support linking of css via script tags-->
-        <style>
-            {% include "pos/spectre.min.css" %}
-            {% include "pos/spectre-icons.min.css" %}
-            {% include "pos/spectre-exp.min.css" %}
-            {% include "pos/main.css" %}
-        </style>
-    </head>
-    <div class="container">
-        <div class="columns">
-            <div class="dropdown column col-11 h2">{{ customer.name }}</div>
-            <div class="column col-1">
-                <a class="btn btn-lg btn-primary" href="{% url 'pos:invoice_pdf_view' invoice_pk=invoice.pk %}">Print</a>
-            </div>
-            <div class="divider column col-12"></div>
-            <div class="column col-6"></div>
-            <div class="column col-6">
-                <ul class="columns float-right">
-                    <li class="column col-6"><b>Invoice:</b></li>
-                    <li class="column col-2">
-                        {% if invoice.invoice_year %}
-                        {{ invoice.invoice_year }}
-                        {% endif %}
-                    </li>
-                    <li class="column col-2">
-                        {% if invoice.invoice_number %}
-                        {{ invoice.invoice_number }}
-                        {% endif %}
-                    </li>
-                    <li class="column col-2"></li>
-                    <li class="column col-6"><b>Start Date:</b></li>
-                    <li class="column col-6">{{ invoice.start_date }}</li>
-                    <li class="column col-6"><b>End Date:</b></li>
-                    <li class="column col-6">{{ invoice.end_date }}</li>
-                </ul>
-            </div>
+{% block content %}
+<div class="container">
+    <div class="columns">
+        <div class="d-inline-flex invoice-header">
+            <ul class="flex-2">
+                <li><b>SUN-UP BEAN FOOD MFG PTE LTD</b></li>
+                <li><b>TUAS BAY WALK #02-30 SINGAPORE 637780</b></li>
+                <li><b>TEL: 68639035 FAX: 68633738</b></li>
+                <li><b>REG NO: 200302589N</b></li>
+                <li><b>BILL TO:</b></li>
+                <li><b>{{ invoice.customer.name }}</b></li>
+            </ul>
+            <ul class="float-right flex-1">
+                <li><b>TAX INVOICE</b></li>
+                <li><b>INVOICE NUMBER: {{ invoice.invoice_number }}</b></li>
+                <li><b>DATE: {{ invoice.date_generated|format_date:"%d/%m/%Y" }}</b></li>
+            </ul>
         </div>
-        <div class="divider"></div>
-        <table id="route-table" class="table">
-            <tr id="heading" class="route-row">
-                <td style="padding:.5rem .4rem;">Date</td>
-                {% for cp in customerproducts %}
-                <td style="padding:.5rem .4rem;">{{ cp.product.name }}</td>
-                {% endfor %}
-                <td style="padding:.5rem .4rem;">D/O</td>
-            </tr>
-            {% for r in invoice_route_list %}
+        <table class="table invoice-table my-2">
+          <thead>
             <tr>
-                <td style="border:none; padding:.5rem .4rem;">{{ r.trip_date|date:"d-m-Y" }}</td>
+              <th>DATE</th>
                 {% for cp in customerproducts %}
-                {% if r|keyvalueget:cp.product.name != 0 %}
-                <td style="border:none; padding:.5rem .4rem;">{{ r|keyvalueget:cp.product.name }}</td>
-                {% else %}
-                <td style="border:none; padding:.5rem .4rem;"></td>
-                {% endif %}
+                <th>{{ cp.product.name }}</th>
                 {% endfor %}
-                {% if r.do_number %}
-                <td style="border:none; padding:.5rem .4rem;">{{ r.do_number }}</td>
-                {% else %}
-                <td style="border:none; padding:.5rem .4rem;"></td>
-                {% endif %}
+              <th>D/O</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pv_table %}
+            <tr>
+              <td>{{ row|keyvalueget:'route__date'|format_date:"%d/%m/%Y" }}</td>
+              {% for cp in customerproducts %}
+              {% if row|keyvalueget:cp.product.name %}
+              <td>{{ row|keyvalueget:cp.product.name }}</td>
+              {% else %}
+              <td></td>
+              {% endif %}
+              {% endfor %}
+              <td>{{ row|keyvalueget:'route__do_number' }}</td>
             </tr>
             {% endfor %}
-            <tr id="quantity-row">
-                <td style="padding:.5rem .4rem; border-top: .05rem solid #e7e9ed;">QUANTITY</td>
+            <tr class="borderless"><td class="borderless"></td></tr>   
+            <tr class="borderless">
+                <td class="borderless"><b>QUANTITY</b></td>
                 {% for cp in customerproducts %}
-                <td style="padding:.5rem .4rem; border-top: .05rem solid #e7e9ed;">
-                    {{ customerproduct_sum|keyvalueget:cp.product.name }}
-                </td>
+                <td class="borderless"><b>{{ product_sum|keyvalueget:cp.product.name }}</b></td>
                 {% endfor %}
-                <td style="padding:.5rem .4rem; border-top: .05rem solid #e7e9ed;"></td>
+                <td class="borderless"></td>
             </tr>
-            <tr id="unit-price-row">
-                <td>UNIT PRICE</td>
+            <tr class="borderless">
+                <td class="borderless"><b>UNIT PRICE</b></td>
                 {% for cp in customerproducts %}
-                <td>{{ cp.quote_price }}</td>
+                <td class="borderless"><b>{{ cp.quote_price }}</b></td>
                 {% endfor %}
-                <td style="padding:.5rem .4rem;"></td>
-            </tr>
-            <tr id="nett-amt-row">
-                <td style="padding:.5rem .4rem;">NETT AMT</td>
+                <td class="borderless"></td>
+            </tr>        
+            <tr class="borderless">
+                <td class="borderless"><b>NETT AMT</b></td>
                 {% for cp in customerproducts %}
-                <td style="padding:.5rem .4rem;">{{ customerproduct_nett|keyvalueget:cp.product.name }}</td>
+                <td class="borderless"><b>{{ nett_amt|keyvalueget:cp.product.name }}</b></td>
                 {% endfor %}
-                <td style="padding:.5rem .4rem;"></td>
+                <td class="borderless"></td>
+            </tr> 
+            <tr><td class="borderless"></td></tr>
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>SUBTOTAL:</b></td>
+                <td class="border-right"><b>{{ subtotal }}</b></td>
             </tr>
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>GST: {{ invoice.gst }}%</b></td>
+                <td class="border-right"><b>{{ gst }}</b></td>
+            </tr>
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>DISCOUNT:</b></td>
+                <td class="border-right"><b>{{ invoice.minus }}</b></td>
+            </tr>
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>TOTAL INCL. GST</b></td>
+                <td class="border-right"><b>{{ total_incl_gst }}</b></td>
+            </tr>
+          </tbody>
         </table>
-        <div class="columns py-2">
-            <div class="column col-5">
-                <label class="form-label">
-                    <b>Remark: </b>
-                    {% if invoice.remark %}
-                    <b>{{ invoice.remark }}</b>
-                    {% endif %}
-                </label>
-            </div>
-            <div class="column col-1"></div>
-            <div class="column col-6 columns col-gapless">
-                <div class="column col-8"><label class="form-label text-right">Original Total</label></div>
-                <div class="column col-4"><label class="form-label text-right" id="original-total">{{ invoice.original_total }}</label></div>
-                <div class="column col-8"><label class="form-label text-right">Minus</label></div>
-                <div class="column col-4"><label class="form-label text-right" id="minus">{{ invoice.minus }}</label></div>
-                <div class="column col-8"><label class="form-label text-right">Nett Total</label></div>
-                <div class="column col-4"><label class="form-label text-right" id="nett-total">{{ invoice.net_total }}</label></div>
-                <div class="column col-8"><label class="form-label text-right" id="gst-percent">GST {{invoice.gst }}%</label></div>
-                <div class="column col-4"><label class="form-label text-right" id="gst">{{ invoice.net_gst }}</label></div>
-                <div class="column col-8"><label class="form-label text-right">Total (incl. GST)</label></div>
-                <div class="column col-4"><label class="form-label text-right" id="total-incl-gst">{{ invoice.total_incl_gst }}</label></div>
-            </div>
-        </div>
-</html>
+    </div>
 </div>
+{% endblock %}

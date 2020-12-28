@@ -9,21 +9,86 @@
 <!-- CDNJS :: Vue.Draggable (https://cdnjs.com/) -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.20.0/vuedraggable.umd.min.js"></script>
 <div id="app">
-{% verbatim %}
-    <customer-list
-            @showcreatecustomermodal="showcreatecustomermodal"
-            @showcreategroupmodal="showcreategroupmodal"
-            v-bind:customer_groups="customer_groups">
+    {% verbatim %}
+    <customer-list 
+	    v-on:show-quote="show_quote_modal_window"
+        v-on:show-quote-edit-modal="show_quote_edit_modal_window"
+	    v-on:show-create-invoice="show_create_invoice_modal_window"
+	    v-on:show-create-group-modal="show_create_group_modal_window"
+	    v-on:show-edit-group-modal="show_edit_group_modal_window"
+        v-on:show-customer-detail-modal="show_customer_detail_modal_window"
+        v-on:show-product-detail-modal="show_product_detail_modal_window"
+        v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
+        v-on:show-invoice-delete-modal="show_invoice_delete_modal_window"
+        v-on:show-import-client-modal="show_import_client_modal_window"
+        v-on:show-download-range-modal="show_download_range_modal_window"
+        v-on:show-import-product-modal="show_import_product_modal_window"
+        v-on:sync-clients="sync_clients"
+	    v-bind:products="products"
+	    v-bind:clients="clients"
+	    v-bind:quotes="quotes"
+	    v-bind:taxes="taxes"
+	    v-bind:groups="groups"
+	    v-bind:orderitems="orderitems"
+        v-bind:invoices="invoices">
     </customer-list>
     <create-customer-modal
-            @showcreatecustomermodal="showcreatecustomermodal"
-            v-bind:opened="show_customer_create_modal">
+        v-on:show-quote="show_quote_modal_window"
+        v-bind:opened="show_quote_modal">
     </create-customer-modal>
+    <create-invoice-modal
+        v-on:show-create-invoice="show_create_invoice_modal_window"
+        v-bind:orderitems="orderitems"
+        v-bind:selected_customer="create_invoice_customer"
+        v-bind:opened="show_create_invoice_modal">
+    </create-invoice-modal>
     <create-group-modal
-            @showcreategroupmodal="showcreategroupmodal"
-            @refreshcustomers="refreshcustomers"
-            v-bind:opened="show_create_group_modal">
+    	v-on:show-create-group-modal="show_create_group_modal_window"
+    	v-bind:opened="show_create_group_modal">
     </create-group-modal>
+    <edit-group-modal
+    	v-on:show-edit-group-modal="show_edit_group_modal_window"
+    	v-bind:group="edit_group"
+    	v-bind:opened="show_edit_group_modal"
+    	v-bind:clients="clients">
+    </edit-group-modal>
+    <detail-customer-modal
+        v-on:show-customer-detail-modal="show_customer_detail_modal_window"
+        v-bind:customer="detail_customer"
+        v-bind:opened="show_customer_detail_modal">
+    </detail-customer-modal>
+    <detail-product-modal
+        v-on:show-product-detail-modal="show_product_detail_modal_window"
+        v-bind:product="detail_product"
+        v-bind:opened="show_product_detail_modal">
+    </detail-product-modal>
+    <edit-orderitem-modal
+        v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
+        v-bind:orderitem="edit_orderitem"
+        v-bind:opened="show_orderitem_edit_modal">
+    </edit-orderitem-modal>
+    <edit-quote-modal
+        v-on:show-quote-edit-modal="show_quote_edit_modal_window"
+        v-bind:quote="edit_quote"
+        v-bind:opened="show_quote_edit_modal">
+    </edit-quote-modal>
+    <delete-invoice-modal
+        v-on:show-invoice-delete-modal="show_invoice_delete_modal_window"
+        v-bind:invoice="delete_invoice"
+        v-bind:opened="show_invoice_delete_modal">
+    </delete-invoice-modal>
+    <import-client-modal
+        v-on:show-import-client-modal="show_import_client_modal_window"
+        v-bind:opened="show_import_client_modal">
+    </import-client-modal>
+    <import-product-modal
+        v-on:show-import-product-modal="show_import_product_modal_window"
+        v-bind:opened="show_import_product_modal">
+    </import-product-modal>
+    <download-range-modal
+        v-on:show-download-range-modal="show_download_range_modal_window"
+        v-bind:opened="show_download_range_modal">
+    </download-range-modal>
 </div>
 {% endverbatim %}
 {% endblock %}

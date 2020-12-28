@@ -1,6 +1,87 @@
 const draggable = window['vuedraggable'];
 const origin = location.origin;
 
+
+var LinkFreshbooksModal = Vue.component('LinkFreshbooksModal', {
+  data: function () {
+      return {
+	  freshbooks_customers: [],
+	  selected_customer: null,
+      }
+  },
+
+  template:`
+        <div class="modal" v-bind:class="{ active: opened }">
+            <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
+            <div class="modal-container">
+                <div class="modal-header">
+                    <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+                    <div class="modal-title h5">Link Freshbooks</div>
+                </div>
+                <div class="modal-body">
+                <!-- form select control -->
+                    <div class="form-group">
+                        <select class="form-select" v-model="selected_customer">
+                            <option 
+                             v-for="customer in freshbooks_customers" 
+                             v-bind:value="{'client_id': customer.client_id, 'account_id': customer.account_id}">
+                                {{ customer.organization }} | {{ customer.client_id }} | {{ customer.account_id }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="divider"></div>
+                    <a class="btn btn-link btn-sm my-2" v-on:click.prevent="close">Cancel</a>
+                    <a href="#" class="btn btn-primary" v-on:click.prevent="saveFreshbooksLink">Save</a>
+                </div>
+            </div>
+        </div>
+   `,
+    props: ['opened', 'customer'],
+   components: {},
+   created: function(){
+
+   },
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+	       this.get_freshbooks_customers();
+           }
+       },
+   },
+   methods: {
+       close: function(event){
+           console.log("edit customer modal close");
+           this.$emit('showlinkfreshbooksmodal');
+       },
+       get_freshbooks_customers: function() {
+	   console.log("get customerproducts");
+           getFreshbooksCustomers()
+               .then(res => res.json())
+               .then(res => this.freshbooks_customers = res)
+	   console.log(this.freshbooks_customers)
+       },
+       saveFreshbooksLink: function() {
+	   console.log('save freshbooks link');
+	   let client_id = this.selected_customer.client_id;
+	   let account_id = this.selected_customer.account_id;
+           let data = {
+	       "id": this.customer.customer_id,
+	       "name": this.customer.customer_name,
+	       "freshbooks_account_id": account_id.toString(),
+	       "freshbooks_client_id": client_id.toString()
+	   };
+           saveCustomer(this.customer.customer_id, data)
+           .then(res => res.json())
+           .then(() => this.$emit("refreshcustomer"))
+           .then(() => this.close())
+       }
+   }
+})
+
+
 var DeleteCustomerModal = Vue.component('DeleteCustomerModal', {
   data: function () {
       return {
@@ -85,7 +166,7 @@ var DeleteCustomerProductModal = Vue.component('DeleteCustomerProductModal', {
                     <div class="modal-title h5">Delete Customer Product</div>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label" v-if="selected_customerproduct">Delete {{ customer.customer_name }} {{ selected_customerproduct.product }}</label>
+                    <label class="form-label" v-if="selected_customerproduct">Delete {{ customer.customer_name }} {{ selected_customerproduct.name }}</label>
                 </div>
                 <div class="modal-footer">
                     <div class="divider"></div>
@@ -266,6 +347,7 @@ var CreateCustomerProductModal = Vue.component('CreateCustomerProductModal', {
       return {
           avail_products: [],
           selectedProduct: null,
+	  quote_price: null,
       }
   },
 
@@ -281,8 +363,14 @@ var CreateCustomerProductModal = Vue.component('CreateCustomerProductModal', {
                     <label class="form-label" for="products">Quote</label>
                     <select class="form-select" id="products" v-model="selectedProduct">
                         <option disabled value="">Select a product</option>
-                        <option v-for="p in avail_products" v-bind:value="p.id">{{ p.name }}</option>
+                        <option v-for="p in avail_products" v-bind:value="{'itemid': p.item_id, 'account_id': p.account_id, 'name': p.name, 'unit_price': p.unit_price}">
+                            {{ p.name }} ({{ p.unit_price }}) | {{ p.item_id }} | {{ p.account_id }}
+                        </option>
                     </select>
+                    <div class="form-group">
+                        <label class="form-label" for="pricing">Pricing</label>
+                        <input class="form-input" type="text" id="pricing" placeholder="Quote Price" v-model.number="quote_price">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <div class="divider"></div>
@@ -303,6 +391,11 @@ var CreateCustomerProductModal = Vue.component('CreateCustomerProductModal', {
                this.getProducts();
            }
        },
+       selectedProduct: function(val){
+	   if (val) {
+	       this.quote_price = this.selectedProduct.unit_price;
+	   }
+       }
    },
    methods: {
        close: function(event){
@@ -310,16 +403,20 @@ var CreateCustomerProductModal = Vue.component('CreateCustomerProductModal', {
            this.$emit('showcreatecustomerproductmodal');
        },
        getProducts: function(event){
-           let already_quoted_ids = this.customerproducts.map(cp => cp.product_id);
            getAllProducts()
            .then(res => res.json())
-           .then(res => res.filter(p => already_quoted_ids.indexOf(p.id) === -1))
            .then(res => this.avail_products = res)
        },
        saveProduct: function(event){
            console.log("save products");
            let customer_id = this.customer.customer_id;
-           let data = {"customer": customer_id, "product": this.selectedProduct};
+           let data = {
+	       "customer": customer_id,
+	       "freshbooks_item_id": this.selectedProduct.itemid,
+	       "freshbooks_account_id": this.selectedProduct.account_id,
+	       "name": this.selectedProduct.name,
+	       "quote_price": this.quote_price
+	   };
            saveCustomerProduct(customer_id, data)
            .then(res => res.json())
            .then(() => this.$emit("refreshcustomerproducts"))
@@ -371,12 +468,23 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                                 <td>UUID:</td>
                                 <td><a href="#">{{this.customer.uuid}}</a></td>
                             </tr>
+                            <tr>
+                                <td>Freshbooks Integration:</td>
+                                <td>
+                                    <a href="#" v-if="!this.customer.freshbooks_link.account_id && !this.customer.freshbooks_link.client_id"
+                                                v-on:click.prevent="$emit('showlinkfreshbooksmodal')">Link to Freshbooks
+                                    </a>
+                                    <a href="#" v-else v-on:click.prevent="$emit('showlinkfreshbooksmodal')">
+                                        {{ this.customer.freshbooks_link.account_id }} {{ this.customer.freshbooks_link.client_id }}
+                                    </a>
+                                </td>
+                            </tr>
                         </table>
 
                         <!-- customerproduct table -->
                         <draggable class="menu" v-bind="dragOptions" @end="swapCustomerProduct" v-bind:class="{'d-none': !show_quote_tab}" v-if="customerproducts.length > 0">
                             <div v-for="cp in customerproducts" :key="cp.id" class="menu-item c-hand" v-bind:data-customerproduct-id="cp.id" href="#">
-                                <a v-on:click.prevent="$emit('showdeletecustomerproductmodal', cp.id)">{{ cp.product }}</a>
+                                <a v-on:click.prevent="$emit('showdeletecustomerproductmodal', cp.id)">{{ cp.name }} | ({{ cp.quote_price }})</a>
                             </div>
                             <button class="btn btn-primary" v-on:click.prevent="$emit('showcreatecustomerproductmodal')">Create Quote</button>
                         </draggable>
@@ -394,7 +502,8 @@ var CustomerDetail = Vue.component('CustomerDetail', {
                         <table class="table" v-bind:class="{'d-none': !show_orders_tab}" v-if="routes.length > 0">
                             <tr v-for="r in routes" :key="r.id">
                                 <td>
-                                    <a v-bind:href="r.trip_url">{{ r.trip_date }}</a>
+                                    <a v-if="r.trip_url" v-bind:href="r.trip_url">{{ r.trip_date }}</a>
+                                    <a v-else> {{ r.date }}</a>
                                 </td>
                                 <td>{{ r.do_number }}</td>
                                 <td>
@@ -469,6 +578,7 @@ var app = new Vue({
           show_customerproduct_create_modal: false,
           show_customerproduct_delete_modal: false,
           show_customer_delete_modal: false,
+	  show_link_freshbooks_modal: false,
           customer: null,
           customergroup_id: null,
           customerproducts: [],
@@ -502,6 +612,7 @@ var app = new Vue({
       'delete-customer-product-modal': DeleteCustomerProductModal,
       'delete-customer-modal': DeleteCustomerModal,
       'customer-detail': CustomerDetail,
+      'link-freshbooks-modal': LinkFreshbooksModal,
   },
   methods: {
        showdeletecustomermodal: function(event){
@@ -544,6 +655,14 @@ var app = new Vue({
          }
          if (!this.show_customerproduct_delete_modal){
          }
+     },
+      showlinkfreshbooksmodal: function(event){
+	  console.log("show link freshbooks modal");
+	  this.show_link_freshbooks_modal = !this.show_link_freshbooks_modal
+	  if (this.show_link_freshbooks_modal){
+	  }
+	  if (!this.show_link_freshbooks_modal){
+	  }
      },
      refreshcustomer: function(event){
          console.log("refresh customer object");
@@ -701,4 +820,12 @@ function getAllGroups(){
           method: 'GET', // or 'PUT'
       });
       return response;
+}
+
+function getFreshbooksCustomers() {
+    let url = origin + '/pos/api/freshbooks/customers/';
+    let response = fetch(url, {
+          method: 'GET', // or 'PUT'
+      });
+    return response;
 }

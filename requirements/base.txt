@@ -1,7 +1,11 @@
-Django==2.0
+Django==2.2
 django-cors-headers==3.0.2
 django-widget-tweaks==1.4.2
 djangorestframework==3.9.0
 psycopg2-binary
 pytz==2018.5
-django-hardcopy==0.1.4
+requests
+requests_oauthlib
+reportlab
+pandas
+django-pivot

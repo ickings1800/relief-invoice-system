@@ -21,4 +21,4 @@ services:
     env_file:
       - .dev_env
     volumes:
-    - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+    - ./seed:/docker-entrypoint-initdb.d/

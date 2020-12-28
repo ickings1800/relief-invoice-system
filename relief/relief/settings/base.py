@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'relief',
     'corsheaders',
+    'django_pivot',
 ]
 
 ROOT_URLCONF = 'relief.urls'
@@ -117,7 +118,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 LOGIN_URL = '/pos/login/'
-LOGIN_REDIRECT_URL = '/pos/customers/'
+LOGIN_REDIRECT_URL = '/pos/token/redirect/'
 LOGOUT_REDIRECT_URL = '/pos/login'
 
 DEBUG = False
@@ -135,3 +136,8 @@ DATABASES = {
         'PORT': os.environ['POSTGRES_PORT']
     }
 }
+
+FRESHBOOKS_CLIENT_ID = os.environ['FRESHBOOKS_CLIENT_ID']
+FRESHBOOKS_CLIENT_SECRET = os.environ['FRESHBOOKS_CLIENT_SECRET']
+FRESHBOOKS_REDIRECT_URI = os.environ['REDIRECT_URI']
+# OAUTHLIB_INSECURE_TRANSPORT = os.environ['OAUTHLIB_INSECURE_TRANSPORT']

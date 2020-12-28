@@ -1,20 +1,7 @@
 from django import forms
-from django.forms import inlineformset_factory, modelformset_factory
-from .models import Customer, Product, Trip, Route, OrderItem, Invoice
-from datetime import datetime
-
-
-class CustomerForm(forms.ModelForm):
-    class Meta:
-        model = Customer
-        fields = ['name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst']
-
-
-class ProductForm(forms.ModelForm):
-    class Meta:
-        model = Product
-        fields = ['name', 'specification']
-
+from django.forms import formset_factory
+from .models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct
+from datetime import datetime, date
 
 class RouteArrangementForm(forms.ModelForm):
     class Meta:
@@ -127,61 +114,21 @@ class InvoiceAddOrderForm(forms.Form):
         self.fields['date'] = forms.ChoiceField(choices=[(t.id, datetime.strftime(t.date,"%d/%m/%Y %H:%M")) for t in trips])
 
 
-class InvoiceForm(forms.ModelForm):
-    class Meta:
-        model = Invoice
-        fields = ['invoice_year',
-                  'invoice_number',
-                  'original_total',
-                  'minus',
-                  'net_total',
-                  'net_gst',
-                  'total_incl_gst',
-                  'remark']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['original_total'].disabled = True
-        self.fields['original_total'].label = 'TOTAL'
-        self.fields['minus'].label = 'MINUS'
-        self.fields['net_total'].disabled = True
-        self.fields['net_total'].label = 'NETT'
-        self.fields['net_gst'].disabled = True
-        self.fields['total_incl_gst'].disabled = True
-        self.fields['total_incl_gst'].label = 'TOTAL (GST)'
-        self.fields['invoice_year'].required = False
-        self.fields['invoice_number'].required = False
+class ImportFileForm(forms.Form):
+    import_customer_file = forms.FileField(required=False, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'file'}))
+    import_product_file = forms.FileField(required=False, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'file'}))
+    import_quote_file = forms.FileField(required=False, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'file'}))
+    import_orderitem_file = forms.FileField(required=False, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'file'}))
+    import_invoice_file = forms.FileField(required=False, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'file'}))
 
-    def clean(self):
-        cleaned_data = super().clean()
-        invoice_year = cleaned_data.get('invoice_year')
-        invoice_number = cleaned_data.get('invoice_number')
-        if (invoice_year is None) != (invoice_number is None):
-            raise forms.ValidationError("Invoice Year and Number cannot be empty.")
+class ExportOrderItemForm(forms.Form):
+    start_date = forms.DateField(required=True, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'date', 'value': date.today()}))
+    end_date = forms.DateField(required=True, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'date', 'value': date.today()}))
 
+class ExportInvoiceForm(forms.Form):
+    start_date = forms.DateField(required=True, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'date', 'value': date.today()}))
+    end_date = forms.DateField(required=True, widget=forms.TextInput(attrs={'class':'form-input', 'type': 'date', 'value': date.today()}))    
 
-class OrderItemForm(forms.ModelForm):
-    def __init__(self, packing, *args, **kwargs):
-        super(OrderItemForm, self).__init__(*args, **kwargs)
-        for method in packing:
-            self.fields[method] = forms.IntegerField(min_value=1, required=False)
-            if self.instance.packing:
-                self.fields[method].initial = self.instance.packing[method]
-
-    def save(self, packing, commit=True):
-        self.instance.packing = {method: self.cleaned_data.get(method) for method in packing}
-        super(OrderItemForm, self).save()
-
-    class Meta:
-        model = OrderItem
-        fields = ['quantity', 'note']
-
-
-OrderItemFormSet = inlineformset_factory(Route,
-                                         OrderItem,
-                                         form=OrderItemForm,
-                                         extra=0,
-                                         can_delete=False)
-
-RouteArrangementFormSet = modelformset_factory(Route, RouteArrangementForm, extra=0)
+# RouteArrangementFormSet = modelformset_factory(Route, RouteArrangementForm, extra=0)
 

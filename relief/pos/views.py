@@ -1,55 +1,95 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
-from hardcopy.views import PDFViewMixin
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Frame, Spacer
+from reportlab.lib import colors
+from reportlab.lib.units import cm, mm
+from reportlab.lib.pagesizes import A3, A4, landscape, portrait
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph
 from datetime import datetime, timedelta
 from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
-from .forms import TripForm, TripDetailForm, OrderItemFormSet, RouteForm, CustomerForm
+from .forms import TripForm, TripDetailForm, RouteForm, ImportFileForm, ExportOrderItemForm, ExportInvoiceForm
+from django.conf import settings
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2 import TokenExpiredError
+from django_pivot.pivot import pivot
+from collections import Counter
+from decimal import Decimal, ROUND_UP
+import pandas as pd
+import numpy as np
 import csv
+import requests
+import json
+import io
+
+refresh_url = "https://api.freshbooks.com/auth/oauth/token"
+client_id = settings.FRESHBOOKS_CLIENT_ID
+client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+
+extra = {
+    'client_id': client_id,
+    'client_secret': client_secret,
+}
+
+def token_updater(request, token):
+    request.session['oauth_token'] = token
+
 
 # Create your views here.
+def redirect_to_freshbooks_auth(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
+    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
+    authorization_url, state = oauth.authorization_url('https://auth.freshbooks.com/service/auth/oauth/authorize')
+    return HttpResponseRedirect(authorization_url)
+
+
+def get_token(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
+    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+    callback_url = request.get_full_path()
+    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
+    token = oauth.fetch_token(
+            "https://api.freshbooks.com/auth/oauth/token",
+            authorization_response=callback_url,
+            client_secret=client_secret)
+    
+    request.session['oauth_token'] = token
+    return HttpResponseRedirect(reverse('pos:overview'))
+
 
 @login_required
-def CustomerIndexView(request):
+def overview(request):
     template_name = 'pos/customer/index.html'
 
     if request.method == 'GET':
+
+        token = request.session['oauth_token']
+        session_account_id = request.session.get('freshbooks_account_id', None)
+
+        if not session_account_id:
+            try:
+                freshbooks = OAuth2Session(client_id,token=token)
+                res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+
+            account_id = res.get('response')\
+                            .get('business_memberships')[0]\
+                            .get('business')\
+                            .get('account_id')
+
+            request.session['freshbooks_account_id'] = account_id
         return render(request, template_name)
-
-
-class ProductIndexView(LoginRequiredMixin, ListView):
-    template_name = 'pos/product/index.html'
-    context_object_name = 'product_list'
-
-    def get_queryset(self):
-        return Product.objects.all()
-
-
-class TripIndexView(LoginRequiredMixin, ListView):
-    template_name = 'pos/trip/index.html'
-    context_object_name = 'trip_list'
-
-    def get_queryset(self):
-        return Trip.objects.all().order_by('-date')
-
-
-class CustomerProductListView(LoginRequiredMixin, ListView):
-    template_name = 'pos/customerproduct/index.html'
-    context_object_name = 'customerproduct_list'
-
-    def get_queryset(self):
-        customer = self.kwargs['pk']
-        return CustomerProduct.get_latest_customerproducts(customer)
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerProductListView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, pk=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
 
 
 @login_required
@@ -221,27 +261,327 @@ def InvoiceDateRangeView(request, pk):
         return render(request, template_name, {'customer': customer, 'customer_groups':customer_groups})
 
 
-class InvoiceSingleView(LoginRequiredMixin, TemplateView):
+@login_required
+def InvoiceSingleView(request, pk):
     template_name = 'pos/invoice/invoice_single_view.html'
+    invoice = Invoice.objects.select_related('customer').get(pk=pk)
+    if invoice:
+        invoice_customer = invoice.customer
+        query_cp = list(CustomerProduct.objects.filter(customer_id=invoice_customer.pk))
+        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
+        pv_table = pivot(
+            query_oi,
+            ['route__do_number', 'route__date'],
+            'customerproduct__product__name', 'driver_quantity',
+            default=0
+        )
 
-    def get_context_data(self, **kwargs):
-        context = super(InvoiceSingleView, self).get_context_data(**kwargs)
-        invoice_pk = self.kwargs['invoice_pk']
-        invoice = get_object_or_404(Invoice, pk=invoice_pk)
-        customer = invoice.customer_id
-        customer = get_object_or_404(Customer, pk=customer)
-        route_list = Invoice.get_customer_routes_for_invoice(invoice_pk)
-        customerproducts_date_range = CustomerProduct.get_customerproducts_by_date(customer.pk, invoice.start_date, invoice.end_date)
-        customerproduct_sum = Invoice.get_invoice_customerproduct_sum(route_list, customerproducts_date_range)
-        customerproduct_nett = Invoice.get_invoice_customerproduct_nett_amt(customerproduct_sum, customerproducts_date_range)
-        print(customerproduct_nett)
-        context['customerproduct_nett'] = customerproduct_nett
-        context['customerproduct_sum'] = customerproduct_sum
-        context['invoice_route_list'] = route_list
-        context['customerproducts'] = customerproducts_date_range
-        context['customer'] = customer
-        context['invoice'] = invoice
-        return context
+        product_sum = Counter()
+        quote_prices = { cp.product.name:cp.quote_price for cp in query_cp }
+        for row in pv_table:
+            mapped_row = {k.product.name: row.get(k.product.name, 0) for k in query_cp}
+            product_sum.update(mapped_row)
+
+        nett_amt = { cp.product.name: cp.quote_price * product_sum[cp.product.name] for cp in query_cp }
+        subtotal = 0
+        for k, v in nett_amt.items():
+            subtotal += v
+
+        gst_decimal = Decimal(invoice_customer.gst / 100)
+        gst = (subtotal * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (subtotal + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+        ctx = {
+            'pv_table': pv_table,
+            'customerproducts': query_cp,
+            'product_sum': product_sum,
+            'nett_amt': nett_amt ,
+            'subtotal': subtotal,
+            'gst': gst,
+            'total_incl_gst': total_incl_gst,
+            'invoice': invoice
+        }
+
+        return render(request, template_name, ctx)
+    return HttpResponseBadRequest()
+
+
+class NumberedPageCanvas(canvas.Canvas):
+    """
+    http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
+    http://code.activestate.com/recipes/576832/
+    http://www.blog.pythonlibrary.org/2013/08/12/reportlab-how-to-add-page-numbers/
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Constructor"""
+        super().__init__(*args, **kwargs)
+        self.pages = []
+
+    def showPage(self):
+        """
+        On a page break, add information to the list
+        """
+        self.pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        """
+        Add the page number to each page (page x of y)
+        """
+        page_count = len(self.pages)
+
+        for page in self.pages:
+            self.__dict__.update(page)
+            self.draw_page_number(page_count)
+            super().showPage()
+        canvas.Canvas.save(self)
+
+    def draw_page_number(self, page_count):
+        self.setFont("Helvetica-Bold", 8)
+        self.drawRightString(200*mm, 10*mm,
+            "Page %d of %d" % (self._pageNumber, page_count))
+
+
+@login_required
+def download_invoice(request, pk=None):
+    invoice_number = request.GET.get('invoice_number', None)
+    print(invoice_number)
+    try:
+        if pk:
+            print('use pk')
+            invoice = Invoice.objects.get(pk=pk)
+        if invoice_number:
+            print('use invoice number')
+            invoice = Invoice.objects.filter(invoice_number=invoice_number).get()
+    except ObjectDoesNotExist:
+        #  invoice is not in the db
+        print('not in db')
+        return freshbooks_invoice_download(request, invoice_number=invoice_number)
+
+    if invoice:
+        #  invoice is in the db
+        print('in db')
+        if invoice.pivot:
+            print('pivot')
+            return invoice_pdf_view(request, invoice.pk)
+        else:
+            print('freshbooks')
+            return freshbooks_invoice_download(request, pk=invoice.pk)
+        
+    return HttpResponseBadRequest()
+
+
+@login_required
+def invoice_pdf_view(request, pk):
+    invoice = Invoice.objects.select_related('customer').get(pk=pk)
+    if invoice:
+        invoice_customer = invoice.customer
+        query_cp = list(CustomerProduct.objects.filter(customer_id=invoice_customer.pk))
+        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
+        pv_table = pivot(
+            query_oi,
+            ['route__do_number', 'route__date'],
+            'customerproduct__product__name', 'driver_quantity',
+            default=0
+        )
+
+        product_sum = Counter()
+        quote_prices = { cp.product.name:cp.quote_price for cp in query_cp }
+        for row in pv_table:
+            mapped_row = {k.product.name: row.get(k.product.name, 0) for k in query_cp}
+            product_sum.update(mapped_row)
+
+        nett_amt = { cp.product.name: cp.quote_price * product_sum[cp.product.name] for cp in query_cp }
+        subtotal = 0
+        for k, v in nett_amt.items():
+            subtotal += v
+
+        gst_decimal = Decimal(invoice_customer.gst / 100)
+        gst = (subtotal * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (subtotal + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename={0}.pdf'.format(invoice.invoice_number)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1*cm, bottomMargin=2*cm)
+
+        # container for the "Flowable" objects
+        elements = []
+
+
+        # Make heading for each column and start data list
+
+        top_table_style = TableStyle(
+            [
+                ('FONTSIZE',(0,0),(-1,-1),10),
+                ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')
+            ]
+        )
+        taxStyle = getSampleStyleSheet()                       
+        taxHeadingStyle = taxStyle["Normal"]
+        taxHeadingStyle.fontName = 'Helvetica-Bold'
+        taxHeadingStyle.fontSize = 14
+
+        top_table_data = []
+        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)])
+        top_table_data.append(["TUAS BAY WALK #02-30 SINGAPORE 637780", "INVOICE NUMBER:", invoice.invoice_number])
+        top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", invoice.date_generated.strftime('%d/%m/%Y')])
+        top_table_data.append(["REG NO: 200302589N"])
+        top_table_data.append(["BILL TO"])
+        top_table_data.append([invoice_customer.name])
+
+
+
+        top_table = Table(top_table_data, [12*cm, 4*cm, 3*cm])
+        top_table.setStyle(top_table_style)
+
+        # Assemble data for each column using simple loop to append it into data list
+
+        styles = getSampleStyleSheet()
+        styleBH = styles["Normal"]
+        styleBH.alignment = TA_CENTER
+        styleBH.fontName = 'Helvetica-Bold'
+
+        product_style = TableStyle(
+            [
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('LINEBELOW', (0,0), (-1,0), 0.5, colors.black),
+                ('LINEBELOW', (0,-1), (-1,-1), 0.5, colors.black),
+                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('FONTNAME', (0,0), (-1, 0), 'Helvetica-Bold'),
+            ]
+        )
+        heading = []
+        heading.append(Paragraph("DATE", styleBH))
+        for cp in query_cp:
+            heading.append(Paragraph(cp.product.name, styleBH))
+        heading.append(Paragraph("D/O", styleBH))
+        datalist = [heading]
+
+        for row in pv_table:
+            data_row = []
+            data_row.append(row.get('route__date').strftime('%d/%m/%Y'))
+            for cp in query_cp:
+                if row.get(cp.product.name) is None:
+                    data_row.append('')
+                else:
+                    data_row.append(str(row.get(cp.product.name)))
+            data_row.append(row.get('route__do_number', styleBH))
+            datalist.append(data_row)
+        table_width = (19/len(heading)) * cm
+        product_table = Table(datalist, [table_width for i in range(len(heading))])
+        product_table.hAlign = 'CENTER'
+        product_table.setStyle(product_style)
+
+
+
+        quantity_style = TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                                        ('FONTSIZE', (0,0), (-1,-1), 9)])
+        quantity_data = []
+        #   -- quantity row --
+        quantity_row = []
+        quantity_row.append(Paragraph("QUANTITY", styleBH))
+        for cp in query_cp:
+            quantity_row.append(Paragraph(str(product_sum.get(cp.product.name, 0)), styleBH))
+        quantity_row.append("")
+        quantity_data.append(quantity_row)
+        #  -- unit price row --
+        unit_price_row = []
+        unit_price_row.append(Paragraph("UNIT PRICE", styleBH))
+        for cp in query_cp:
+            unit_price_row.append(Paragraph(str(quote_prices.get(cp.product.name)), styleBH))
+        unit_price_row.append("")
+        quantity_data.append(unit_price_row)
+        #  -- nett amount row --
+        nett_amt_row = []
+        nett_amt_row.append(Paragraph("NETT AMOUNT", styleBH))
+        for cp in query_cp:
+            nett_amt_row.append(Paragraph(str(nett_amt.get(cp.product.name)), styleBH))
+        nett_amt_row.append("")
+        quantity_data.append(nett_amt_row)
+        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))])
+        quantity_table.hAlign = 'CENTER'
+        quantity_table.setStyle(quantity_style)
+
+        # -- subtotal, gst, total amount --
+        total_data_style = TableStyle([('FONTSIZE', (0,0), (-1,-1), 9),
+                                        ('GRID', (1,0), (-1,-1), 0.5, colors.black),
+                                        ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')])
+        total_data = []
+        total_data.append(["SUB-TOTAL ($)", str(subtotal)])
+        total_data.append(["GST ({0}%)".format(invoice_customer.gst), str(gst)])
+        total_data.append(["DISCOUNT", str(invoice.minus)])
+        total_data.append(["TOTAL (inc. GST) ($)", str(total_incl_gst)])
+        total_data_table = Table(total_data)
+        total_data_table.hAlign = 'RIGHT'
+        total_data_table.setStyle(total_data_style)
+
+        elements.append(top_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(product_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(quantity_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(total_data_table)
+
+        doc.build(elements, canvasmaker=NumberedPageCanvas)
+
+
+        response.write(buffer.getvalue())
+        buffer.close()
+        return response
+    return HttpResponseBadRequest()
+
+@login_required
+def freshbooks_invoice_download(request, pk=None, invoice_number=None):
+    if pk:
+        invoice = Invoice.objects.get(pk=pk)
+        invoice_number = invoice.invoice_number
+    if invoice_number:
+        #  find the invoice id from freshbooks
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks_client_id = settings.FRESHBOOKS_CLIENT_ID
+        search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
+            freshbooks_account_id, invoice_number
+        )
+        try:
+            freshbooks = OAuth2Session(freshbooks_client_id, token=token)
+            freshbooks_invoice = freshbooks.get(search_url).json()
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+
+        print(freshbooks_invoice)
+        freshbooks_invoice_search = freshbooks_invoice.get('response')\
+                                                    .get('result')\
+                                                    .get('invoices')
+        if len(freshbooks_invoice_search) == 0:
+            return HttpResponseBadRequest()
+
+        if not freshbooks_account_id or not token:
+            return HttpResponseBadRequest()
+
+        freshbooks_invoice_id = freshbooks_invoice_search[0].get('invoiceid')
+
+        download_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}/pdf'.format(
+            freshbooks_account_id, freshbooks_invoice_id
+        )
+
+        try:
+            pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
+        except Exception as e:
+            return HttpResponseBadRequest()
+        response = FileResponse(
+            pdf.raw, as_attachment=True, filename='{0}.pdf'.format(invoice_number)
+        )
+        return response
+    return HttpResponseBadRequest()
 
 
 class InvoiceHistoryView(LoginRequiredMixin, ListView):
@@ -327,38 +667,165 @@ class TripDetailPrintView(LoginRequiredMixin, FormView):
         return context
 
 
-class TripDetailPDFView(PDFViewMixin, TripDetailPrintView):
-    template_name = 'pos/trip/print_detail.html'
-    download_attachment = True
+def orderitem_summary(request):
+    def get_invoice_number(orderitem):
+        if orderitem.invoice:
+            print(orderitem.invoice)
+            return orderitem.invoice.invoice_number
+        return ''
 
-
-def orderitem_summary(request, customer_uuid):
     if request.method == 'GET':
-        customer = get_object_or_404(Customer, url=customer_uuid)
-        date_start_string = request.GET.get('date_start')
-        date_end_string = request.GET.get('date_end')
+        field_names = [
+            'date','customer','product','quantity',
+            'driver_quantity','do_number','unit_price',
+            'invoice_number'
+        ]
+        date_start_string = request.GET.get('start_date')
+        date_end_string = request.GET.get('end_date')
+
         if date_start_string and date_end_string:
-            date_start = datetime.strptime(date_start_string, "%d/%m/%Y")
-            date_end = datetime.strptime(date_end_string, "%d/%m/%Y")
-            date_end += timedelta(hours=23, minutes=59, seconds=59)
-            summary_routes = Route.get_customer_routes_orderitems_by_date(date_start, date_end, customer.pk)
-            #  currently get the latest customerproducts. to be change to date range
-            customerproducts = CustomerProduct.get_latest_customerproducts(customer.pk)
+            date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
+            date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
+            orderitems = OrderItem.objects.select_related('route', 'invoice')\
+            .filter(route__date__gte=date_start, route__date__lte=date_end)
+
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="summary.csv"'
-            writer = csv.writer(response)
-            writer.writerow(['DATE'] + [cp.product.name for cp in customerproducts] + ['D/O'])
-            writer.writerow([])
-            for route in summary_routes:
-                route_orderitems = route.orderitem_set.all()
-                orderitem_dict = dict()
-                for oi in route_orderitems:
-                    orderitem_dict[oi.customerproduct.product.name] = oi.driver_quantity
-                writer.writerow(
-                    [str(route.trip.date.strftime("%d/%m/%Y"))] +
-                    [orderitem_dict[cp.product.name] for cp in customerproducts] +
-                    [route.do_number]
-                )
+
+            writer = csv.DictWriter(response, fieldnames=field_names)
+            writer.writeheader()
+            for oi in orderitems:
+                writer.writerow({
+                    'date': oi.route.date.strftime('%d/%m/%Y'),
+                    'customer': oi.customerproduct.customer.name,
+                    'product': oi.customerproduct.product.name,
+                    'quantity': oi.quantity,
+                    'driver_quantity': oi.driver_quantity,
+                    'do_number': oi.route.do_number,
+                    'unit_price': oi.unit_price,
+                    'invoice_number': get_invoice_number(oi)
+                })
             return response
         else:
-            return HttpResponse(status=400)
+            return HttpResponseBadRequest()
+
+def export_invoice(request):
+    if request.method == 'GET':
+        field_names = [
+            'date_generated', 'remark', 'minus', 'net_total',
+            'gst', 'net_gst', 'total_incl_gst',
+            'invoice_number', 'customer', 'pivot'
+        ]
+        date_start_string = request.GET.get('start_date')
+        date_end_string = request.GET.get('end_date')
+
+        if date_start_string and date_end_string:
+            date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
+            date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
+            orderitems_with_invoices = OrderItem.objects.select_related(
+                'route', 'invoice'
+            )\
+            .filter(
+                route__date__gte=date_start,
+                route__date__lte=date_end,
+                invoice__invoice_number__isnull=False
+            )
+            invoice_ids = set([orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
+            export_invoices = Invoice.objects.filter(invoice_number__in=invoice_ids)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="invoice_summary.csv"'
+
+            writer = csv.DictWriter(response, fieldnames=field_names)
+            writer.writeheader()
+            for invoice in export_invoices:
+                writer.writerow({
+                    'date_generated': invoice.date_generated,
+                    'remark': invoice.remark,
+                    'minus': invoice.minus,
+                    'net_total': invoice.net_total,
+                    'gst': invoice.gst,
+                    'net_gst': invoice.net_gst,
+                    'total_incl_gst': invoice.total_incl_gst,
+                    'invoice_number': invoice.invoice_number,
+                    'customer': invoice.customer.name,
+                    'pivot': invoice.pivot
+                })
+            return response
+        else:
+            return HttpResponseBadRequest()
+
+def export_quote(request):
+    if request.method == 'GET':
+        field_names = ['customer', 'product', 'quote_price', 'freshbooks_tax_1']
+        quotes = CustomerProduct.objects.all()
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="quotes.csv"'
+
+        writer = csv.DictWriter(response, fieldnames=field_names)
+        writer.writeheader()
+        for cp in quotes:
+            writer.writerow({
+                'customer': cp.customer.name,
+                'product': cp.product.name,
+                'quote_price': cp.quote_price,
+                'freshbooks_tax_1': cp.freshbooks_tax_1
+            })
+        return response
+    else:
+        return HttpResponseBadRequest()
+
+def express_order(request):
+    template_name = 'pos/route/express_order.html'
+    if request.method == 'GET':
+        return render(request, template_name)
+
+
+def import_items(request):
+    template_name = 'pos/master/import_items.html'
+    if request.method == 'POST':
+        form = ImportFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            import_customer_file = request.FILES.get('import_customer_file', None)
+            import_product_file = request.FILES.get('import_product_file', None)
+            import_quote_file = request.FILES.get('import_quote_file', None)
+            import_orderitem_file = request.FILES.get('import_orderitem_file', None)
+            import_invoice_file = request.FILES.get('import_invoice_file', None)
+
+            if import_customer_file:
+                with open('/tmp/customer_import.csv', 'wb+') as destination:
+                    for chunk in import_customer_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/customer_import.csv') as csv_file:
+                    Customer.handle_customer_import(csv_file)
+            if import_product_file:
+                with open('/tmp/product_import.csv', 'wb+') as destination:
+                    for chunk in import_product_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/product_import.csv') as csv_file:
+                    Product.handle_product_import(csv_file)
+            if import_quote_file:
+                with open('/tmp/quote_import.csv', 'wb+') as destination:
+                    for chunk in import_quote_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/quote_import.csv') as csv_file:
+                    CustomerProduct.handle_quote_import(csv_file)
+            #  import invoice file
+            if import_invoice_file:
+                with open('/tmp/invoice_import.csv', 'wb+') as destination:
+                    for chunk in import_invoice_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/invoice_import.csv') as csv_file:
+                    Invoice.handle_invoice_import(csv_file)
+            if import_orderitem_file:
+                with open('/tmp/orderitem_import.csv', 'wb+') as destination:
+                    for chunk in import_orderitem_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/orderitem_import.csv') as csv_file:
+                    OrderItem.handle_orderitem_import(csv_file)
+            return HttpResponseRedirect(reverse('pos:import_items'))
+    else:
+        form = ImportFileForm()
+        export_form = ExportOrderItemForm()
+        export_invoice = ExportInvoiceForm()
+    return render(request, template_name, {'form': form, 'export_form': export_form, 'export_invoice': export_invoice})

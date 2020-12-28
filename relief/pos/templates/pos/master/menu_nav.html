@@ -4,27 +4,28 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <!-- use the latest vue-select release -->
+    <script src="https://unpkg.com/vue-select@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
     <link rel="stylesheet" type="text/css" href="{% static 'pos/main.css' %}" />
 </head>
 <body>
-<header class="navbar display-no-print">
-  <div class="navbar-section columns">
-      <div class="column col-10">
-          <a href="{% url 'pos:customer_index' %}" class="btn btn-link">Customer</a>
-          <a href="{% url 'pos:trip_index' %}" class="btn btn-link">Trips</a>
-          <a href="{% url 'pos:product_index' %}" class="btn btn-link">Products</a>
-      </div>
-      <div class="column col-2 text-right">
-          {% if user.is_authenticated %}
-          <a href="{% url 'pos:logout' %}" class="btn btn-link">Logout</a>
-          {% endif %}
-      </div>
-  </div>
+<header class="navbar">
+  <section class="navbar-section">
+    <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">relief.com</a>
+    {% if user.is_authenticated %}
+      <a class="nav-link" href="{% url 'pos:logout' %}" tabindex="-1" aria-disabled="true">Logout</a>
+    {% endif %}
+    <a class="nav-link" href="{% url 'pos:express_order' %}" tabindex="-1" aria-disabled="true">Orders</a>
+    <a class="nav-link" href="{% url 'pos:import_items' %}" tabindex="-1" aria-disabled="true">Import</a>
+  </section>
 </header>
 {% block content %}
 {% endblock %}
 </body>
-</html>
+</html

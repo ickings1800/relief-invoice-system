@@ -1,0 +1,12 @@
+{% extends 'pos/master/menu_nav.html' %}
+{% load index %}
+{% load static %}
+{% load widget_tweaks %}
+{% block content %}
+<script type="module" src="{% static 'pos/js/express_order.js' %}"></script>
+{% verbatim %}
+<div id="app">
+	<order-form></order-form>
+</div>
+{% endverbatim %}
+{% endblock %}

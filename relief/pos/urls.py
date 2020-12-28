@@ -5,26 +5,34 @@ from . import views
 
 app_name = 'pos'
 urlpatterns = [
-    #  /pos/customers/
-    path('customers/', views.CustomerIndexView, name='customer_index'),
     #  /pos/customers/detail/<pk>/
-    path('customers/detail/<int:id>/', views.CustomerDetailView, name='customer_detail_view'),
-    #  /pos/products/
-    path('products/', views.ProductIndexView.as_view(), name='product_index'),
-    #  /pos/trips/
-    path('trips/', views.TripIndexView.as_view(), name='trip_index'),
+    path('quotes/', views.overview, name='overview'),
     #  /pos/trip/detail/<int:pk>/
     path('trip/detail/<int:pk>/', views.TripDetailView.as_view(), name='trip_detail'),
-    #  /pos/trip/detail/<int:pk>/print/
-    path('trip/detail/<int:pk>/print/', views.TripDetailPDFView.as_view(), name='trip_detail_print'),
-    #  /pos/trip/detail<int:pk>/print/test/
-    path('trip/detail/<int:pk>/print/test/', views.TripDetailPrintView.as_view(), name='trip_detail_test'),
+    #  /pos/invoice/<int:pk>/
+    path('invoice/<int:pk>/', views.InvoiceSingleView, name='invoice_detail'),
+    #  /pos/invoice/pdf/
+    path('invoice/pdf/', views.download_invoice, name='invoice_download_range'),
+    #  /pos/invoice/<int:pk>/pdf/
+    path('invoice/<int:pk>/pdf/', views.download_invoice, name='invoice_download'),
     #  /pos/orderitem/summary/
-    path('orderitem/<uuid:customer_uuid>/summary/', views.orderitem_summary, name='orderitem_summary'),
+    path('orderitem/summary/', views.orderitem_summary, name='orderitem_summary'),
+    #  /pos/invoice/export/
+    path('invoice/export/', views.export_invoice, name='invoice_export'),
+    #  /pos/quotes/export/
+    path('quotes/export/', views.export_quote, name='export_quote'),
+    #  /pos/express/
+    path('express/', views.express_order, name='express_order'),
+    #  /pos/import/
+    path('import/', views.import_items, name='import_items'),
     #  /pos/login
     path('login/', auth_views.LoginView.as_view(template_name='pos/login.html'), name='login'),
     #  /pos/logout
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    #  /pos/token/
+    path('token/', views.get_token, name='get_freshbooks_token'),
+    #  /pos/token/redirect
+    path('token/redirect/', views.redirect_to_freshbooks_auth, name='freshbooks_redirect')
 ]
 
 urlpatterns += urls.urlpatterns

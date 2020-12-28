@@ -18,6 +18,10 @@ input[type=number]::-webkit-outer-spin-button {
     text-transform: uppercase;
 }
 
+a {
+   outline: 0;
+}
+
 h4 {
     margin:0;
 }
@@ -29,6 +33,15 @@ h4 {
 
 th {
     text-align:left;
+    vertical-align: unset !important;
+}
+
+td {
+    vertical-align: unset !important;
+}
+
+td, td {
+    padding: .4rem .4rem !important;
 }
 
 .button-action {
@@ -258,4 +271,91 @@ font-size: 1vw;
 
 #trip-notes {
     font-size: 18px;
+}
+
+
+.order-row > .form-group {
+    flex: 1;
+}
+
+.order-row {
+    width: 100%;
+}
+
+
+#invoice-create-modal-window {
+    width: unset !important;
+    max-width: unset !important;
+}
+
+.del-row-btn {
+    align-self: flex-end;
+}
+
+.delete-container {
+    flex: 1;
+}
+
+.action-container {
+    flex: 1;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.flex-2 {
+    flex: 2;
+}
+
+.action-bar {
+    width: 100%;
+}
+
+.invoice-table {
+    text-align: center;
+}
+
+.invoice-table th {
+    text-align: center;
+    border-bottom: unset !important;
+}
+
+.borderless {
+    border-top: unset !important;
+    border-bottom: unset !important;
+}
+
+.b-left {
+    border-left: 1px solid #dee2e6 !important;
+}
+
+.b-top {
+    border-top: 1px solid #dee2e6 !important;
+}
+
+.b-right {
+    border-right: 1px solid #dee2e6 !important;
+}
+
+.b-bottom {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.border {
+    border-left: 1px solid #dee2e6 !important;
+
+    border-top: 1px solid #dee2e6 !important;
+
+    border-right: 1px solid #dee2e6 !important;
+
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.align-left {
+    text-align: left;
+}
+
+.invoice-header {
+    width: 100%;
 }

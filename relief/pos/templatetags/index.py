@@ -1,4 +1,6 @@
 from django import template
+from datetime import datetime
+
 register = template.Library()
 
 @register.filter
@@ -19,3 +21,7 @@ def all_quantity_zero(List):
         if item.quantity > 0:
             return False
     return True
+
+@register.filter
+def format_date(date, fmt):
+	return date.strftime(fmt)
