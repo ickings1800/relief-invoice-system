@@ -22,8 +22,6 @@ from oauthlib.oauth2 import TokenExpiredError
 from django_pivot.pivot import pivot
 from collections import Counter
 from decimal import Decimal, ROUND_UP
-import pandas as pd
-import numpy as np
 import csv
 import requests
 import json

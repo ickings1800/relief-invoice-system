@@ -1,0 +1,25 @@
+FROM python:3.6-buster
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+COPY ./docker/prod/python/entrypoint.sh /entrypoint.sh
+RUN groupadd relief && useradd relief -g relief
+
+RUN chmod +x /entrypoint.sh
+COPY --chown=relief:relief . /home/relief
+WORKDIR /home/relief
+RUN mkdir /home/relief/relief/static/
+RUN chown relief:relief /home/relief/relief/static
+
+# puts a file inside the directory so that permissions are correct
+RUN touch /home/relief/relief/static/DJANGO_COLLECTSTATIC_DIR
+VOLUME /home/relief/relief/static
+
+RUN \
+ apt-get install python3.6 && \
+ apt-get install libjpeg-dev zlib1g-dev && \
+ python3 -m pip install -r ./requirements/prod.txt --no-cache-dir
+
+
+USER relief
+ENTRYPOINT ["/entrypoint.sh"]

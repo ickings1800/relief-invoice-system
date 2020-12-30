@@ -7,10 +7,6 @@ pytz==2018.5
 requests
 requests_oauthlib
 reportlab
-<<<<<<< HEAD:requirements.txt
 pandas
 django-pivot
 django-debug-toolbar
-=======
-django-pivot
->>>>>>> temp:requirements/base.txt
