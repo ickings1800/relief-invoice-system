@@ -1,9 +1,9 @@
-FROM python:3.6-alpine
+FROM python:3.6-buster
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 COPY ./docker/prod/python/entrypoint.sh /entrypoint.sh
-RUN addgroup -S relief && adduser -S relief -G relief
+RUN groupadd relief && useradd relief -g relief
 
 RUN chmod +x /entrypoint.sh
 COPY --chown=relief:relief . /home/relief
@@ -14,15 +14,12 @@ RUN chown relief:relief /home/relief/relief/static
 # puts a file inside the directory so that permissions are correct
 RUN touch /home/relief/relief/static/DJANGO_COLLECTSTATIC_DIR
 VOLUME /home/relief/relief/static
-RUN apk add build-base python-dev py-pip jpeg-dev zlib-dev
-ENV LIBRARY_PATH=/lib:/usr/lib
 
 RUN \
- apk add --no-cache python3 postgresql-libs && \
- apk add --no-cache --virtual .build-deps gcc python3-dev musl-dev postgresql-dev && \
- python3 -m pip install -r ./requirements/prod.txt --no-cache-dir && \
- apk --purge del .build-deps
+ apt-get install python3.6 && \
+ apt-get install libjpeg-dev zlib1g-dev && \
+ python3 -m pip install -r ./requirements/prod.txt --no-cache-dir
 
-RUN apk add chromium
+
 USER relief
 ENTRYPOINT ["/entrypoint.sh"]
