@@ -189,6 +189,7 @@ class Customer(models.Model):
             client_address = client.get('p_street')
             client_postal_code = client.get('p_code')
             client_country = client.get('p_country')
+            client_id = client.get('id')
             client_accounting_systemid = client.get('accounting_systemid')
             new_client = Customer(
                 name=client_name, address=client_address, postal_code=client_postal_code,
