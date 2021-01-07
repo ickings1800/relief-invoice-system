@@ -16,14 +16,16 @@
 </head>
 <body>
 <header class="navbar">
-  <section class="navbar-section">
-    <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">relief.com</a>
-    {% if user.is_authenticated %}
-      <a class="nav-link" href="{% url 'pos:logout' %}" tabindex="-1" aria-disabled="true">Logout</a>
-    {% endif %}
-    <a class="nav-link" href="{% url 'pos:express_order' %}" tabindex="-1" aria-disabled="true">Orders</a>
-    <a class="nav-link" href="{% url 'pos:import_items' %}" tabindex="-1" aria-disabled="true">Import</a>
-  </section>
+    <div class="container">
+      <section class="navbar-section">
+        <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">relief.systems ALPHA</a>
+        {% if user.is_authenticated %}
+            <a class="nav-link" href="{% url 'pos:express_order' %}" tabindex="-1" aria-disabled="true">Orders</a>
+            <a class="nav-link" href="{% url 'pos:import_items' %}" tabindex="-1" aria-disabled="true">Import</a>
+            <a class="nav-link" href="{% url 'pos:logout' %}" tabindex="-1" aria-disabled="true">Logout</a>
+        {% endif %}
+      </section>
+    </div>
 </header>
 {% block content %}
 {% endblock %}
