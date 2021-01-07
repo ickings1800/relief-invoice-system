@@ -438,6 +438,9 @@ class Product(models.Model):
 class Invoice(models.Model):
     date_generated = models.DateField(auto_now=True)
     remark = models.CharField(max_length=255, null=True, blank=True)
+    po_number = models.CharField(max_length=255, null=True, blank=True)
+    discount_description = models.CharField(max_length=255, null=True, blank=True)
+    discount_percentage = models.DecimalField(default=0.00, max_digits=7, decimal_places=4)
     minus = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     net_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
@@ -446,6 +449,8 @@ class Invoice(models.Model):
     invoice_number = models.TextField(null=False, blank=False, unique=True)
     customer = models.ForeignKey(Customer, null=False, on_delete=models.DO_NOTHING)
     pivot = models.BooleanField(default=False)
+    freshbooks_account_id = models.TextField(null=True, blank=False)
+    freshbooks_invoice_id = models.TextField(null=True, blank=False)
 
     class Meta:
         unique_together = ('invoice_number', 'customer')
