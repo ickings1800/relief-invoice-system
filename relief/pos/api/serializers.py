@@ -145,6 +145,9 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'remark',
             'customer_name',
             'date_generated',
+            'po_number',
+            'discount_description',
+            'discount_percentage',
             'url',
             'download_url'
         )
@@ -228,6 +231,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
 
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
+    orderitem_set = SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -240,8 +244,15 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
                   'total_incl_gst',
                   'remark',
                   'customer',
+                  'po_number',
+                  'discount_description',
+                  'discount_percentage',
                   'date_generated',
+                  'orderitem_set')
 
+    def get_orderitem_set(self, obj):
+        ordered_orderitem = obj.orderitem_set.order_by('route__date')
+        return OrderItemSerializer(ordered_orderitem, many=True, context=self.context).data
 
 
 
