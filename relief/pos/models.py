@@ -542,13 +542,14 @@ class CustomerProduct(models.Model):
             freshbooks_tax_1 = row["freshbooks_tax_1"]
             customer_obj = Customer.objects.filter(name=customer_name).first()
             product_obj = Product.objects.filter(name=product_name).first()
-            new_quote = CustomerProduct(
-                customer_id=customer_obj.pk,
-                product_id=product_obj.pk,
-                quote_price=quote_price,
-                freshbooks_tax_1=freshbooks_tax_1
-            )
-            new_quote.save()
+            if customer_obj and product_obj:
+                new_quote = CustomerProduct(
+                    customer_id=customer_obj.pk,
+                    product_id=product_obj.pk,
+                    quote_price=quote_price,
+                    freshbooks_tax_1=freshbooks_tax_1
+                )
+                new_quote.save()
 
 class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(default=0)
