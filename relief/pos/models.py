@@ -185,6 +185,11 @@ class Customer(models.Model):
 
     def import_freshbooks_clients(import_clients, freshbooks_account_id, token):
         default_group = Group.objects.filter(name='Default').first()
+        if not default_group:
+            new_group = Group(name='Default')
+            new_group.save()
+            default_group = new_group
+
         for client in import_clients:
             if client.get('organization', ''):
                 client_name = client.get('organization', '')
