@@ -1,6 +1,7 @@
 from .base import *
 import os
 # SECURITY WARNING: don't run with debug turned on in production!
+print("------------------ PRODUCTION -----------------")
 DEBUG = False
 
 CSRF_COOKIE_SECURE = True

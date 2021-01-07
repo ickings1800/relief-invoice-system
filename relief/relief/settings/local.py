@@ -2,6 +2,7 @@ from .base import *
 import os
 # SECURITY WARNING: don't run with debug turned on in production!
 # Set the DJNGO_SETTINGS_MODULE env var to project.settings.local to run production settings
+print("--------------- LOCAL DEVELOPMENT ------------------")
 DEBUG = True
 
 
@@ -32,3 +33,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+FRESHBOOKS_CLIENT_ID = os.environ['FRESHBOOKS_CLIENT_ID']
+FRESHBOOKS_CLIENT_SECRET = os.environ['FRESHBOOKS_CLIENT_SECRET']
+FRESHBOOKS_REDIRECT_URI = os.environ['REDIRECT_URI']
+
+print(FRESHBOOKS_CLIENT_ID)
+print(FRESHBOOKS_CLIENT_SECRET)
+print(FRESHBOOKS_REDIRECT_URI)
