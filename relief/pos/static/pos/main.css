@@ -5,8 +5,20 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
+.navbar {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.navbar-brand {
+    padding-left:1rem;
+}
+
 .navbar-section {
     background-color:#f7f8f9;
+    border-radius: .4rem;
+    padding-top:.2rem;
+    padding-bottom: .2rem;
 }
 
 .btn.btn-link {
