@@ -145,7 +145,6 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
   template:`
   <!-- Download Range Modal -->
     <div class="modal" v-bind:class="{ 'active': opened }">
-      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
       <div class="modal-container">
         <div class="modal-header">
           <div class="modal-title h5">Download Invoice Range</div>
