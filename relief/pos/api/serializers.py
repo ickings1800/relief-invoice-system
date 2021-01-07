@@ -228,29 +228,20 @@ class TripDetailSerializer(serializers.ModelSerializer):
 
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
-    route_set = SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = ('id',
-                  'invoice_year',
                   'invoice_number',
-                  'start_date',
-                  'end_date',
                   'minus',
                   'gst',
-                  'original_total',
                   'net_total',
                   'net_gst',
                   'total_incl_gst',
                   'remark',
                   'customer',
                   'date_generated',
-                  'route_set')
 
-    def get_route_set(self, obj):
-        ordered_routes = obj.route_set.order_by('trip__date')
-        return RouteSerializer(ordered_routes, many=True, context=self.context).data
 
 
 
