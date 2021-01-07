@@ -1039,3 +1039,179 @@ def customer_sync(request):
         customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def invoice_sync(request):
+    if request.method == 'POST':
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        sync_invoices = Invoice.objects.all()
+        for invoice in sync_invoices:
+            search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
+                freshbooks_account_id, invoice.invoice_number
+            )
+            try:
+                freshbooks = OAuth2Session(client_id, token=token)
+                freshbooks_invoice = freshbooks.get(search_url).json()
+            except TokenExpiredError as e:
+                token = freshbooks.refresh_token(refresh_url, **extra)
+                token_updater(request, token)
+                freshbooks_invoice = freshbooks.get(search_url).json()
+
+            print(freshbooks_invoice)
+            freshbooks_invoice_search = freshbooks_invoice.get('response')\
+                                                        .get('result')\
+                                                        .get('invoices')
+
+            if len(freshbooks_invoice_search) > 0:
+                freshbooks_invoice = freshbooks_invoice_search[0]
+                invoice.po_number = freshbooks_invoice.get('po_number')
+                invoice.freshbooks_account_id = freshbooks_invoice.get('accounting_systemid')
+                invoice.freshbooks_invoice_id = freshbooks_invoice.get('invoiceid')
+                invoice.save()
+
+
+        if not freshbooks_account_id or not token:
+            return HttpResponseBadRequest()
+        invoice_serializer = InvoiceListSerializer(sync_invoices, context={'request': request}, many=True)
+        return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+def invoice_update(request, pk):
+    if request.method == 'PUT':
+        #  list of ints
+        orderitems_id = request.data.get('orderitems_id')
+        invoice_number = request.data.get('invoice_number')
+        po_number = request.data.get('po_number')
+        discount = request.data.get('discount', 0) #  in percentage
+        discount_description = request.data.get('discount_description', None)
+
+        print(orderitems_id, invoice_number, po_number, discount, discount_description)
+
+        try:
+            existing_invoice = Invoice.objects.prefetch_related('orderitem_set').get(pk=pk)
+            invoice_discount_percentage = Decimal(discount)
+        except Exception as e:
+            print(str(e))
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
+
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks = OAuth2Session(client_id, token=token)
+        #  change invoice_create_url
+        headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
+
+        invoice_lines = []
+
+        set_all_orderitem_invoice_null = False
+        #  list of ints
+        all_ids = [oi.pk for oi in existing_invoice.orderitem_set.all()]
+        for pk in all_ids:
+            if pk not in orderitems_id:
+                set_all_orderitem_invoice_null = True
+
+        print('all null: ', set_all_orderitem_invoice_null)
+        print("Selected ID: ", orderitems_id)
+        print("Invoice orderitem ids: ", all_ids)
+
+        if set_all_orderitem_invoice_null:
+            for oi in existing_invoice.orderitem_set.all():
+                print("set orderitem null -> ", oi.pk)
+                print(oi.quantity, oi.driver_quantity, oi.unit_price)
+                oi.invoice = None
+                if oi.pk in orderitems_id:
+                    oi.invoice = existing_invoice
+                    print('set orderitem to existing invoice: ', oi.pk, oi.route.do_number, oi.quantity,  oi.driver_quantity)
+                oi.save()
+
+        for orderitem in existing_invoice.orderitem_set.all():
+            tax_id = orderitem.customerproduct.freshbooks_tax_1
+            if tax_id:
+                try:
+                    res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(freshbooks_account_id, tax_id)).json()
+                except TokenExpiredError as e:
+                    token = freshbooks.refresh_token(refresh_url, **extra)
+                    token_updater(request, token)
+
+                tax = res.get('response').get('result').get('tax')
+                #  get freshbooks tax
+                invoice_line =  {
+                  "type": 0,
+                  "description": "DATE: {0} D/O: {1}".format(
+                      datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                      orderitem.route.do_number
+                  ),
+                  "taxName1": tax.get('name'),
+                  "taxAmount1": tax.get('amount'),
+                  "name": orderitem.customerproduct.product.name,
+                  "qty": orderitem.driver_quantity,
+                  "unit_cost": { "amount": str(orderitem.unit_price) }
+                }
+
+                invoice_lines.append(invoice_line)
+            else:
+                invoice_line =  {
+                  "type": 0,
+                  "description": "DATE: {0} D/O: {1}".format(
+                      datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                      orderitem.route.do_number
+                  ),
+                  "name": orderitem.customerproduct.product.name,
+                  "qty": orderitem.driver_quantity,
+                  "unit_cost": { "amount": str(orderitem.unit_price) }
+                }
+                invoice_lines.append(invoice_line)
+
+        net_total = 0
+        for orderitem in existing_invoice.orderitem_set.all():
+            net_total += (orderitem.driver_quantity * orderitem.unit_price)
+
+        body = {
+            "invoice": {
+              "invoice_number": invoice_number,
+              "po_number": po_number,
+              "discount_value": discount,
+              "discount_description": discount_description,
+              "lines": [line for line in invoice_lines]
+            }
+        }
+        invoice_update_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}'.format(
+            freshbooks_account_id, existing_invoice.freshbooks_invoice_id
+        )
+        #  update invoice
+        print(json.dumps(body))
+        response = freshbooks.post(invoice_update_url, data=json.dumps(body), headers=headers)
+        gst_decimal = Decimal(existing_invoice.customer.gst / 100)
+        net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
+        total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        print("GST Decimal: {0} | NET GST: {1} | MINUS: {2} | TOTAL INCL GST: {3}".format(gst_decimal, net_gst, minus, total_incl_gst))
+        if response.status_code == 200:
+            print(response)
+            invoice_number = response.json()\
+                                    .get('response')\
+                                    .get('result')\
+                                    .get('invoice')\
+                                    .get('invoice_number')
+
+            gst_decimal = Decimal(invoice_customer.gst / 100)
+            net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+            minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
+            total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+            existing_invoice.minus = minus
+            existing_invoice.discount_description = discount_description
+            existing_invoice.discount_percentage = discount
+            existing_invoice.po_number = po_number
+            existing_invoice.net_total = net_total
+            existing_invoice.gst = invoice_customer.gst
+            existing_invoice.net_gst = net_gst
+            existing_invoice.total_incl_gst = total_incl_gst
+            existing_invoice.invoice_number = invoice_number
+            existing_invoice.save()
+            return Response(data=response.json(), status=status.HTTP_200_OK)
+    return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)

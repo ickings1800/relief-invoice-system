@@ -1,6 +1,140 @@
 const draggable = window['vuedraggable'];
 const origin = location.origin;
 
+
+var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
+  data: function () {
+      return {
+        customer_orderitems: [],
+        selected_orderitems: [],
+        invoice_number: null,
+        po_number: null,
+        discount: 0,
+        discount_description: null,
+      }
+  },
+
+  template:`
+    <!-- Add Customer Modal -->
+    <div class="modal" id="update-invoice-modal" v-bind:class="{ 'active': opened }" v-if="selected_invoice">
+      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click="close"></a>
+      <div class="modal-container" id="invoice-update-modal-window">
+        <div class="modal-header h6">
+        <div class="modal-title h5">Update {{ selected_invoice.customer_name }} Invoice</div>
+          <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
+        </div>
+        <div class="modal-body">
+            <!-- form input control -->
+            <div class="form-group">
+              <label class="form-label">Customer: {{ selected_invoice.customer_name }}</label>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="update-date">Create Date: {{ selected_invoice.date_generated }}</label>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="invoice-number">Invoice Number</label>
+              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="po-number">PO Number</label>
+              <input class="form-input" type="text" id="po-number" v-model="po_number">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="discount-desc">Discount Description</label>
+              <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="discount">Discount (in %)</label>
+              <input class="form-input" type="text" id="discount" v-model="discount">
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item Name</th>
+                  <th>Driver Quantity</th>
+                  <th>Unit Price</th>
+                  <th>D/O</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
+                  <td>
+                    <label class="form-checkbox">
+                      <input type="checkbox" v-bind:value="orderitem.id" v-model="selected_orderitems">
+                      <i class="form-icon"></i> {{ orderitem.date }}
+                    </label>
+                  </td>
+                  <td>{{ orderitem.product_name }}</td>
+                  <td>{{ orderitem.driver_quantity }}</td>
+                  <td>{{ orderitem.unit_price }}</td>
+                  <td>{{ orderitem.do_number }}</td>
+                </tr>
+              </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <div class="divider"></div>
+            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
+            <a id="customer-update-submit-button"
+             href="#save"
+             class="btn btn-primary" v-on:click.prevent="updateInvoice">Update</a>
+        </div>
+      </div>
+    </div>
+   `,
+   props: ['opened', 'selected_invoice'],
+   components: {},
+   watch: {
+     opened: function(val){
+       if (val) {
+         console.log("opened is true");
+         getInvoice(this.selected_invoice.id)
+         .then(res => res.json())
+         .then(res => {
+           console.log(res)
+          this.selected_orderitems =  res.orderitem_set.map(oi => oi.id)
+          this.customer_orderitems = res.orderitem_set
+          this.invoice_number =  res.invoice_number
+          this.po_number =  res.po_number  
+          this.discount =  res.discount_percentage 
+          this.discount_description =  res.discount_description 
+         })
+       }
+     },
+   },
+   methods: {
+       close: function(event){
+           console.log("update customer modal close");
+           this.resetInputs();
+           this.$emit('show-update-invoice');
+       },
+       updateInvoice: function(event){
+        console.log('creating invoice')
+        const data = {
+          'orderitems_id': this.selected_orderitems,
+          'invoice_number': this.invoice_number,
+          'po_number': this.po_number,
+          'discount': this.discount,
+          'discount_description': this.discount_description
+        }
+        updateInvoice(data, this.selected_invoice.id)
+        .then(res => res.json())
+        .then(() => this.resetInputs());
+      },
+      resetInputs: function(event) {
+        console.log('reset inputs')
+        this.selected_orderitems = [];
+        this.customer_orderitems = [];
+        this.invoice_number = null;
+        this.po_number = null;
+        this.discount = 0;
+        this.discount_description = null;
+      }
+  }
+})
+
+
 var ProductDetailModal = Vue.component('ProductDetailModal', {
   data: function () {
       return {
@@ -1030,6 +1164,7 @@ var CustomerList = Vue.component('CustomerList', {
       </div> 
 
       <div class="btn-group btn-group-block float-right my-2" v-if="currentTab === 'invoices'">
+        <button class="btn" v-on:click="$emit('sync-invoices')">Sync Invoices</button>
         <button class="btn btn-primary" v-on:click="$emit('show-download-range-modal')">Range Download</button>
       </div> 
 
@@ -1145,12 +1280,14 @@ var CustomerList = Vue.component('CustomerList', {
         <tbody>
           <tr v-for="invoice in invoices" :key="invoice.id" class="c-hand">
             <td>
-              <a :href="invoice.url">{{ invoice.invoice_number }}</a>
+              <a href="#" v-on:click.prevent="show_invoice_update(invoice)">{{ invoice.invoice_number }}</a>
             </td>
             <td>
               <a href="#" v-on:click.prevent="show_invoice_delete(invoice)">{{ invoice.customer_name }}</a>
             </td>
-            <td>{{ invoice.date_generated }}</td>
+            <td>
+              <a :href="invoice.url">{{ invoice.date_generated }}</a>
+            </td>
             <td>{{ invoice.total_incl_gst }}</td>
             <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>
           </tr>
@@ -1192,6 +1329,10 @@ var CustomerList = Vue.component('CustomerList', {
        },
        show_invoice_delete: function(invoice){
         this.$emit('show-invoice-delete-modal', invoice);
+       },
+       show_invoice_update: function(invoice){
+        console.log('invoice update event')
+        this.$emit('show-update-invoice', invoice);
        }
    },
    watch: {
@@ -1228,6 +1369,7 @@ var app = new Vue({
           show_quote_edit_modal: false,
           show_create_group_modal: false,
           show_create_invoice_modal: false,
+          show_update_invoice_modal: false,
           show_edit_group_modal: false,
           show_customer_detail_modal: false,
           show_product_detail_modal: false,
@@ -1243,6 +1385,7 @@ var app = new Vue({
           edit_orderitem: null,
           delete_invoice: null,
           create_invoice_customer: null,
+          update_invoice: null,
           create_invoice_orderitems: [],
           products: [],
           clients: [],
@@ -1268,6 +1411,7 @@ var app = new Vue({
       'create-group-modal': CreateGroupModal,
       'edit-group-modal': EditGroupModal,
       'create-invoice-modal': CreateInvoiceModal,
+      'update-invoice-modal': UpdateInvoiceModal,
       'detail-customer-modal': CustomerDetailModal,
       'detail-product-modal': ProductDetailModal,
       'edit-orderitem-modal': OrderItemEditModal,
@@ -1328,6 +1472,17 @@ var app = new Vue({
         this.create_invoice_customer_id = null
         this.create_invoice_orderitems = []
         getAllOrderitems().then(res => res.json()).then(res => this.orderitems = res)
+      }
+    },
+    show_update_invoice_modal_window: function(selected_invoice, selected_client_orderitems){
+      console.log("show update invoice modal");
+      console.log(selected_client_orderitems)
+      this.show_update_invoice_modal = !this.show_update_invoice_modal
+      if (this.show_update_invoice_modal){
+        this.update_invoice = selected_invoice
+      }
+      if (!this.show_update_invoice_modal){
+        this.update_invoice = null
       }
     },
     show_create_group_modal_window: function(event){
@@ -1406,6 +1561,10 @@ var app = new Vue({
     sync_clients: function(){
       console.log('sync clients')
       syncClients().then(res => res.json()).then(res => this.clients = res)
+    },
+    sync_invoices: function() {
+      console.log('sync invoices')
+      syncInvoices().then(res => res.json()).then(res => this.invoices = res)
     }
   }
 })
@@ -1590,6 +1749,14 @@ function getAllInvoices(){
   return response;
 }
 
+function getInvoice(invoice_id){
+  let url = origin + '/pos/api/invoices/' + invoice_id + '/';
+  let response = fetch(url, {
+      method: 'GET', // or 'PUT'
+  });
+  return response;
+}
+
 function createInvoice(data){
   let url = origin + '/pos/api/invoice/create/'
   let response = fetch(url, {
@@ -1766,6 +1933,36 @@ function syncClients(data={}){
   let url = origin + '/pos/api/customers/sync/';
   let response = fetch(url, {
       method: 'POST', // or 'PUT'
+      credentials: 'same-origin',
+      body: JSON.stringify(data), // data can be `string` or {object}!
+      headers:{
+      'X-CSRFToken': getCookie('csrftoken'),
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+      }
+  })
+  return response;
+}
+
+function syncInvoices(data={}){
+  let url = origin + '/pos/api/invoices/sync/';
+  let response = fetch(url, {
+      method: 'POST', // or 'PUT'
+      credentials: 'same-origin',
+      body: JSON.stringify(data), // data can be `string` or {object}!
+      headers:{
+      'X-CSRFToken': getCookie('csrftoken'),
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+      }
+  })
+  return response;
+}
+
+function updateInvoice(data, invoice_id){
+  let url = origin + '/pos/api/invoices/' + invoice_id + '/update/';
+  let response = fetch(url, {
+      method: 'PUT', // or 'PUT'
       credentials: 'same-origin',
       body: JSON.stringify(data), // data can be `string` or {object}!
       headers:{
