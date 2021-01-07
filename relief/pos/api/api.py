@@ -939,6 +939,7 @@ def link_customer(request):
         customer_id = request.data.get('customer_id')
         freshbooks_client_id = request.data.get('freshbooks_client_id', None)
         pivot_invoice = request.data.get('pivot_invoice', False)
+        gst = request.data.get('gst', 0)
         freshbooks_client = None
         if not customer_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -946,6 +947,7 @@ def link_customer(request):
         if not customer_obj:
             return Response(status=status.HTTP_404_NOT_FOUND)
         customer_obj.pivot_invoice = pivot_invoice
+        customer_obj.gst = gst
         if freshbooks_client_id:
             try:
                 response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)
