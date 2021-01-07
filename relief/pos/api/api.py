@@ -540,7 +540,9 @@ def create_invoice(request):
 
                 new_invoice = Invoice(
                     minus=minus,
-                    remark=discount_description,
+                    discount_description=discount_description,
+                    discount_percentage=discount,
+                    po_number=po_number,
                     net_total=net_total,
                     gst=invoice_customer.gst,
                     net_gst=net_gst,
@@ -1037,4 +1039,3 @@ def customer_sync(request):
         customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
-    return Response(status=status.HTTP_400_BAD_REQUEST)
