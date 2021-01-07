@@ -158,6 +158,10 @@ class Customer(models.Model):
     freshbooks_client_id = models.CharField(max_length=8, null=True, blank=False)
     pivot_invoice = models.BooleanField(default=False)
 
+    class Meta:
+        ordering = ['name']
+
+
     def __str__(self):
         return self.name
 
@@ -318,6 +322,9 @@ class Product(models.Model):
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     freshbooks_item_id = models.CharField(max_length=12, null=True, blank=False)
     freshbooks_account_id = models.CharField(max_length=12, null=True, blank=False)
+
+    class Meta:
+        ordering = ['name']
 
     def __str__(self):
         return self.name
