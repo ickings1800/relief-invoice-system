@@ -550,6 +550,7 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
         freshbooks_client_id: null,
         freshbooks_clients: [],
         invoice_pivot: null,
+        gst: null,
       }
   },
 
@@ -564,7 +565,12 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
             <label class="form-label">Name: {{ customer.name }}</label>
             <label class="form-label">Address: {{ customer.address }}</label>
             <label class="form-label">Postal code: {{ customer.postal_code }}</label>
-            <label class="form-label">GST: {{ customer.gst }}</label>
+            <div class="form-group">
+              <label class="form-label">GST
+
+                <input class="form-input" type="number" id="gst" placeholder="GST" v-model="gst">
+              </label>
+            </div>
             <label class="form-checkbox my-2">
               <input type="checkbox" v-model="invoice_pivot">
               <i class="form-icon"></i> Pivot Invoice
@@ -592,6 +598,7 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
            console.log("customer details modal");
            this.freshbooks_client_id = this.customer.freshbooks_client_id;
            this.invoice_pivot = this.customer.pivot_invoice;
+           this.gst = this.customer.gst
            getFreshbooksClients()
            .then(res => res.json())
            .then(res => this.freshbooks_clients = res);
@@ -605,12 +612,14 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
            this.$emit('show-customer-detail-modal');
            this.freshbooks_account_id = null;
            this.freshbooks_client_id = null;
+           this.gst = null;
        },
        linkClient: function(event) {
         const data = {
           'customer_id': this.customer.id,
           'freshbooks_client_id': this.freshbooks_client_id,
-          'pivot_invoice': this.invoice_pivot
+          'pivot_invoice': this.invoice_pivot,
+          'gst': this.gst
         }
         linkClient(data).then(res => res.json()).then(() => this.close())
        }
