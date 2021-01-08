@@ -133,6 +133,7 @@ class CustomerProductUpdateSerializer(serializers.ModelSerializer):
 
 class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
     customer_name = serializers.SerializerMethodField()
+    customer_pk = serializers.SerializerMethodField()
     download_url = serializers.HyperlinkedIdentityField(
         view_name="pos:invoice_download", lookup_field="pk", lookup_url_kwarg="pk"
     )
@@ -149,7 +150,8 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'discount_description',
             'discount_percentage',
             'url',
-            'download_url'
+            'download_url',
+            'customer_pk'
         )
         extra_kwargs = {
             'url': {'view_name': 'pos:invoice_detail', 'lookup_field': 'pk'},
@@ -157,6 +159,9 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_customer_name(self, obj):
         return obj.customer.name
+
+    def get_customer_pk(self, obj):
+        return obj.customer.pk
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

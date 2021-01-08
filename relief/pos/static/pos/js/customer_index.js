@@ -100,6 +100,13 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
           this.discount =  res.discount_percentage 
           this.discount_description =  res.discount_description 
          })
+         .then(() => {
+          orderitemFilter(null, null, [this.selected_invoice.customer_pk])
+            .then(res => res.json())
+            .then(res => {
+              res.forEach(oi => this.customer_orderitems.push(oi))
+            })
+         })
        }
      },
    },

@@ -778,8 +778,10 @@ def get_filter_orderitem_rows(request):
             orderitem_qset = orderitem_qset.filter(customerproduct__customer_id__in=parsed_customer_ids)
 
         orderitem_qset = orderitem_qset.filter(invoice__isnull=True)
+        print(orderitem_qset.query)
 
         rows = list(orderitem_qset)
+        print(rows)
         orderitem_serializer = OrderItemSerializer(rows, many=True)
         return Response(status=status.HTTP_200_OK, data=orderitem_serializer.data)
 
@@ -1107,27 +1109,22 @@ def invoice_update(request, pk):
 
         invoice_lines = []
 
-        set_all_orderitem_invoice_null = False
         #  list of ints
-        all_ids = [oi.pk for oi in existing_invoice.orderitem_set.all()]
-        for pk in all_ids:
-            if pk not in orderitems_id:
-                set_all_orderitem_invoice_null = True
 
-        print('all null: ', set_all_orderitem_invoice_null)
         print("Selected ID: ", orderitems_id)
-        print("Invoice orderitem ids: ", all_ids)
 
-        if set_all_orderitem_invoice_null:
-            for oi in existing_invoice.orderitem_set.all():
-                print("set orderitem null -> ", oi.pk)
-                print(oi.quantity, oi.driver_quantity, oi.unit_price)
-                oi.invoice = None
-                if oi.pk in orderitems_id:
-                    oi.invoice = existing_invoice
-                    print('set orderitem to existing invoice: ', oi.pk, oi.route.do_number, oi.quantity,  oi.driver_quantity)
-                oi.save()
+        for oi in existing_invoice.orderitem_set.all():
+            print("set orderitem null -> ", oi.pk)
+            print(oi.quantity, oi.driver_quantity, oi.unit_price)
+            oi.invoice = None
+            oi.save()
 
+        orderitem_set_existing_invoice = OrderItem.objects.filter(pk__in=orderitems_id)
+        for oi in orderitem_set_existing_invoice:
+            oi.invoice = existing_invoice
+            oi.save()
+
+        existing_invoice.refresh_from_db()
         for orderitem in existing_invoice.orderitem_set.all():
             tax_id = orderitem.customerproduct.freshbooks_tax_1
             if tax_id:
@@ -1184,21 +1181,15 @@ def invoice_update(request, pk):
         )
         #  update invoice
         print(json.dumps(body))
-        response = freshbooks.post(invoice_update_url, data=json.dumps(body), headers=headers)
-        gst_decimal = Decimal(existing_invoice.customer.gst / 100)
-        net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
-        total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        print("GST Decimal: {0} | NET GST: {1} | MINUS: {2} | TOTAL INCL GST: {3}".format(gst_decimal, net_gst, minus, total_incl_gst))
+        response = freshbooks.put(invoice_update_url, data=json.dumps(body), headers=headers)
         if response.status_code == 200:
-            print(response)
             invoice_number = response.json()\
                                     .get('response')\
                                     .get('result')\
                                     .get('invoice')\
                                     .get('invoice_number')
 
-            gst_decimal = Decimal(invoice_customer.gst / 100)
+            gst_decimal = Decimal(existing_invoice.customer.gst / 100)
             net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
             minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
             total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
@@ -1208,7 +1199,7 @@ def invoice_update(request, pk):
             existing_invoice.discount_percentage = discount
             existing_invoice.po_number = po_number
             existing_invoice.net_total = net_total
-            existing_invoice.gst = invoice_customer.gst
+            existing_invoice.gst = existing_invoice.customer.gst
             existing_invoice.net_gst = net_gst
             existing_invoice.total_incl_gst = total_incl_gst
             existing_invoice.invoice_number = invoice_number
