@@ -440,8 +440,6 @@ def create_invoice(request):
         orderitems_id = request.data.get('orderitems_id')
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
-        discount = request.data.get('discount', 0) #  in percentage
-        discount_description = request.data.get('discount_description', None)
 
         print(customer_id, create_date, orderitems_id, invoice_number, po_number, discount, discount_description)
 
@@ -449,7 +447,6 @@ def create_invoice(request):
             invoice_customer = Customer.objects.get(pk=customer_id)
             invoice_orderitems = OrderItem.objects.filter(pk__in=orderitems_id)
             parsed_create_date = datetime.strptime(create_date, "%Y-%m-%d")
-            invoice_discount_percentage = Decimal(discount)
         except Exception as e:
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
@@ -517,8 +514,6 @@ def create_invoice(request):
                   "invoice_number": invoice_number,
                   "po_number": po_number,
                   "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
-                  "discount_value": discount,
-                  "discount_description": discount_description,
                   "lines": [line for line in invoice_lines]
                 }
             }
@@ -554,14 +549,10 @@ def create_invoice(request):
 
                 gst_decimal = Decimal(invoice_customer.gst / 100)
                 net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-                minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
-                total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
+                total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
                 new_invoice = Invoice(
                     date_created=created_date,
-                    minus=minus,
-                    discount_description=discount_description,
-                    discount_percentage=discount,
                     po_number=po_number,
                     net_total=net_total,
                     gst=invoice_customer.gst,
@@ -1112,14 +1103,11 @@ def invoice_update(request, pk):
         orderitems_id = request.data.get('orderitems_id')
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
-        discount = request.data.get('discount', 0) #  in percentage
-        discount_description = request.data.get('discount_description', None)
 
         print(orderitems_id, invoice_number, po_number, discount, discount_description)
 
         try:
             existing_invoice = Invoice.objects.prefetch_related('orderitem_set').get(pk=pk)
-            invoice_discount_percentage = Decimal(discount)
         except Exception as e:
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
@@ -1194,8 +1182,6 @@ def invoice_update(request, pk):
             "invoice": {
               "invoice_number": invoice_number,
               "po_number": po_number,
-              "discount_value": discount,
-              "discount_description": discount_description,
               "lines": [line for line in invoice_lines]
             }
         }
@@ -1220,13 +1206,9 @@ def invoice_update(request, pk):
 
             gst_decimal = Decimal(existing_invoice.customer.gst / 100)
             net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-            minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
-            total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
+            total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
             existing_invoice.create_date = date_created
-            existing_invoice.minus = minus
-            existing_invoice.discount_description = discount_description
-            existing_invoice.discount_percentage = discount
             existing_invoice.po_number = po_number
             existing_invoice.net_total = net_total
             existing_invoice.gst = existing_invoice.customer.gst

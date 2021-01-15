@@ -520,7 +520,6 @@ def invoice_pdf_view(request, pk):
         total_data = []
         total_data.append(["SUB-TOTAL ($)", str(subtotal)])
         total_data.append(["GST ({0}%)".format(invoice_customer.gst), str(gst)])
-        total_data.append(["DISCOUNT", str(invoice.minus)])
         total_data.append(["TOTAL (inc. GST) ($)", str(total_incl_gst)])
         total_data_table = Table(total_data)
         total_data_table.hAlign = 'RIGHT'
