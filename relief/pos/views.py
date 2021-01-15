@@ -430,6 +430,13 @@ def invoice_pdf_view(request, pk):
         top_table_data.append(["BILL TO"])
         top_table_data.append([invoice_customer.name])
 
+        if invoice_customer.address:
+            top_table_data.append([invoice_customer.address])
+        if invoice_customer.postal_code and invoice_customer.country:
+            top_table_data.append([invoice_customer.country, invoice_customer.postal_code])
+        if invoice_customer.country:
+            top_table_data.append([invoice_customer.country])
+
 
 
         top_table = Table(top_table_data, [12*cm, 4*cm, 3*cm])
