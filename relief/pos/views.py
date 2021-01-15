@@ -425,7 +425,10 @@ def invoice_pdf_view(request, pk):
         top_table_data = []
         top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)])
         top_table_data.append(["TUAS BAY WALK #02-30 SINGAPORE 637780", "INVOICE NUMBER:", invoice.invoice_number])
-        top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", invoice.date_generated.strftime('%d/%m/%Y')])
+        if invoice.date_created:
+            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", invoice.date_created.strftime('%d/%m/%Y')])
+        else:
+            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", ""])
         top_table_data.append(["REG NO: 200302589N"])
         top_table_data.append(["BILL TO"])
         top_table_data.append([invoice_customer.name])
