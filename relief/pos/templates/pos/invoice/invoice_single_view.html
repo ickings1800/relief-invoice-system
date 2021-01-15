@@ -20,7 +20,9 @@
             <ul class="float-right flex-1">
                 <li><b>TAX INVOICE</b></li>
                 <li><b>INVOICE NUMBER: {{ invoice.invoice_number }}</b></li>
-                <li><b>DATE: {{ invoice.date_generated|format_date:"%d/%m/%Y" }}</b></li>
+                {% if invoice.date_created %}
+                <li><b>DATE: {{ invoice.date_created|format_date:"%d/%m/%Y" }}</b></li>
+                {% endif %}
             </ul>
         </div>
         <table class="table invoice-table my-2">

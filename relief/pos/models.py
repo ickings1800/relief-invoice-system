@@ -442,6 +442,7 @@ class Product(models.Model):
 
 class Invoice(models.Model):
     date_generated = models.DateField(auto_now=True)
+    date_created = models.DateField(null=True)
     remark = models.CharField(max_length=255, null=True, blank=True)
     po_number = models.CharField(max_length=255, null=True, blank=True)
     discount_description = models.CharField(max_length=255, null=True, blank=True)

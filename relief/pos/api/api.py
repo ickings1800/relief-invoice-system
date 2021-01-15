@@ -543,7 +543,13 @@ def create_invoice(request):
                                         .get('response')\
                                         .get('result')\
                                         .get('invoice')\
-                                        .get('id')                
+                                        .get('id')
+
+                created_date = response.json()\
+                                .get('response')\
+                                .get('result')\
+                                .get('invoice')\
+                                .get('create_date')
 
 
                 gst_decimal = Decimal(invoice_customer.gst / 100)
@@ -552,6 +558,7 @@ def create_invoice(request):
                 total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
                 new_invoice = Invoice(
+                    date_created=created_date,
                     minus=minus,
                     discount_description=discount_description,
                     discount_percentage=discount,
@@ -1085,6 +1092,7 @@ def invoice_sync(request):
             if len(freshbooks_invoice_search) > 0:
                 freshbooks_invoice = freshbooks_invoice_search[0]
                 invoice.po_number = freshbooks_invoice.get('po_number')
+                invoice.date_created = freshbooks_invoice.get('create_date')
                 invoice.freshbooks_account_id = freshbooks_invoice.get('accounting_systemid')
                 invoice.freshbooks_invoice_id = freshbooks_invoice.get('invoiceid')
                 invoice.save()
@@ -1204,11 +1212,18 @@ def invoice_update(request, pk):
                                     .get('invoice')\
                                     .get('invoice_number')
 
+            date_created = response.json()\
+                            .get('response')\
+                            .get('result')\
+                            .get('invoice')\
+                            .get('create_date')
+
             gst_decimal = Decimal(existing_invoice.customer.gst / 100)
             net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
             minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
             total_incl_gst = (net_total + net_gst - minus).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
+            existing_invoice.create_date = date_created
             existing_invoice.minus = minus
             existing_invoice.discount_description = discount_description
             existing_invoice.discount_percentage = discount
