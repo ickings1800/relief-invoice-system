@@ -1019,7 +1019,7 @@ var EditGroupModal = Vue.component('EditGroupModal', {
 })
 
 
-var CreateCustomerModal = Vue.component('CreateCustomerModal', {
+var CreateQuoteModal = Vue.component('CreateQuoteModal', {
   data: function () {
       return {
           product_list: [],
@@ -1414,7 +1414,7 @@ var app = new Vue({
   },
   components: {
       'edit-quote-modal': EditQuoteModal,
-      'create-customer-modal': CreateCustomerModal,
+      'create-quote-modal': CreateQuoteModal,
       'create-group-modal': CreateGroupModal,
       'edit-group-modal': EditGroupModal,
       'create-invoice-modal': CreateInvoiceModal,

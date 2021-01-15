@@ -34,10 +34,10 @@
 	    v-bind:orderitems="orderitems"
         v-bind:invoices="invoices">
     </customer-list>
-    <create-customer-modal
+    <create-quote-modal
         v-on:show-quote="show_quote_modal_window"
         v-bind:opened="show_quote_modal">
-    </create-customer-modal>
+    </create-quote-modal>
     <create-invoice-modal
         v-on:show-create-invoice="show_create_invoice_modal_window"
         v-bind:orderitems="orderitems"
