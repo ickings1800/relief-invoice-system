@@ -533,6 +533,19 @@ def create_invoice(request):
                                         .get('invoice')\
                                         .get('invoice_number')
 
+                freshbooks_account_id = response.json()\
+                                        .get('response')\
+                                        .get('result')\
+                                        .get('invoice')\
+                                        .get('accounting_systemid')
+
+                freshbooks_invoice_id = response.json()\
+                                        .get('response')\
+                                        .get('result')\
+                                        .get('invoice')\
+                                        .get('id')                
+
+
                 gst_decimal = Decimal(invoice_customer.gst / 100)
                 net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
                 minus = ((net_total + net_gst) * (invoice_discount_percentage / 100)).quantize(Decimal('.0001'))
@@ -549,7 +562,9 @@ def create_invoice(request):
                     total_incl_gst=total_incl_gst,
                     invoice_number=invoice_number,
                     customer=invoice_customer,
-                    pivot=invoice_customer.pivot_invoice
+                    pivot=invoice_customer.pivot_invoice,
+                    freshbooks_account_id=freshbooks_account_id,
+                    freshbooks_invoice_id=freshbooks_invoice_id,
                 )
                 new_invoice.save()
 
