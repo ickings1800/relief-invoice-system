@@ -1052,7 +1052,7 @@ var CreateCustomerModal = Vue.component('CreateCustomerModal', {
             <div class="form-group">
               <label class="form-label" for="quote-item-name">Item Name</label>
               <select class="form-select column col-12 my-1" id="quote-item-name" v-model="selected_product_id">
-                  <option v-for="p in product_list" :value="p.id">{{ p.name }} -> ({{ p.unit_price }})</option>
+                  <option v-for="p in product_list" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div class="form-group">
