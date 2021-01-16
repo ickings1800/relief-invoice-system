@@ -441,7 +441,7 @@ def create_invoice(request):
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
 
-        print(customer_id, create_date, orderitems_id, invoice_number, po_number, discount, discount_description)
+        print(customer_id, create_date, orderitems_id, invoice_number, po_number)
 
         try:
             invoice_customer = Customer.objects.get(pk=customer_id)
@@ -1104,7 +1104,7 @@ def invoice_update(request, pk):
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
 
-        print(orderitems_id, invoice_number, po_number, discount, discount_description)
+        print(orderitems_id, invoice_number, po_number)
 
         try:
             existing_invoice = Invoice.objects.prefetch_related('orderitem_set').get(pk=pk)
