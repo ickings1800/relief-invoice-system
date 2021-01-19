@@ -436,8 +436,8 @@ def invoice_pdf_view(request, pk):
         if invoice_customer.address:
             top_table_data.append([invoice_customer.address])
         if invoice_customer.postal_code and invoice_customer.country:
-            top_table_data.append([invoice_customer.country, invoice_customer.postal_code])
-        if invoice_customer.country:
+            top_table_data.append([invoice_customer.country + ' ' + invoice_customer.postal_code])
+        else:
             top_table_data.append([invoice_customer.country])
 
 
