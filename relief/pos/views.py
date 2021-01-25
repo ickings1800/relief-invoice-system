@@ -400,7 +400,7 @@ def invoice_pdf_view(request, pk):
         total_incl_gst = (subtotal + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename={0}.pdf'.format(invoice.invoice_number)
+        response['Content-Disposition'] = 'attachment; filename="{0}".pdf'.format(invoice.invoice_number)
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1*cm, bottomMargin=2*cm)
