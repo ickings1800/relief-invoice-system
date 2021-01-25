@@ -381,7 +381,7 @@ def invoice_pdf_view(request, pk):
             query_oi,
             ['route__do_number', 'route__date'],
             'customerproduct__product__name', 'driver_quantity',
-            default=0
+            default=""
         )
 
         product_sum = Counter()
