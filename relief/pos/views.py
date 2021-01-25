@@ -381,7 +381,7 @@ def invoice_pdf_view(request, pk):
             query_oi,
             ['route__do_number', 'route__date'],
             'customerproduct__product__name', 'driver_quantity',
-            default=""
+            default=0
         )
 
         product_sum = Counter()
@@ -475,7 +475,11 @@ def invoice_pdf_view(request, pk):
                 if row.get(cp.product.name) is None:
                     data_row.append('')
                 else:
-                    data_row.append(str(row.get(cp.product.name)))
+                    qty = row.get(cp.product.name)
+                    if qty == 0:
+                        data_row.append('')
+                    else:
+                        data_row.append(str(row.get(cp.product.name)))
             data_row.append(row.get('route__do_number', styleBH))
             datalist.append(data_row)
         table_width = (19/len(heading)) * cm
