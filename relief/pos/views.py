@@ -483,7 +483,7 @@ def invoice_pdf_view(request, pk):
             data_row.append(row.get('route__do_number', styleBH))
             datalist.append(data_row)
         table_width = (19/len(heading)) * cm
-        product_table = Table(datalist, [table_width for i in range(len(heading))])
+        product_table = Table(datalist, [table_width for i in range(len(heading))], 5.25*mm)
         product_table.hAlign = 'CENTER'
         product_table.setStyle(product_style)
 
@@ -513,7 +513,7 @@ def invoice_pdf_view(request, pk):
             nett_amt_row.append(Paragraph(str(nett_amt.get(cp.product.name)), styleBH))
         nett_amt_row.append("")
         quantity_data.append(nett_amt_row)
-        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))])
+        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))], 5*mm)
         quantity_table.hAlign = 'CENTER'
         quantity_table.setStyle(quantity_style)
 
