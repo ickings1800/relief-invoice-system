@@ -777,6 +777,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         po_number: null,
         discount: 0,
         discount_description: null,
+        select_all: false,
       }
   },
 
@@ -817,7 +818,11 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
             <table class="table">
               <thead>
                 <tr>
-                  <th>Date</th>
+                  <th>
+                    <label class="form-checkbox">
+                      <input type="checkbox" v-model="select_all"><i class="form-icon"></i> Date
+                    </label>
+                  </th>
                   <th>Item Name</th>
                   <th>Driver Quantity</th>
                   <th>Unit Price</th>
@@ -859,6 +864,14 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
          this.filterOrderItemsByCustomer(this.selected_customer.id)
        }
      },
+     select_all: function(val) {
+      if (val){
+        console.log("select all");
+        this.selected_orderitems = this.orderitems.map(oi => oi)
+      } else {
+        this.selected_orderitems = [];
+      }
+     }
    },
    methods: {
        close: function(event){
@@ -896,6 +909,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         this.po_number = null;
         this.discount = 0;
         this.discount_description = null;
+        this.select_all = false;
       }
   }
 })
