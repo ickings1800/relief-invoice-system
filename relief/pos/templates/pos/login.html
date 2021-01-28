@@ -1,36 +1,42 @@
 {% extends "pos/master/menu_nav.html" %}
-
+{% load widget_tweaks %}
 {% block content %}
 
-{% if form.errors %}
-<p>Your username and password didn't match. Please try again.</p>
-{% endif %}
+<div class="container">
+    <div id="login-form">
+        <form method="post" action="{% url 'pos:login' %}">
+            {% csrf_token %}
+            {% for hidden_field in form.hidden_fields %}
+              {{ hidden_field }}
+            {% endfor %}
 
-{% if next %}
-    {% if user.is_authenticated %}
-    <p>Your account doesn't have access to this page. To proceed,
-    please login with an account that has access.</p>
-    {% else %}
-    <p>Please login to see this page.</p>
-    {% endif %}
-{% endif %}
+            {% for field in form.visible_fields %}
+            <div class="form-group">
+            <!-- form input control -->
+                {{ field.label_tag }}
+                {% render_field field class="form-input" placeholder=field.label %}
+            </div>
+            {% endfor %}
+            <ul>
+            {% if form.errors %}
+            <li><span class="label label-error my-1">Your username and password didn't match. Please try again.</span></li>
+            {% endif %}
 
-<form method="post" action="{% url 'pos:login' %}">
-{% csrf_token %}
-<table>
-<tr>
-    <td>{{ form.username.label_tag }}</td>
-    <td>{{ form.username }}</td>
-</tr>
-<tr>
-    <td>{{ form.password.label_tag }}</td>
-    <td>{{ form.password }}</td>
-</tr>
-</table>
+            {% if next %}
+                {% if user.is_authenticated %}
+                <li><span class="label label-error my-1">Your account doesn't have access to this page. To proceed,
+                please login with an account that has access.</span></li>
+                {% else %}
+                <li><span class="label label-error my-1">Please login to see this page.</span></li>
+                {% endif %}
+            {% endif %}
+            </ul>
+            <button class="btn btn-primary" type="submit">Login</button>
+        </form>
+    </div>
 
-<input type="submit" value="login">
-<input type="hidden" name="next" value="{{ next }}">
-</form>
+
+</div>
 
 
 {% endblock %}

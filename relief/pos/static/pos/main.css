@@ -371,3 +371,9 @@ font-size: 1vw;
 .invoice-header {
     width: 100%;
 }
+
+#login-form {
+    background-color:#f7f8f9;
+    padding: 2rem;
+    border-radius: 1rem;
+}
