@@ -867,7 +867,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
      select_all: function(val) {
       if (val){
         console.log("select all");
-        this.selected_orderitems = this.orderitems.map(oi => oi)
+        this.selected_orderitems = this.customer_orderitems.map(oi => oi)
       } else {
         this.selected_orderitems = [];
       }
