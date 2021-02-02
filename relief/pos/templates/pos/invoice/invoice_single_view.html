@@ -80,7 +80,11 @@
             {% if invoice.minus > 0 %}
             <tr>
                 <td colspan="3" class="borderless"></td>
+                {% if invoice.discount_description %}
+                <td class="align-left border"><b>{{ invoice.discount_description }}:</b></td>                
+                {% else %}
                 <td class="align-left border"><b>MINUS ($):</b></td>
+                {% endif %}
                 <td class="border-right"><b>{{ invoice.minus }}</b></td>
             </tr>
             <tr>

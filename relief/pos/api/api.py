@@ -562,6 +562,7 @@ def create_invoice(request):
                     gst=invoice_customer.gst,
                     net_gst=net_gst,
                     minus=minus_decimal,
+                    discount_description = minus_description,
                     total_incl_gst=total_incl_gst,
                     invoice_number=invoice_number,
                     customer=invoice_customer,
@@ -1225,6 +1226,7 @@ def invoice_update(request, pk):
             existing_invoice.total_incl_gst = total_incl_gst
             existing_invoice.invoice_number = invoice_number
             existing_invoice.minus = minus_decimal
+            existing_invoice.discount_description = minus_description
             existing_invoice.save()
             return Response(data=response.json(), status=status.HTTP_200_OK)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
