@@ -44,7 +44,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
               <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
             </div>
             <div class="form-group">
-              <label class="form-label" for="discount">Discount (in %)</label>
+              <label class="form-label" for="discount">Discount (Credit Note)</label>
               <input class="form-input" type="text" id="discount" v-model="discount">
             </div>
             <table class="table">
@@ -97,7 +97,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
           this.customer_orderitems = res.orderitem_set
           this.invoice_number =  res.invoice_number
           this.po_number =  res.po_number  
-          this.discount =  res.discount_percentage 
+          this.discount =  res.minus
           this.discount_description =  res.discount_description 
          })
          .then(() => {
@@ -812,7 +812,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
               <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
             </div>
             <div class="form-group">
-              <label class="form-label" for="discount">Discount</label>
+              <label class="form-label" for="discount">Discount (Credit Note)</label>
               <input class="form-input" type="text" id="discount" v-model="discount">
             </div>
             <table class="table">
