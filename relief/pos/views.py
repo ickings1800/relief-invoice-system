@@ -285,15 +285,18 @@ def InvoiceSingleView(request, pk):
         for k, v in nett_amt.items():
             subtotal += v
 
+        #  subtotal to reference total_nett_amt from this point
+        total_nett_amt = subtotal - invoice.minus
         gst_decimal = Decimal(invoice_customer.gst / 100)
-        gst = (subtotal * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        total_incl_gst = (subtotal + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
         ctx = {
             'pv_table': pv_table,
             'customerproducts': query_cp,
             'product_sum': product_sum,
             'nett_amt': nett_amt ,
+            'total_nett_amt': total_nett_amt,
             'subtotal': subtotal,
             'gst': gst,
             'total_incl_gst': total_incl_gst,
@@ -396,8 +399,9 @@ def invoice_pdf_view(request, pk):
             subtotal += v
 
         gst_decimal = Decimal(invoice_customer.gst / 100)
-        gst = (subtotal * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        total_incl_gst = (subtotal + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_nett_amt = subtotal - invoice.minus
+        gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="{0}".pdf'.format(invoice.invoice_number)
@@ -523,6 +527,11 @@ def invoice_pdf_view(request, pk):
                                         ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')])
         total_data = []
         total_data.append(["SUB-TOTAL ($)", str(subtotal)])
+
+        if invoice.minus > 0:
+            total_data.append(["MINUS ($)", str(invoice.minus)])
+            total_data.append(["TOTAL NETT AMT ($)", str(total_nett_amt)])
+
         total_data.append(["GST ({0}%)".format(invoice_customer.gst), str(gst)])
         total_data.append(["TOTAL (inc. GST) ($)", str(total_incl_gst)])
         total_data_table = Table(total_data)

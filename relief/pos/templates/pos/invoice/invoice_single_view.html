@@ -77,6 +77,18 @@
                 <td class="align-left border"><b>SUBTOTAL:</b></td>
                 <td class="border-right"><b>{{ subtotal }}</b></td>
             </tr>
+            {% if invoice.minus > 0 %}
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>MINUS ($):</b></td>
+                <td class="border-right"><b>{{ invoice.minus }}</b></td>
+            </tr>
+            <tr>
+                <td colspan="3" class="borderless"></td>
+                <td class="align-left border"><b>TOTAL NETT AMT:</b></td>
+                <td class="border-right"><b>{{ total_nett_amt }}</b></td>
+            </tr>
+            {% endif %}
             <tr>
                 <td colspan="3" class="borderless"></td>
                 <td class="align-left border"><b>GST: {{ invoice.gst }}%</b></td>

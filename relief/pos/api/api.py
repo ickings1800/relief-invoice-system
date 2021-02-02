@@ -440,6 +440,8 @@ def create_invoice(request):
         orderitems_id = request.data.get('orderitems_id')
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
+        minus = request.data.get('discount')
+        minus_description = request.data.get('discount_description')
 
         print(customer_id, create_date, orderitems_id, invoice_number, po_number)
 
@@ -447,6 +449,7 @@ def create_invoice(request):
             invoice_customer = Customer.objects.get(pk=customer_id)
             invoice_orderitems = OrderItem.objects.filter(pk__in=orderitems_id)
             parsed_create_date = datetime.strptime(create_date, "%Y-%m-%d")
+            minus_decimal = Decimal(minus)
         except Exception as e:
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
@@ -548,6 +551,7 @@ def create_invoice(request):
 
 
                 gst_decimal = Decimal(invoice_customer.gst / 100)
+                net_total -= minus_decimal
                 net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
                 total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
@@ -557,6 +561,7 @@ def create_invoice(request):
                     net_total=net_total,
                     gst=invoice_customer.gst,
                     net_gst=net_gst,
+                    minus=minus_decimal,
                     total_incl_gst=total_incl_gst,
                     invoice_number=invoice_number,
                     customer=invoice_customer,
@@ -1103,11 +1108,14 @@ def invoice_update(request, pk):
         orderitems_id = request.data.get('orderitems_id')
         invoice_number = request.data.get('invoice_number')
         po_number = request.data.get('po_number')
+        minus = request.data.get('discount')
+        minus_description = request.data.get('discount_description')
 
         print(orderitems_id, invoice_number, po_number)
 
         try:
             existing_invoice = Invoice.objects.prefetch_related('orderitem_set').get(pk=pk)
+            minus_decimal = Decimal(minus)
         except Exception as e:
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
@@ -1205,6 +1213,7 @@ def invoice_update(request, pk):
                             .get('create_date')
 
             gst_decimal = Decimal(existing_invoice.customer.gst / 100)
+            net_total -= minus_decimal
             net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
             total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
@@ -1215,6 +1224,7 @@ def invoice_update(request, pk):
             existing_invoice.net_gst = net_gst
             existing_invoice.total_incl_gst = total_incl_gst
             existing_invoice.invoice_number = invoice_number
+            existing_invoice.minus = minus_decimal
             existing_invoice.save()
             return Response(data=response.json(), status=status.HTTP_200_OK)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
