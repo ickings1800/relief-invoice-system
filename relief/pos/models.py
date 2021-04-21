@@ -519,6 +519,61 @@ class Route(models.Model):
     class Meta:
         ordering = ['index']
 
+    def create_route(
+            note, do_number, po_number, customer_data, customerproducts, trip
+        ):
+        if not do_number:
+            #  get new do_number
+            do_number = Route.objects\
+                            .filter(do_number__regex=r'^[0-9\.]+$') \
+                            .annotate(do_field=Cast('do_number', IntegerField())) \
+                            .order_by('-do_field')
+
+            if do_number.count() > 0:
+                do_number_next = int(do_number.first().do_number) + 1
+            else:
+                #  if there are no routes, start from 10000
+                do_number_next = 10000
+            print("create route do_number_next -> ", do_number_next)
+        else:
+            do_number_next = do_number
+
+        customer_id = customer_data.get('id')
+        if customer_id:
+            customer = Customer.objects.get(pk=customer_id)
+            customerproduct_ids = [cp.get('id') for cp in customerproducts]
+            orderitem_driver_qty_map = {
+                cp.get('id'): cp.get('driver_quantity') for cp in customerproducts
+            }
+            if customer:
+                customer_products_valid = CustomerProduct.objects.filter(
+                    customer_id=customer.pk, id__in=customerproduct_ids
+                )
+                route = Route.objects.create(
+                    note=note,
+                    do_number=do_number_next,
+                    po_number=po_number,
+                    trip=trip
+                )
+                for cp in customer_products_valid:
+                    driver_qty_valid = orderitem_driver_qty_map.get(cp.pk)
+                    #  create orderitem even if zero, orderitem may be updated later
+                    if int(driver_qty_valid) >= 0:
+                        orderitem = OrderItem.objects.create(
+                            customerproduct=cp,
+                            route=route,
+                            driver_quantity=driver_qty_valid,
+                            unit_price=cp.quote_price,
+                        )
+        else:
+            route = Route.objects.create(
+                note=note,
+                do_number=do_number_next,
+                po_number=po_number,
+                trip=trip
+            )
+        return route
+
 
 class CustomerProduct(models.Model):
     quote_price = models.DecimalField(
