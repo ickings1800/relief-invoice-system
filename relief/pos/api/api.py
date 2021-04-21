@@ -197,12 +197,82 @@ class RouteDetail(RetrieveAPIView):
         return self.retrieve(request, *args, **kwargs)
 
 
-class RouteUpdate(UpdateAPIView):
-    queryset = Route.objects.all()
-    serializer_class = RouteUpdateSerializer
+@api_view(['PUT'])
+def route_update(request, pk):
+    if request.method == 'PUT':
+        #  try:
+        #      body = json.loads(request.data.get('body'))
+        #  except Exception as e:
+        #      return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error parsing json"})
 
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        #  upload_files = request.data.getlist('upload_files')
+        body = request.data
+        upload_files = []
+        route_pk = body.get('id')
+        validated_note = body.get('note')
+        validated_do_number = body.get('do_number')
+        validated_po_number = body.get('po_number')
+        validated_orderitems = body.get('orderitem_set')
+
+        route = Route.objects.get(pk=route_pk)
+        if route.po_number != validated_po_number:
+            route.po_number = validated_po_number
+        if route.note != validated_note:
+            route.note = validated_note
+
+        route.save()
+
+        if not route:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "route id not found"})
+
+        if validated_do_number:
+            try:
+                do_number_int = int(validated_do_number)
+            except ValueError:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "do_number is not an integer"})
+
+            if validated_do_number != route.do_number:
+                route_exists = Route.objects.filter(do_number=validated_do_number).count()
+                if route_exists > 0:
+                    return Response(
+                        status=status.HTTP_400_BAD_REQUEST, 
+                        data={"error": "route already exists with do_number {0}".format(validated_do_number)}
+                    )
+                else:
+                    route.do_number = do_number_int
+
+        for oi in validated_orderitems:
+            oi_id = oi.get('id')
+            oi_driver_qty = oi.get('driver_quantity')
+            oi_qty = oi.get('quantity')
+            print("quantites: ", oi_driver_qty, oi_qty)
+            orderitem = OrderItem.objects.get(pk=oi_id)
+            try:
+                if not orderitem:
+                    return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "orderitem id not found"})
+                if oi_driver_qty is None:
+                    return Response(
+                        status=status.HTTP_400_BAD_REQUEST,
+                        data={"error": "driver quantity is none"}
+                    )
+                if int(oi_driver_qty) < 0 or int(oi_qty) < 0:
+                    return Response(
+                        status=status.HTTP_400_BAD_REQUEST,
+                        data={"error": "driver quantity or quantity cannot be less than zero"}
+                    )
+            except Exception as e:
+                print(e)
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": e})
+
+            orderitem.quantity = int(oi_qty)
+            orderitem.driver_quantity = int(oi_driver_qty)
+            #  don't change unit price when updating orderitem
+            orderitem.save()
+        print('after orderitem save')
+        rs = RouteSerializer(route)
+        print(rs.data)
+        return Response(status=status.HTTP_200_OK, data=rs.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
