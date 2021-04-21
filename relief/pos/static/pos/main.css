@@ -46,10 +46,12 @@ h4 {
 th {
     text-align:left;
     vertical-align: unset !important;
+    white-space: nowrap;
 }
 
 td {
     vertical-align: unset !important;
+    white-space: nowrap;
 }
 
 td, td {
@@ -295,7 +297,7 @@ font-size: 1vw;
 }
 
 
-#invoice-create-modal-window {
+#invoice-create-modal-window, #invoice-update-modal-window {
     width: unset !important;
     max-width: unset !important;
 }
