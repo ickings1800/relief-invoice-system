@@ -31,6 +31,65 @@ extra = {
     'client_secret': client_secret,
 }
 
+@api_view(['POST'])
+@permission_classes([])
+@authentication_classes([])
+def detrack_webhook(request):
+    if request.method == 'POST':
+        do_number = request.data.get('do_number')
+        do_date = request.data.get('pod_at')
+        delivery_items = request.data.get('items')
+        parsed_do_date = datetime.fromisoformat(do_date)
+
+        route_exists = Route.objects.filter(do_number=do_number).count()
+
+        if route_exists > 0:
+            #  existing route exists
+            route = Route.objects.get(do_number=do_number)
+            print('route exists')
+            route.date = parsed_do_date.date()
+            route.datetime = parsed_do_date
+            route.save()
+            for item in delivery_items:
+                item_sku = item.get('sku')
+                quantity = item.get('quantity')
+                driver_quantity = item.get('actual_quantity')
+                customerproduct = CustomerProduct.objects.get(pk=item_sku)
+                orderitem = OrderItem.objects.get(
+                    customerproduct=customerproduct, route=route
+                )
+                orderitem.quantity = quantity
+                orderitem.driver_quantity = driver_quantity
+                orderitem.save()
+            rs = RouteSerializer(route)
+            return Response(status=status.HTTP_200_OK, data=rs.data)
+        else:
+            #  enter do date into route object create
+            route = Route.objects.create(
+                do_number=do_number,
+                date=parsed_do_date.date(),
+                datetime=parsed_do_date
+            )
+            route.save()
+            for item in delivery_items:
+                customerproduct = CustomerProduct.objects.get(pk=item_sku)
+                if customerproduct:
+                    orderitem = OrderItem.objects.create(
+                        quantity=quantity,
+                        driver_quantity=driver_quantity,
+                        unit_price=customerproduct.quote_price,
+                        customerproduct=customerproduct,
+                        route=route
+                    )
+                    orderitem.save()
+
+                #  print('item sku: ', item_sku)
+                #  print('quantity: ', quantity)
+                #  print('driver_quantity: ', driver_quantity)
+                rs = RouteSerializer(route)
+                return Response(status=status.HTTP_200_OK, data=rs.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
+
 def token_updater(request, token):
     request.session['oauth_token'] = token
 
