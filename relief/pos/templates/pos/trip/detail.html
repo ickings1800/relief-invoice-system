@@ -10,81 +10,65 @@
 <!-- CDNJS :: Vue.Draggable (https://cdnjs.com/) -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.20.0/vuedraggable.umd.min.js"></script>
 <div id="app" data-trip-id="{{ trip.pk }}">
-{% verbatim %}
-    <trip-header
-        v-if="trip"
-        :trip="trip"
-        v-bind:trip_id="trip_id"
-        v-bind:pdf_url="pdfUrl"
-        @rearrangeroutes="minimize"
-        @showedittripnotemodal="showedittripnotemodal"
-        @showaddpackingmodal="showaddpackingmodal"
-        @deletepacking="deletepacking"
-        @rearrangepacking="rearrangepacking"
-        @refreshtripdate="refreshtripdate">
-    </trip-header>
-    <routes-list v-if="routes"
-                 v-bind:arrangeroutes="show_routes"
-                 v-bind:trip_id="trip_id"
-                 v-bind:routes="routes"
-                 v-bind:packing_methods="packing_methods"
-                 ref="routesList"
-                 @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
-                 @showeditorderitemnotemodal="showeditorderitemnotemodal"
-                 @showeditorderitempackingmodal="showeditorderitempackingmodal"
-                 @showdeleteroutemodal="showdeleteroutemodal"
-                 @showeditdonumbermodal="showeditdonumbermodal"
-                 @showeditroutenotemodal="showeditroutenotemodal"
-                 @showaddroutemodal="showaddroutemodal"
-    ></routes-list>
-    <packing-sum v-if="routes" v-if="trip" v-bind:trip="trip" v-bind:routes="routes" v-bind:packing_methods="packing_methods"></packing-sum>
-    <edit-note-modal v-bind:opened="show_edit_trip_note_modal"
-                     v-bind:trip_id="trip_id"
-                     @showedittripnotemodal="showedittripnotemodal">
-    </edit-note-modal>
-    <edit-orderitem-quantity-modal
-            v-bind:opened="show_orderitem_quantity_modal"
-            v-bind:selected_orderitem_id="selected_orderitem_id"
-            @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
-    ></edit-orderitem-quantity-modal>
-    <edit-orderitem-note-modal
-            v-bind:opened="show_orderitem_note_modal"
-            v-bind:selected_orderitem_id="selected_orderitem_id"
-            @showeditorderitemnotemodal="showeditorderitemnotemodal"
-    ></edit-orderitem-note-modal>
-    <edit-orderitem-packing-modal
-            v-bind:opened="show_orderitem_packing_modal"
-            v-bind:selected_orderitem_id="selected_orderitem_id"
-            v-bind:selected_orderitem_packing_name="selected_orderitem_packing_name"
-            @showeditorderitempackingmodal="showeditorderitempackingmodal"
-    ></edit-orderitem-packing-modal>
-    <delete-route-modal
-            v-bind:opened="show_route_delete_modal"
-            v-bind:selected_route_id="selected_route_id"
-            @showdeleteroutemodal="showdeleteroutemodal"
-    ></delete-route-modal>
-    <do-number-modal
-            v-bind:opened="show_edit_do_number_modal"
-            v-bind:selected_route_id="selected_route_id"
-            @showeditdonumbermodal="showeditdonumbermodal"
-    ></do-number-modal>
-    <edit-route-note-modal
-        v-bind:opened="show_edit_route_note_modal"
-        v-bind:selected_route_id="selected_route_id"
-        @showeditroutenotemodal="showeditroutenotemodal">
-    </edit-route-note-modal>
-    <add-packing-modal
-        v-bind:opened="show_add_packing_modal"
-        v-bind:trip_id="trip_id"
-        @showaddpackingmodal="showaddpackingmodal">
-    </add-packing-modal>
-    <add-route-modal
-            v-bind:opened="show_add_route_modal"
-            v-bind:trip_id="trip_id"
-            v-bind:routes="routes"
-            v-bind:create_route_at_index="create_route_at_index"
-            @showaddroutemodal="showaddroutemodal">
-    </add-route-modal>
-{% endverbatim %}
+    <div class="container">
+        {% verbatim %}
+            <trip-header
+                v-if="trip"
+                :trip="trip"
+                v-bind:trip_id="trip_id"
+                v-bind:pdf_url="pdfUrl"
+                @rearrangeroutes="minimize"
+                @showedittripnotemodal="showedittripnotemodal">
+            </trip-header>
+            <routes-list v-if="routes"
+                         v-bind:arrangeroutes="show_routes"
+                         v-bind:trip_id="trip_id"
+                         v-bind:routes="routes"
+                         ref="routesList"
+                         @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
+                         @showeditorderitemnotemodal="showeditorderitemnotemodal"
+                         @showdeleteroutemodal="showdeleteroutemodal"
+                         @showeditdonumbermodal="showeditdonumbermodal"
+                         @showeditroutenotemodal="showeditroutenotemodal"
+                         @showaddroutemodal="showaddroutemodal"
+            ></routes-list>
+            <edit-note-modal v-bind:opened="show_edit_trip_note_modal"
+                             v-bind:trip_id="trip_id"
+                             @showedittripnotemodal="showedittripnotemodal">
+            </edit-note-modal>
+            <edit-orderitem-quantity-modal
+                    v-bind:opened="show_orderitem_quantity_modal"
+                    v-bind:selected_orderitem_id="selected_orderitem_id"
+                    @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
+            ></edit-orderitem-quantity-modal>
+            <edit-orderitem-note-modal
+                    v-bind:opened="show_orderitem_note_modal"
+                    v-bind:selected_orderitem_id="selected_orderitem_id"
+                    @showeditorderitemnotemodal="showeditorderitemnotemodal"
+            ></edit-orderitem-note-modal>
+            <delete-route-modal
+                    v-bind:opened="show_route_delete_modal"
+                    v-bind:selected_route_id="selected_route_id"
+                    @showdeleteroutemodal="showdeleteroutemodal"
+            ></delete-route-modal>
+            <do-number-modal
+                    v-bind:opened="show_edit_do_number_modal"
+                    v-bind:selected_route_id="selected_route_id"
+                    @showeditdonumbermodal="showeditdonumbermodal"
+            ></do-number-modal>
+            <edit-route-note-modal
+                v-bind:opened="show_edit_route_note_modal"
+                v-bind:selected_route_id="selected_route_id"
+                @showeditroutenotemodal="showeditroutenotemodal">
+            </edit-route-note-modal>
+            <add-route-modal
+                    v-bind:opened="show_add_route_modal"
+                    v-bind:trip_id="trip_id"
+                    v-bind:routes="routes"
+                    v-bind:create_route_at_index="create_route_at_index"
+                    @showaddroutemodal="showaddroutemodal">
+            </add-route-modal>
+        {% endverbatim %}
+    </div>
 </div>
 {% endblock %}

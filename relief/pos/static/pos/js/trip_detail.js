@@ -2,253 +2,15 @@
 const draggable = window['vuedraggable'];
 const origin = location.origin;
 
-var Calendar = Vue.component('calendar', {
-  data: function () {
-      return {
-          days_of_week: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-          months_of_year: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-          prev_month: [],
-          days_of_month: [],
-          next_month: [],
-          hours: [],
-          minutes: [],
-          todayDate: null,
-          selectedDate: null,
-          selectedDate_year: null,
-          selectedDate_month: null,
-          selectedDate_hours: null,
-          selectedDate_mins: null,
-      }
-  },
-
-  template:`
-      <div class="calendar">
-      <!-- calendar navbar -->
-      <div class="calendar-nav navbar">
-        <button class="btn btn-action btn-link btn-lg" v-on:click.prevent="prevMonth">
-          <i class="icon icon-arrow-left"></i>
-        </button>
-        <div class="navbar-primary">{{ months_of_year[selectedDate_month] }} {{ selectedDate_year }}</div>
-        <button class="btn btn-action btn-link btn-lg" v-on:click.prevent="nextMonth">
-          <i class="icon icon-arrow-right"></i>
-        </button>
-      </div>
-
-      <div class="calendar-container">
-        <div class="calendar-header">
-          <div v-for="days in days_of_week" class="calendar-date">{{ days }}</div>
-        </div>
-
-        <div class="calendar-body">
-          <!-- calendar previous month -->
-          <div v-for="date in prev_month" class="calendar-date prev-month">
-            <button class="date-item" v-on:click.prevent="clickPrevMonth(date)">{{ date.getDate() }}</button>
-          </div>
-
-          <!-- calendar current month -->
-          <div v-for="date in days_of_month"
-          class="calendar-date"
-          v-bind:class="{ 'range-start': selectDate(date), 'calendar-range': selectDate(date) , 'range-end': selectDate(date) }">
-            <button class="date-item"
-            v-on:click.prevent="selectedDate = date"
-            v-bind:class="{ 'date-today': date.getTime() === todayDate.getTime() }">
-            {{ date.getDate() }}
-            </button>
-          </div>
-
-          <!-- calendar next month -->
-          <div v-for="date in next_month" class="calendar-date next-month">
-            <button class="date-item" v-on:click.prevent="clickNextMonth(date)">{{ date.getDate() }}</button>
-          </div>
-        </div>
-       <div class="divider"></div>
-       <div class="columns col-gapless">
-            <a class="btn btn-link column col-4 text-center" v-on:click.prevent="closeCalendar">Cancel</a>
-            <select class="form-select column col-2 text-center" v-model="selectedDate_hours">
-                <option v-for="hour in hours">{{ hour }}</option>
-            </select>
-            <select class="form-select column col-2 text-center" v-model="selectedDate_mins">
-                <option v-for="min in minutes">{{ min }}</option>
-            </select>
-            <button class="btn btn-primary column col-4 text-center" v-on:click.prevent="saveDate">Save</button>
-       </div>
-      </div>
-    </div>
-   `,
-   props: ['trip', 'trip_id', 'active'],
-   components: {  },
-   created: function(){
-       this.resetCalendar();
-       this.refreshDates(this.selectedDate_month, this.selectedDate_year);
-       this.hours = this.getHours();
-       this.minutes = this.getMinutes();
-       this.todayDate = new Date(new Date().setHours(0,0,0,0));
-   },
-   watch: {
-        selectedDate_month: function() {
-           console.log("month watcher")
-           this.refreshDates(this.selectedDate_month, this.selectedDate_year);
-        },
-        active: function() {
-            console.log("calendar active watcher");
-            this.resetCalendar();
-        },
-   },
-  computed: {
-   },
-   methods: {
-       getDaysInMonth: function(month, year) {
-           let date = new Date(year, month, 1);
-           let days = [];
-           while(date.getMonth() === month) {
-               days.push(new Date(date));
-               date.setDate(date.getDate() + 1);
-           }
-           return days;
-       },
-       getPrevMonthDateRange: function(month, year){
-           let days = [];
-           let date = new Date(year, month, 0); // get last date of previous month
-//           console.log(date)
-           let prev_month_remaining = date.getDay(); // how many days since sunday, starting from zero
-           for (let i = prev_month_remaining; i >= 0; i--){
-               let newDate = new Date(year, month - 1, date.getDate() - i);
-               days.push(newDate);
-           }
-           return days;
-       },
-       getNextMonthDateRange: function(month, year){
-           let days = [];
-           let date = new Date(year, month + 1, 1); // get first date of the next month
-           let next_month_remaining = 6 - date.getDay(); // how many left to sunday, sunday index being 6
-           for (let i = 0; i <= next_month_remaining; i++){
-               let newDate = new Date(year, month + 1, date.getDate() + i);
-               days.push(newDate);
-           }
-           return days;
-       },
-       getHours: function(){
-           let hours = [];
-           for (let i = 0; i < 24; i++) {
-               hours.push(i.toString().padStart(2, '0'));
-           }
-           return hours;
-       },
-       getMinutes: function(){
-           let minutes = [];
-           for (let i = 0; i < 60; i+=5){
-               minutes.push(i.toString().padStart(2, '0'));
-           }
-           return minutes;
-       },
-       nextMonth: function(event){
-           if (this.selectedDate_month === 11){
-               this.selectedDate_year += 1;
-               this.selectedDate_month = 0;
-           } else {
-               this.selectedDate_month += 1;
-           }
-       },
-       prevMonth: function(event){
-            if (this.selectedDate_month === 0){
-               this.selectedDate_year -= 1;
-               this.selectedDate_month = 11;
-           } else {
-               this.selectedDate_month -= 1;
-           }
-       },
-       refreshDates: function(month, year){
-           console.log('refresh dates');
-            this.days_of_month = this.getDaysInMonth(this.selectedDate_month, this.selectedDate_year);
-            this.prev_month = this.getPrevMonthDateRange(this.selectedDate_month, this.selectedDate_year);
-            this.next_month = this.getNextMonthDateRange(this.selectedDate_month, this.selectedDate_year);
-       },
-       resetCalendar: function(event){
-            this.selectedDate = new Date(this.trip.date);
-            this.selectedDate_month = this.selectedDate.getMonth();
-            this.selectedDate_year = this.selectedDate.getFullYear();
-            this.selectedDate_hours = this.selectedDate.getHours().toString().padStart(2, '0');
-            this.selectedDate_mins = this.selectedDate.getMinutes().toString().padStart(2, '0');
-       },
-       selectDate: function(date){
-           return date.getTime() === new Date(this.selectedDate.setHours(0,0,0,0)).getTime();
-       },
-       closeCalendar: function(event){
-           console.log("close calendar");
-           this.$emit('update:active', !this.active);
-           this.resetCalendar();
-       },
-       clickNextMonth: function(date){
-           this.selectedDate = date;
-           this.nextMonth();
-       },
-       clickPrevMonth: function(date){
-           this.selectedDate = date;
-           this.prevMonth();
-       },
-       saveDate: function(event){
-           console.log("calendar save date");
-           let d = this.selectedDate.getDate();
-           // javascript getMonth starts from zero index, backend requires start by one index
-           let m = this.selectedDate_month + 1;
-           let Y = this.selectedDate_year
-           let H = this.selectedDate_hours;
-           let M = this.selectedDate_mins;
-           let data = {'date': `${d}-${m}-${Y} ${H}:${M}`};
-           console.log(data);
-           putTrip(this.trip_id, data)
-           .then(res => res.json())
-           .then(() => this.closeCalendar())
-           .then(() => this.$emit("refreshtripdate"));
-       }
-   }
-})
-
 var TripHeader = Vue.component('trip-header', {
   data: function () {
       return {
-          packaging_methods: null,
-          hovered_methods: null,
-          dropdown_active: false,
-          display_year: null,
-          display_month: null,
-          display_date: null,
-          display_hours: null,
-          display_mins: null,
       }
   },
 
   template:`
   <div>
     <!-- basic dropdown button -->
-    <a href="print/test/" class="btn btn-primary btn-lg d-inline-block float-right mx-2">Print</a>
-    <div class="dropdown" v-bind:class="{ active: dropdown_active }">
-        <h2 class="clickable c-hand" v-if="trip" v-on:click.prevent="dropdown_active = !dropdown_active">
-        {{ display_date }}-{{ display_month }}-{{ display_year }} {{ display_hours }}:{{ display_mins }}
-        </h2>
-        <!-- menu component -->
-        <div class="menu" v-bind:style="{'overflow-y': 'unset'}" v-bind:class="{ 'd-none': !dropdown_active }">
-            <calendar v-if="trip"
-             v-bind:trip="trip"
-             v-bind:trip_id="trip_id"
-             v-bind:active="dropdown_active"
-             v-on:update:active="dropdown_active=$event"
-             @refreshtripdate="refreshtripdate">
-             </calendar>
-        </div>
-    </div>
-    <draggable v-bind="dragOptions" @end="packingrearrange" class="display-no-print">
-        <span v-for="pm in packaging_methods"
-            @mouseover="hovered_methods[pm] = true"
-            @mouseleave="hovered_methods[pm] = false"
-            :key="pm"
-            class="chip c-hand packing-item"
-            v-bind:data-attribute-packing="pm">
-            {{ pm }}
-            <a href="#" v-show="hovered_methods[pm]" key="pm" class="btn btn-clear" aria-label="Close" role="button" v-on:click.prevent="deletepacking(pm, $event)"></a>
-        </span>
-        <span class="chip"><a href="#"><i class="icon icon-plus m-1" v-on:click.prevent="addpacking"></i></a></span>
-    </draggable>
     <div>
         <button class="c-hand clickable btn btn-link" v-if="trip && trip.notes !== null" v-on:click.prevent="showedittripnotemodal" id="trip-notes">{{ trip.notes }}</button>
         <button class="btn btn-link c-hand h5 display-no-print" v-else v-on:click.prevent="showedittripnotemodal">Add a note</button>
@@ -258,34 +20,17 @@ var TripHeader = Vue.component('trip-header', {
     </div>
    `,
    props: ['trip', 'trip_id', 'pdf_url'],
-   components: { draggable,
-   'calendar': Calendar,
- },
+   components: { draggable },
    created: function(){
-       this.refreshPackingChips();
-       this.setDisplayDate(this.trip.date);
    },
    watch: {
        trip: function() {
            console.log("trip watcher")
-           this.refreshPackingChips();
-           console.log(this.trip.date);
-           this.setDisplayDate(this.trip.date);
        }
    },
   computed: {
-    dragOptions() {
-          return {
-            animation: 200,
-            group: "description",
-            disabled: false,
-            ghostClass: "ghost",
-            draggable: ".packing-item",
-            dataIdAttr: 'data-attribute-packing',
-          };
-        }
-    },
-   methods: {
+  },
+  methods: {
        rearrange: function(event) {
            console.log("arrange inside trip")
            this.$emit('rearrangeroutes');
@@ -293,59 +38,6 @@ var TripHeader = Vue.component('trip-header', {
        showedittripnotemodal: function(event){
            console.log("show edit trip note modal");
            this.$emit('showedittripnotemodal');
-       },
-       addpacking: function(event){
-           console.log("add packing");
-           this.$emit('showaddpackingmodal');
-       },
-       deletepacking: function(pm, event){
-           console.log("delete packing");
-           this.packaging_methods = this.packaging_methods.filter(e => e !== pm);
-           console.log("DELETE PACKING", this.packaging_methods);
-           let data = { "packaging_methods": null }
-           if (this.packaging_methods.length > 0){
-               data = { "packaging_methods": this.packaging_methods.join(",") };
-           }
-           console.log(data);
-           putTrip(this.trip_id, data).then(() => this.$emit('deletepacking'));
-       },
-       packingrearrange: function(event){
-           console.log("packing rearrange");
-           this.packaging_methods = Array.from(event.target.children)
-                                       .filter(e => e.classList.contains("packing-item"))
-                                       .map(e => e.getAttribute('data-attribute-packing'));
-           let data = { "packaging_methods": this.packaging_methods.join() };
-           console.log(data);
-           putTrip(this.trip_id, data).then(() => this.$emit('rearrangepacking'));
-       },
-       refreshPackingChips: function(){
-           if (this.trip.packaging_methods !== null && this.trip.packaging_methods !== "") {
-               this.hovered_methods = { };
-               if (this.trip.packaging_methods.indexOf(",") === -1) {
-                   console.log("no comma");
-                   this.packaging_methods = [this.trip.packaging_methods.trim()]
-                   this.$set(this.hovered_methods, this.packaging_methods, false);
-               } else {
-                   console.log("comma")
-                   this.packaging_methods = this.trip.packaging_methods.split(",").map(pm => pm.trim());
-                   this.trip.packaging_methods.split(",").map(pm => { this.$set(this.hovered_methods, pm.trim(), false )});
-               }
-           } else {
-               this.packaging_methods = [];
-           }
-       },
-       setDisplayDate: function(dateString){
-           let display_date = new Date(dateString);
-           this.display_year = display_date.getFullYear();
-           // javascript getMonth starts from zero index, backend requires start by one index
-           this.display_month = (display_date.getMonth() + 1).toString().padStart(2, '0');
-           this.display_date = display_date.getDate().toString().padStart(2, '0');
-           this.display_hours = display_date.getHours().toString().padStart(2, '0');
-           this.display_mins = display_date.getMinutes().toString().padStart(2, '0');
-       },
-       refreshtripdate: function(event){
-           console.log("trip header refresh trip date");
-           this.$emit("refreshtripdate");
        }
    }
 })
@@ -353,92 +45,39 @@ var TripHeader = Vue.component('trip-header', {
 var RouteComponent = Vue.component('route-component', {
   data: function () {
       return {
-          hovered: false,
       }
   },
    computed: {
-      packingLength: function() {
-          console.log("Route Component Trip Watcher Packaging Method")
-          console.log("PACKING:", this.packing_methods);
-          if (this.packing_methods === null || this.packing_methods === ""){
-                console.log("packing methods is empty or null");
-                let packing_arr = [];
-                console.log("Packing array length: ", packing_arr.length)
-                return {'grid-template-columns': '2fr 4fr' };
-          }
-          else {
-              console.log("NOT NULL", this.packing_methods);
-              if (this.packing_methods.indexOf(",") === -1){
-                  let packing_arr = [this.packing_methods];
-                  return {'grid-template-columns':'2fr 4fr repeat(' + packing_arr.length + ', minmax(0, 1fr))'};
-              } else {
-                  let packing_arr = this.packing_methods.split(",");
-                  return {'grid-template-columns': '2fr 4fr repeat(' + packing_arr.length + ', minmax(0, 1fr))'};
-              }
-          }
-      }
    },
   template:`
-  <div @mouseover="hovered=true" @mouseleave="hovered=false" class="my-2 columns col-12 route">
-        <transition name="expand">
-            <div class="add column col-12 display-no-print" v-show="hovered">
-            <!-- route indexes starts from 1 in database but start at 0 here. -->
-                <a href="#" class="btn btn-link" v-show="hovered" v-on:click.prevent="showaddroutemodal" v-bind:data-insertIndex="route.index - 1">
-                <i class="icon icon-plus mx-2"></i>ADD DESTINATION
-                </a>
-            </div>
-        </transition>
+  <div class="my-2 columns col-12 route">
         <input type="checkbox" v-bind:id="'accordion-'+ route.id" name="accordion-checkbox" :checked="minimize" hidden>
         <div class="columns column col-12 p-1">
-            <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-if="route.orderitem_set.length > 0">
-                {{ routesorder.indexOf(route.id) + 1 }}. {{ route.orderitem_set[0].customer }}
+            <label class="accordion-header column col-9 h5" v-bind:for="'accordion-' + route.id" v-if="route.orderitem_set.length > 0">
+                {{ routesorder.indexOf(route.id) + 1 }}. {{ route.orderitem_set[0].customer_name }}
             </label>
-            <label class="accordion-header column col-10 h5" v-bind:for="'accordion-' + route.id" v-else>
+            <label class="accordion-header column col-9 h5" v-bind:for="'accordion-' + route.id" v-else>
                 {{ routesorder.indexOf(route.id) + 1 }}.
             </label>
-            <a href="#" class="btn btn-link text-right column col-2 do-number h5"
-            v-if="route.do_number"
-            v-bind:data-route-id="route.id"
-            v-on:click.prevent="showeditdonumbermodal">{{ route.do_number }}</a>
-            <a href="#" class="btn btn-link text-right column col-2 do-number light-caps display-no-print"
-            v-else-if="route.orderitem_set.length > 0"
-            v-bind:data-route-id="route.id"
-            v-on:click.prevent="showeditdonumbermodal">ENTER D/O</a>
+            <a href="#" class="btn btn-link text-right column col-3 do-number h5"
+              v-if="route.do_number"
+              v-bind:data-route-id="route.id"
+              v-on:click.prevent="showeditdonumbermodal">{{ route.do_number }} | {{ route.datetime }}
+            </a>
         </div>
 
         <div class="accordion-body columns column col-12">
-            <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12" v-bind:style="packingLength">
-                <li class="packing-empty-space"></li>
+            <ul v-if="route.orderitem_set.length > 0" class="packing-container column col-12">
                 <li v-for="method in route.packing" :key="method" class="border">{{ method }}</li>
                 <template v-for="oi in route.orderitem_set">
                      <li class="clickable c-hand quantity-input"
                         v-on:click.stop="showeditorderitemquantitymodal"
                          v-bind:data-orderitem-id="oi.id">
                          <!-- span element may be clicked instead of li, bind orderitem id for edit quantity modal -->
-                         <span v-bind:data-orderitem-id="oi.id">{{ showQuantity(oi.quantity, oi.driver_quantity) }}</span>
+                         <span v-bind:data-orderitem-id="oi.id">
+                            {{ showQuantity(oi.quantity, oi.driver_quantity) }} {{ oi.product_name }}
+                        </span>
                      </li>
-                    <li class="clickable c-hand"
-                         v-on:click.prevent="showeditorderitemnotemodal"
-                         v-bind:data-orderitem-id="oi.id"
-                         v-if="oi.note">
-                         {{ oi.customerproduct }}&#8594;{{ oi.note }}
-                     </li>
-                    <li class="clickable c-hand"
-                         v-on:click.prevent="showeditorderitemnotemodal"
-                         v-bind:data-orderitem-id="oi.id"
-                         v-else>
-                         {{ oi.customerproduct }}
-                     </li>
-                    <li v-for="method in route.packing"
-                    v-if="oi.packing"
-                    v-bind:data-orderitem-id="oi.id"
-                    class="border clickable c-hand"
-                    v-on:click.prevent="showeditorderitempackingmodal"
-                    v-bind:data-packing-name="method">{{oi.packing[method]}}</li>
-                    <li v-else class="border clickable c-hand"
-                    v-bind:data-orderitem-id="oi.id"
-                    v-bind:data-packing-name="method"
-                    v-on:click.prevent="showeditorderitempackingmodal"></li>
                 </template>
             </ul>
 
@@ -459,17 +98,9 @@ var RouteComponent = Vue.component('route-component', {
                 <i class="icon icon-delete float-right" v-bind:data-route-id="route.id"></i>
             </button>
         </div>
-        <transition name="expand" class="display-no-print">
-            <div class="add column col-12 display-no-print" v-show="hovered" v-if="index + 1 === routesorder.length">
-            <!-- route indexes starts from 1 in database but start at 0 here. -->
-                <a href="#" class="btn btn-link" v-show="hovered" v-on:click.prevent="showaddroutemodal" v-bind:data-insertIndex="route.index">
-                    <i class="icon icon-plus mx-2"></i>ADD DESTINATION
-                </a>
-            </div>
-        </transition>
     </div>
    `,
-   props: ['route', 'minimize', 'index', 'routesorder', 'index', 'packing_methods'],
+   props: ['route', 'minimize', 'index', 'routesorder', 'index'],
    components: {
    },
    mounted: function (){
@@ -484,10 +115,6 @@ var RouteComponent = Vue.component('route-component', {
        showeditorderitemnotemodal: function(event){
            console.log("show edit orderitem note modal");
            this.$emit('showeditorderitemnotemodal', event);
-       },
-       showeditorderitempackingmodal: function(event){
-           console.log("show edit orderitem packing modal");
-           this.$emit('showeditorderitempackingmodal', event);
        },
        showdeleteroutemodal: function(event){
            console.log("show delete route modal");
@@ -516,86 +143,6 @@ var RouteComponent = Vue.component('route-component', {
    }
 })
 
-var PackingSum = Vue.component('packing-sum', {
-  data: function () {
-      return {
-          packing_sum: {},
-          packing_arr: [],
-      }
-  },
-  computed: {
-      packingLength: function() {
-          console.log("Route Component Trip Watcher Packaging Method")
-          console.log("PACKING:", this.packing_methods);
-          if (this.packing_methods === null || this.packing_methods === ""){
-                console.log("packing methods is empty or null");
-                console.log("Packing array length: ", this.packing_arr.length)
-                return {'grid-template-columns': '2fr 4fr'};
-          }
-          else {
-              console.log("NOT NULL", this.packing_methods);
-              if (this.packing_methods.indexOf(",") === -1){
-                  this.packing_arr = [this.packing_methods.trim()];
-                  return {'grid-template-columns':'2fr 4fr repeat(' + this.packing_arr.length + ', minmax(0, 1fr))'};
-              } else {
-                  this.packing_arr = this.packing_methods.split(",").map(pm => pm.trim());
-                  return {'grid-template-columns': '2fr 4fr repeat(' + this.packing_arr.length + ', minmax(0, 1fr))'};
-              }
-          }
-      }
-  },
-  template:`
-    <div class="packing-sum columns column 12 route">
-        <ul class="packing-container column col-12 " v-bind:style="packingLength">
-            <li class="packing-sum-empty-space"></li>
-            <li class="border" v-for="name in packing_arr">{{ name }}</li>
-            <li class="packing-sum-empty-space"></li>
-            <li class="border" v-for="name in packing_arr">{{ packing_sum[name] }}</li>
-        </ul>
-    </div>
-   `,
-   props: ['trip', 'routes', 'packing_methods'],
-   created: function() {
-   },
-   mounted: function() {
-       this.refreshPackingSum();
-   },
-   watch: {
-       routes: function() {
-           console.log("routes watcher")
-           this.refreshPackingSum();
-       },
-       trip: function(){
-           console.log("trip watcher");
-           this.refreshPackingSum();
-       },
-   },
-   methods: {
-       refreshPackingSum: function(){
-           this.packing_sum = {};
-           this.packing_arr = [];
-           if (this.packing_methods !== null){
-               if (this.packing_methods.indexOf(",") === -1){
-                   this.packing_arr = [this.packing_methods.trim()];
-               } else {
-                   this.packing_arr = this.packing_methods.split(",").map(pm => pm.trim());
-               }
-               this.packing_arr.forEach(pm => { this.$set(this.packing_sum, pm, 0); });
-               this.routes.forEach(r => {
-                   r.orderitem_set.forEach(oi => {
-                       if (oi.packing !== null){
-                           Object.keys(oi.packing).forEach(k => {
-                               let parsedPackingQty = parseInt(oi.packing[k], 10);
-                               if (isNaN(parsedPackingQty)) { parsedPackingQty = 0 }
-                               this.$set(this.packing_sum, k, this.packing_sum[k] += parsedPackingQty);
-                           });
-                       }
-                   })
-               });
-           }
-       }
-   }
-})
 
 
 var RouteList = Vue.component('routes-list', {
@@ -615,11 +162,9 @@ var RouteList = Vue.component('routes-list', {
           :routesorder="routes_id_ordering"
           :data-attribute-id="route.id"
           :index="index"
-          :packing_methods="packing_methods"
           v-bind:minimize="arrangeroutes"
           @showeditorderitemquantitymodal="showeditorderitemquantitymodal"
           @showeditorderitemnotemodal="showeditorderitemnotemodal"
-          @showeditorderitempackingmodal="showeditorderitempackingmodal"
           @showdeleteroutemodal="showdeleteroutemodal"
           @showeditdonumbermodal="showeditdonumbermodal"
           @showeditroutenotemodal="showeditroutenotemodal"
@@ -666,10 +211,6 @@ var RouteList = Vue.component('routes-list', {
        showeditorderitemnotemodal: function(event){
            console.log("routes list show orderitem note modal");
            this.$emit('showeditorderitemnotemodal', event);
-       },
-       showeditorderitempackingmodal: function(event){
-           console.log("routes list show orderitem packing modal");
-           this.$emit('showeditorderitempackingmodal', event);
        },
        showdeleteroutemodal: function(event){
            console.log("routes list show delete route modal");
@@ -912,71 +453,6 @@ var OrderItemNoteModal = Vue.component('OrderItemNoteModal', {
    }
 })
 
-var OrderItemPackingModal = Vue.component('OrderItemPackingModal', {
-  data: function () {
-      return {
-          packing: {},
-          packing_input: null,
-      }
-  },
-
-  template:`
-    <div class="modal modal-sm" v-bind:class="{ active: opened }">
-        <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
-        <div class="modal-container">
-            <div class="modal-header">
-                <a href="#" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
-                <div class="modal-title h5">Edit {{ selected_orderitem_packing_name }}</div>
-            </div>
-            <div class="modal-body form-group">
-            <!-- form input control -->
-                <div class="form-group">
-                  <label class="form-label" for="orderitem-packing">Quantity</label>
-                  <input class="form-input" type="number" id="orderitem-packing" placeholder="Enter packing quantity" v-model.number="packing_input">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <a href="#" class="btn btn-link" v-on:click.prevent="close">Cancel</a>
-                <button class="btn btn-primary float-right" v-on:click.prevent="saveOrderItemPacking">Save</button>
-            </div>
-        </div>
-    </div>
-   `,
-   props: ['opened', 'selected_orderitem_id', 'selected_orderitem_packing_name'],
-   watch: {
-       opened: function(val){
-           if (val) {
-               console.log("opened is true");
-               console.log("orderitem id is", this.selected_orderitem_id);
-               this.getOrderItem();
-               console.log(this.selected_orderitem_packing_name)
-           }
-       }
-   },
-   methods: {
-       close: function(event) {
-           this.$emit('showeditorderitempackingmodal');
-       },
-       getOrderItem: async function(){
-            var vm = this;
-            getOrderItemDetails(this.selected_orderitem_id)
-            .then(res => res.json())
-            .then(res => { this.packing = {}; if (res.packing) { this.packing = res.packing } })
-            .then(() => this.packing_input = this.packing[this.selected_orderitem_packing_name])
-            .catch(e => console.log(e))
-            console.log('orderitem quantity set');
-       },
-       saveOrderItemPacking: function(event){
-           console.log("save orderitem packing");
-           this.packing[this.selected_orderitem_packing_name] = this.packing_input;
-           let data = {'packing': this.packing};
-           postOrderItemData(this.selected_orderitem_id, data)
-               .then(res => res.json())
-               .then(() => this.close())
-               .catch(e => console.log(e))
-       }
-   }
-})
 
 var RouteDeleteModal = Vue.component('RouteDeleteModal', {
   data: function () {
@@ -1148,69 +624,6 @@ var RouteNoteModal = Vue.component('RouteNoteModal', {
            .then(res => res.json())
            .then(() => this.close())
            .catch(e => console.log(e))
-       }
-   }
-})
-
-
-var AddPackingModal = Vue.component('AddPackingModal', {
-  data: function () {
-      return {
-          method:null,
-      }
-  },
-
-  template:`
-    <div class="modal modal-sm" v-bind:class="{ active: opened }">
-        <a href="#close" class="modal-overlay" aria-label="Close" v-on:click.prevent="close"></a>
-        <div class="modal-container">
-            <div class="modal-header">
-                <a href="#" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
-                <div class="modal-title h5">Add Packing</div>
-            </div>
-            <div class="modal-body form-group">
-            <!-- form input control -->
-                <div class="form-group">
-                  <label class="form-label" for="method">Method</label>
-                  <input class="form-input" type="text" id="method" placeholder="Enter Method" v-model="method" maxlength="16">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <a href="#" class="btn btn-link" v-on:click.prevent="close">Cancel</a>
-                <button class="btn btn-primary float-right" v-on:click.prevent="saveMethod">Save</button>
-            </div>
-        </div>
-    </div>
-   `,
-   props: ['opened', 'trip_id'],
-   watch: {
-       opened: function(val){
-           if (val) {
-               console.log("opened is true");
-           }
-       }
-   },
-   methods: {
-       close: function(event) {
-           this.$emit('showaddpackingmodal');
-       },
-       saveMethod: async function(event){
-           console.log("save method");
-           let packaging_methods = [];
-           let trip = await getTripDetails(this.trip_id)
-                           .then(res => res.json())
-                           .then(res => { if (res.packaging_methods) { packaging_methods = res.packaging_methods.split(",") } })
-                           .then(res => { if (packaging_methods) { packaging_methods = packaging_methods.map(e => e.trim()) }})
-
-
-           packaging_methods.push(this.method.trim());
-
-           let data = { packaging_methods: packaging_methods.join() };
-           console.log(data)
-           putTrip(this.trip_id, data)
-           .then(res => res.json())
-           .then(() => this.close())
-           .catch(e => console.log(e));
        }
    }
 })
@@ -1403,29 +816,24 @@ var app = new Vue({
       return {
           trip_id: null,
           trip: null,
-          packing_methods: null,
           pdfUrl : null,
           routes: null,
           show_routes:true,
           selected_route_id: null,
           selected_orderitem_id: null,
-          selected_orderitem_packing_name: null,
           create_route_at_index: null,
           show_edit_trip_note_modal: false,
           show_orderitem_quantity_modal: false,
           show_orderitem_note_modal: false,
-          show_orderitem_packing_modal: false,
           show_route_delete_modal: false,
           show_edit_do_number_modal:false,
           show_edit_route_note_modal: false,
-          show_add_packing_modal: false,
           show_add_route_modal: false,
       }
   },
    watch: {
        trip: function(val){
            if (val) {
-               this.packing_methods = this.trip.packaging_methods;
            }
        }
    },
@@ -1435,22 +843,22 @@ var app = new Vue({
   mounted: async function(){
       this.trip_id = this.$el.getAttribute('data-trip-id');
       this.pdfUrl = this.$el.getAttribute('data-pdf-url');
-      this.getTrip();
-      this.refreshRoutes(this.trip_id);
+      this.getTrip()
+      .then((res) => res.json())
+      .then(res => this.trip = res)
+      .then(() => this.refreshRoutes())
+      .then(res => this.routes = res);
   },
   components: {
       'trip-header': TripHeader,
       'routes-list': RouteList,
-      'packing-sum': PackingSum,
       'add-route': AddRoute,
       'edit-note-modal': EditNoteModal,
       'edit-orderitem-quantity-modal':OrderItemQuantityModal,
       'edit-orderitem-note-modal': OrderItemNoteModal,
-      'edit-orderitem-packing-modal': OrderItemPackingModal,
       'delete-route-modal': RouteDeleteModal,
       'do-number-modal': DoNumberModal,
       'edit-route-note-modal': RouteNoteModal,
-      'add-packing-modal': AddPackingModal,
       'add-route-modal': AddRouteModal,
   },
   methods: {
@@ -1482,16 +890,6 @@ var app = new Vue({
               this.refreshRoutes();
           }
       },
-       showeditorderitempackingmodal: function(event){
-          this.show_orderitem_packing_modal = !this.show_orderitem_packing_modal
-          if (this.show_orderitem_packing_modal){
-              this.selected_orderitem_packing_name = event.target.getAttribute('data-packing-name')
-              this.selected_orderitem_id = event.target.getAttribute('data-orderitem-id')
-          }
-          if (!this.show_orderitem_packing_modal){
-              this.refreshRoutes();
-          }
-       },
       showdeleteroutemodal: function(event){
           this.show_route_delete_modal = !this.show_route_delete_modal
           if (this.show_route_delete_modal){
@@ -1523,15 +921,6 @@ var app = new Vue({
                   this.refreshRoutes();
               }
       },
-      showaddpackingmodal: function(event){
-          this.show_add_packing_modal = !this.show_add_packing_modal
-              if (this.show_add_packing_modal){
-              }
-              if (!this.show_add_packing_modal){
-                  this.getTrip();
-                  this.refreshRoutes(this.trip_id);
-              }
-      },
       showaddroutemodal: function(event, insertIndex){
               this.show_add_route_modal = !this.show_add_route_modal
               if (this.show_add_route_modal && insertIndex){
@@ -1542,33 +931,18 @@ var app = new Vue({
                   this.create_route_at_index = null;
               }
       },
-      deletepacking: function(event){
+      getTrip: function(){
+          return getTripDetails(this.trip_id)
+      },
+      refreshRoutes: function(){
+         return this.trip.route_set;
+      },
+      refreshtripdate: function(event){
+          console.log("main app refresh trip date");
           this.getTrip();
-          this.refreshRoutes(this.trip_id);
-      },
-      getTrip: async function(){
-          getTripDetails(this.trip_id).then(res => res.json()).then(res => this.trip = res)
-      },
-      getAllRoutes: function(trip_id){
-           return getRoutesDetails(this.trip_id);
-       },
-       rearrangepacking: function(event){
-           this.getTrip();
-           this.refreshRoutes(this.trip_id);
-       },
-       refreshRoutes: function(trip_id){
-          this.getAllRoutes(this.trip_id)
-          .then(res => res.json())
-          .then(res => this.routes = res)
-       },
-       refreshtripdate: function(event){
-           console.log("main app refresh trip date");
-           this.getTrip();
-       }
+      }
   }
 })
-
-
 
 function getCookie(name) {
     var cookieValue = null;
@@ -1726,16 +1100,6 @@ function getTripDetails(trip_id){
     return response;
 }
 
-function getRoutesDetails(trip_id){
-    console.log("Get Routes Details");
-    let url = origin + '/pos/api/trips/' + trip_id + '/detail/routes/';
-    var response = fetch(url, {
-      method: 'GET', // or 'PUT'
-    });
-    console.log(url);
-    console.log(response);
-    return response;
-}
 
 function getOrderItemDetails(orderitem_id){
     console.log("Get OrderItem Details");
