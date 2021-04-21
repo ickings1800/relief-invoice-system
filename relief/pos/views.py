@@ -779,7 +779,7 @@ def export_invoice(request):
 
 def export_quote(request):
     if request.method == 'GET':
-        field_names = ['customer', 'product', 'quote_price', 'freshbooks_tax_1']
+        field_names = ['sku', 'customer', 'product', 'quote_price', 'freshbooks_tax_1']
         quotes = CustomerProduct.objects.all()
 
         response = HttpResponse(content_type='text/csv')
@@ -789,6 +789,7 @@ def export_quote(request):
         writer.writeheader()
         for cp in quotes:
             writer.writerow({
+                'sku': cp.pk,
                 'customer': cp.customer.name,
                 'product': cp.product.name,
                 'quote_price': cp.quote_price,
