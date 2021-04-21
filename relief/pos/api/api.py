@@ -128,37 +128,87 @@ class TripDuplicate(CreateAPIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-class TripUpdate(UpdateAPIView):
-    serializer_class = TripListDetailUpdateSerializer
-    queryset = Trip.objects.all()
+@api_view(['PUT'])
+def trip_update(request, pk):
+    if request.method == 'PUT':
+        notes = request.data.get('notes')
+        selected_trip = Trip.objects.get(pk=pk)
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-
-
-class TripRouteCreate(CreateAPIView):
-    serializer_class = TripAddRouteSerializer
-
-    def post(self, request, *args, **kwargs):
-        try:
-            trip = Trip.objects.get(pk=self.kwargs['pk'])
-            print("Try")
-        except Trip.DoesNotExist:
-            print("Does Not Exist")
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        validated_note = request.data.get('note')
-        validated_customer = request.data.get('customer')
-        validated_do_number = request.data.get('do_number')
-        print(validated_note, validated_customer)
-        route = Trip.create_route(trip.pk, validated_note, customer_id=validated_customer, do_number=validated_do_number)
-        rs = RouteSerializer(route)
-        return Response(status=status.HTTP_201_CREATED, data=rs.data)
+        if selected_trip.notes != notes:
+            selected_trip.notes = notes
+            selected_trip.save()
+            ts = TripListDetailUpdateSerializer(selected_trip, context={'request': request})
+            return Response(status=status.HTTP_200_OK, data=ts.data)
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error updating trip"})
+    return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error updating trip"})
 
 
+@api_view(['POST'])
+def route_create(request):
+    if request.method == 'POST':
+        #  try:
+        #      body = json.loads(request.data.get('body'))
+        #  except Exception as e:
+        #      return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error parsing json"})
+        body = request.data
+        driver = request.user
+
+        validated_note = body.get('note')
+        validated_do_number = body.get('do_number')
+        validated_po_number = body.get('po_number')
+        validated_customer = body.get('customer')
+        validated_customerproducts = body.get('customerproducts')
+        signature_base64 = body.get('signature')
+
+        if validated_do_number:
+            try:
+                do_number_int = int(validated_do_number)
+            except ValueError:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "do_number is not an integer"})
+
+            route_exists = Route.objects.filter(do_number=validated_do_number).count()
+            if route_exists > 0:
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST,
+                    data={"error": "route already exists with do_number {0}".format(validated_do_number)}
+                )
+
+        print(validated_customerproducts)
+        for cp in range(len(validated_customerproducts)):
+            cp_id = validated_customerproducts[cp].get('id')
+            cp_driver_qty = validated_customerproducts[cp].get('driver_quantity')
+            print("quantity:", cp_driver_qty)
+            try:
+                if not cp_id:
+                    return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "customerproduct id not found"})
+                if cp_driver_qty is None:
+                    return Response(
+                        status=status.HTTP_400_BAD_REQUEST,
+                        data={"error": "driver quantity is none"}
+                    )
+                if int(cp_driver_qty) < 0:
+                    return Response(
+                        status=status.HTTP_400_BAD_REQUEST,
+                        data={"error": "driver quantity or quantity cannot be less than zero"}
+                    )
+            except Exception as e:
+                print(e)
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": e})
+
+        assigned_trip = Trip.objects.get(driver=driver)
+        if assigned_trip:
+            route = Route.create_route(
+                validated_note,
+                validated_do_number,
+                validated_po_number,
+                validated_customer,
+                validated_customerproducts,
+                assigned_trip
+            )
+            rs = RouteSerializer(route)
+            return Response(status=status.HTTP_201_CREATED, data=rs.data)
+        return response(status=status.HTTP_404_NOT_FOUND, data={"error": "trip for driver not found"})
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class OrderItemDetail(RetrieveAPIView):
