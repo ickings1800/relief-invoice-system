@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/orderitems/', api.get_filter_orderitem_rows, name='orderitems_filter'),
     path('api/taxes/', api.get_all_taxes, name='taxes_list'),
     path('api/invoice/create/', api.create_invoice, name='invoice_create'),
+    path('api/groups/all/', api.GroupList.as_view(), name='list_all_groups'),
     path('api/group/create/', api.group_create, name='group_create'),
     path('api/group/update/', api.update_grouping, name='group_update'),
     path('api/customer/link/', api.link_customer, name='link_customers'),
