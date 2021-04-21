@@ -1,19 +1,7 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
-
 from ..models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
 
-
-class TripAddRouteSerializer(serializers.Serializer):
-    note = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    customer = serializers.IntegerField(required=False)
-    do_number = serializers.CharField(required=False, max_length=8, allow_blank=True)
-
-    def create(self, validated_data):
-        note = validated_data.get('note')
-        do_number = validated_data.get('do_number')
-        customer = validated_data.get('customer')
-        return Route(note=note, do_number=do_number)
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
@@ -87,10 +75,12 @@ class TripRouteCheckedSerializer(serializers.ModelSerializer):
 
 class TripListDetailUpdateSerializer(serializers.HyperlinkedModelSerializer):
     route_set = TripRouteCheckedSerializer(many=True)
-
+    trip_url = serializers.HyperlinkedIdentityField(
+        view_name="pos:trip_detail", lookup_field="pk", lookup_url_kwarg="pk"
+    )
     class Meta:
         model = Trip
-        fields = ('pk', 'date', 'notes', 'packaging_methods', 'route_set')
+        fields = ('pk', 'notes', 'route_set', 'trip_url')
         #fields = ('url', 'pk', 'date', 'notes', 'packaging_methods', 'route_set')
         #extra_kwargs = {'url': {'view_name': 'pos:trip_detail', 'lookup_field': 'pk'}}
 
@@ -98,7 +88,7 @@ class TripListDetailUpdateSerializer(serializers.HyperlinkedModelSerializer):
 class TripCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
-        fields = ('date', 'notes')
+        fields = ('notes',)
 
 
 class CustomerProductListDetailSerializer(serializers.ModelSerializer):
@@ -206,20 +196,17 @@ class RouteDetailSerializer(serializers.ModelSerializer):
 
 class RouteSerializer(serializers.ModelSerializer):
     orderitem_set = OrderItemSerializer(many=True)
-    trip_date = serializers.SerializerMethodField()
-    packing = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
 
     class Meta:
         model = Route
-        fields = ('id', 'index', 'do_number', 'note', 'trip_date', 'packing', 'checked', 'orderitem_set')
+        fields = (
+            'id', 'index', 'do_number', 'po_number',
+            'note', 'date', 'checked', 'orderitem_set'
+        )
 
-    def get_trip_date(self, obj):
-        return obj.trip.date.strftime("%d-%m-%Y")
-
-    def get_packing(self, obj):
-        if obj.trip.packaging_methods:
-            return [e.strip() for e in obj.trip.packaging_methods.split(',')]
-        return []
+    def get_date(self, obj):
+        return obj.date.strftime("%d-%m-%Y")
 
 
 class RouteUpdateSerializer(serializers.ModelSerializer):
@@ -233,7 +220,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Trip
-        fields = ('date', 'notes', 'packaging_methods', 'route_set',)
+        fields = ('notes', 'route_set',)
 
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
