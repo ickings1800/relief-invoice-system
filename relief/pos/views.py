@@ -175,9 +175,6 @@ class TripDetailView(LoginRequiredMixin, FormView):
         context['trip'] = trip
         context['routes'] = trip.route_set.all().order_by('index')
         context['customers'] = Customer.objects.all()
-        if trip.packaging_methods:
-            packing = trip.packaging_methods.split(',')
-            context['packing'] = [e.strip() for e in packing]
         return context
 
     def get_success_url(self):
@@ -265,8 +262,11 @@ def InvoiceSingleView(request, pk):
     invoice = Invoice.objects.select_related('customer').get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
-        query_cp = list(CustomerProduct.objects.filter(customer_id=invoice_customer.pk))
         query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
+        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
+        unique_quote_price_set = set(query_oi.values_list('customerproduct__product__name', 'unit_price'))
+        unique_quote_price_dict = {k:v for k,v in unique_quote_price_set}
+        #  find product headings where sum of products is greater than zero
         pv_table = pivot(
             query_oi,
             ['route__do_number', 'route__date'],
@@ -275,12 +275,13 @@ def InvoiceSingleView(request, pk):
         )
 
         product_sum = Counter()
-        quote_prices = { cp.product.name:cp.quote_price for cp in query_cp }
+
         for row in pv_table:
-            mapped_row = {k.product.name: row.get(k.product.name, 0) for k in query_cp}
+            mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
             product_sum.update(mapped_row)
 
-        nett_amt = { cp.product.name: cp.quote_price * product_sum[cp.product.name] for cp in query_cp }
+        nett_amt = { name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names }
+
         subtotal = 0
         for k, v in nett_amt.items():
             subtotal += v
@@ -293,7 +294,8 @@ def InvoiceSingleView(request, pk):
 
         ctx = {
             'pv_table': pv_table,
-            'customerproducts': query_cp,
+            'customerproducts': unique_orderitem_names,
+            'quote_price': unique_quote_price_dict,
             'product_sum': product_sum,
             'nett_amt': nett_amt ,
             'total_nett_amt': total_nett_amt,
@@ -378,8 +380,11 @@ def invoice_pdf_view(request, pk):
     invoice = Invoice.objects.select_related('customer').get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
-        query_cp = list(CustomerProduct.objects.filter(customer_id=invoice_customer.pk))
         query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
+        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
+        unique_quote_price_set = set(query_oi.values_list('customerproduct__product__name', 'unit_price'))
+        unique_quote_price_dict = {k:v for k,v in unique_quote_price_set}
+
         pv_table = pivot(
             query_oi,
             ['route__do_number', 'route__date'],
@@ -388,18 +393,19 @@ def invoice_pdf_view(request, pk):
         )
 
         product_sum = Counter()
-        quote_prices = { cp.product.name:cp.quote_price for cp in query_cp }
+
         for row in pv_table:
-            mapped_row = {k.product.name: row.get(k.product.name, 0) for k in query_cp}
+            mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
             product_sum.update(mapped_row)
 
-        nett_amt = { cp.product.name: cp.quote_price * product_sum[cp.product.name] for cp in query_cp }
+        nett_amt = { name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names }
+
         subtotal = 0
         for k, v in nett_amt.items():
             subtotal += v
 
-        gst_decimal = Decimal(invoice_customer.gst / 100)
         total_nett_amt = subtotal - invoice.minus
+        gst_decimal = Decimal(invoice_customer.gst / 100)
         gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
         total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
@@ -467,23 +473,23 @@ def invoice_pdf_view(request, pk):
         )
         heading = []
         heading.append(Paragraph("DATE", styleBH))
-        for cp in query_cp:
-            heading.append(Paragraph(cp.product.name, styleBH))
+        for name in unique_orderitem_names:
+            heading.append(Paragraph(name, styleBH))
         heading.append(Paragraph("D/O", styleBH))
         datalist = [heading]
 
         for row in pv_table:
             data_row = []
             data_row.append(row.get('route__date').strftime('%d/%m/%Y'))
-            for cp in query_cp:
-                if row.get(cp.product.name) is None:
+            for name in unique_orderitem_names:
+                if row.get(name) is None:
                     data_row.append('')
                 else:
-                    qty = row.get(cp.product.name)
+                    qty = row.get(name)
                     if qty == 0:
                         data_row.append('')
                     else:
-                        data_row.append(str(row.get(cp.product.name)))
+                        data_row.append(str(row.get(name)))
             data_row.append(row.get('route__do_number', styleBH))
             datalist.append(data_row)
         table_width = (19/len(heading)) * cm
@@ -499,22 +505,22 @@ def invoice_pdf_view(request, pk):
         #   -- quantity row --
         quantity_row = []
         quantity_row.append(Paragraph("QUANTITY", styleBH))
-        for cp in query_cp:
-            quantity_row.append(Paragraph(str(product_sum.get(cp.product.name, 0)), styleBH))
+        for name in unique_orderitem_names:
+            quantity_row.append(Paragraph(str(product_sum.get(name, 0)), styleBH))
         quantity_row.append("")
         quantity_data.append(quantity_row)
         #  -- unit price row --
         unit_price_row = []
         unit_price_row.append(Paragraph("UNIT PRICE", styleBH))
-        for cp in query_cp:
-            unit_price_row.append(Paragraph(str(quote_prices.get(cp.product.name)), styleBH))
+        for name in unique_orderitem_names:
+            unit_price_row.append(Paragraph(str(unique_quote_price_dict.get(name)), styleBH))
         unit_price_row.append("")
         quantity_data.append(unit_price_row)
         #  -- nett amount row --
         nett_amt_row = []
         nett_amt_row.append(Paragraph("NETT AMOUNT", styleBH))
-        for cp in query_cp:
-            nett_amt_row.append(Paragraph(str(nett_amt.get(cp.product.name)), styleBH))
+        for name in unique_orderitem_names:
+            nett_amt_row.append(Paragraph(str(nett_amt.get(name)), styleBH))
         nett_amt_row.append("")
         quantity_data.append(nett_amt_row)
         quantity_table = Table(quantity_data, [table_width for i in range(len(heading))], 5*mm)
@@ -523,10 +529,19 @@ def invoice_pdf_view(request, pk):
 
         # -- subtotal, gst, total amount --
         total_data_style = TableStyle([('FONTSIZE', (0,0), (-1,-1), 9),
+                                        ('SPAN', (0,0), (0,0)),
+                                        ('SPAN', (0, 0), (0, -1)),
                                         ('GRID', (1,0), (-1,-1), 0.5, colors.black),
                                         ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')])
+
+        note_styles = getSampleStyleSheet()
+        notes_style = note_styles["Normal"]
+        notes_style.alignment = TA_LEFT
+        notes_style.fontName = 'Helvetica-Bold'
+
         total_data = []
-        total_data.append(["SUB-TOTAL ($)", str(subtotal)])
+        notes_paragraph = Paragraph(invoice.remark, notes_style)
+        total_data.append([notes_paragraph, "SUB-TOTAL ($)", str(subtotal)])
 
         if invoice.minus > 0:
             if invoice.discount_description:
@@ -535,9 +550,9 @@ def invoice_pdf_view(request, pk):
                 total_data.append(["MINUS ($)", str(invoice.minus)])
             total_data.append(["TOTAL NETT AMT ($)", str(total_nett_amt)])
 
-        total_data.append(["GST ({0}%)".format(invoice_customer.gst), str(gst)])
-        total_data.append(["TOTAL (inc. GST) ($)", str(total_incl_gst)])
-        total_data_table = Table(total_data)
+        total_data.append(["", "GST ({0}%)".format(invoice_customer.gst), str(gst)])
+        total_data.append(["", "TOTAL (inc. GST) ($)", str(total_incl_gst)])
+        total_data_table = Table(total_data, [12.8*cm, 4*cm, 2*cm])
         total_data_table.hAlign = 'RIGHT'
         total_data_table.setStyle(total_data_style)
 

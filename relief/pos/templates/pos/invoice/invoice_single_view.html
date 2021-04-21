@@ -29,8 +29,8 @@
           <thead>
             <tr>
               <th>DATE</th>
-                {% for cp in customerproducts %}
-                <th>{{ cp.product.name }}</th>
+                {% for name in customerproducts %}
+                <th>{{ name }}</th>
                 {% endfor %}
               <th>D/O</th>
             </tr>
@@ -39,9 +39,9 @@
             {% for row in pv_table %}
             <tr>
               <td>{{ row|keyvalueget:'route__date'|format_date:"%d/%m/%Y" }}</td>
-              {% for cp in customerproducts %}
-              {% if row|keyvalueget:cp.product.name %}
-              <td>{{ row|keyvalueget:cp.product.name }}</td>
+              {% for name in customerproducts %}
+              {% if row|keyvalueget:name %}
+              <td>{{ row|keyvalueget:name }}</td>
               {% else %}
               <td></td>
               {% endif %}
@@ -52,28 +52,28 @@
             <tr class="borderless"><td class="borderless"></td></tr>   
             <tr class="borderless">
                 <td class="borderless"><b>QUANTITY</b></td>
-                {% for cp in customerproducts %}
-                <td class="borderless"><b>{{ product_sum|keyvalueget:cp.product.name }}</b></td>
+                {% for name in customerproducts %}
+                <td class="borderless"><b>{{ product_sum|keyvalueget:name }}</b></td>
                 {% endfor %}
                 <td class="borderless"></td>
             </tr>
             <tr class="borderless">
                 <td class="borderless"><b>UNIT PRICE</b></td>
-                {% for cp in customerproducts %}
-                <td class="borderless"><b>{{ cp.quote_price }}</b></td>
+                {% for name in customerproducts %}
+                <td class="borderless"><b>{{ quote_price|keyvalueget:name }}</b></td>
                 {% endfor %}
                 <td class="borderless"></td>
             </tr>        
             <tr class="borderless">
                 <td class="borderless"><b>NETT AMT</b></td>
-                {% for cp in customerproducts %}
-                <td class="borderless"><b>{{ nett_amt|keyvalueget:cp.product.name }}</b></td>
+                {% for name in customerproducts %}
+                <td class="borderless"><b>{{ nett_amt|keyvalueget:name }}</b></td>
                 {% endfor %}
                 <td class="borderless"></td>
             </tr> 
             <tr><td class="borderless"></td></tr>
             <tr>
-                <td colspan="3" class="borderless"></td>
+                <td colspan="3" class="borderless align-left"><b>{{ invoice.remark }}</b></td>
                 <td class="align-left border"><b>SUBTOTAL:</b></td>
                 <td class="border-right"><b>{{ subtotal }}</b></td>
             </tr>
