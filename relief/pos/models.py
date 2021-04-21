@@ -29,21 +29,6 @@ class Trip(models.Model):
     notes = models.CharField(max_length=255, null=True, blank=True)
     packaging_methods = models.CharField(max_length=255, null=True, blank=True)
 
-    def create_route(trip_id, note, customer_id=None, do_number=None):
-        trip = get_object_or_404(Trip, id=trip_id)
-        route_list = Route.objects.filter(trip_id=trip.pk)
-        route_indexes = [r.index for r in route_list]
-        route = Route.objects.create(index=max(route_indexes, default=0) + 1, trip=trip, note=note, do_number=do_number)
-
-        if customer_id:
-            customer = get_object_or_404(Customer, id=customer_id)
-            customer_id = customer.pk
-            customer_products = CustomerProduct.objects.filter(customer_id=customer_id)
-
-            for cp in customer_products:
-                orderitem = OrderItem.objects.create(customerproduct=cp, route=route)
-        print("Create route")
-        return route
     class Meta:
         ordering = ['pk']
 
