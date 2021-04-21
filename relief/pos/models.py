@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Max, IntegerField
+from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 from django.contrib.postgres.fields import JSONField
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.utils import timezone
+from django.dispatch import receiver
 from decimal import Decimal
 from rest_framework.exceptions import APIException
 from datetime import date, datetime
@@ -25,9 +28,7 @@ class Company(models.Model):
 
 
 class Trip(models.Model):
-    date = models.DateTimeField()
     notes = models.CharField(max_length=255, null=True, blank=True)
-    packaging_methods = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         ordering = ['pk']
@@ -494,11 +495,12 @@ class Invoice(models.Model):
 
 class Route(models.Model):
     index = models.SmallIntegerField(null=True)
-    do_number = models.CharField(max_length=8, null=False, blank=False)
+    do_number = models.CharField(max_length=128, null=False, blank=False)
+    po_number = models.TextField(null=True, blank=False, max_length=255)
     note = models.TextField(null=True, blank=True, max_length=255)
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
     checked = models.BooleanField(default=False)
-    date = models.DateField(null=True)
+    date = models.DateField(default=date.today)
 
     # Route automatically defaults to order by index ascending in database model level
     class Meta:
@@ -571,9 +573,11 @@ class CustomerProduct(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     freshbooks_tax_1 = models.CharField(max_length=8, null=True)
     archived = models.BooleanField(default=False, null=False)
+    sort_order = models.IntegerField(null=True)
 
     class Meta:
         unique_together = ('customer', 'product', 'quote_price')
+        ordering = ['sort_order']
 
 
     def handle_quote_import(csv_file):
