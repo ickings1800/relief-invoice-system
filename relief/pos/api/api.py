@@ -93,14 +93,18 @@ class TripList(ListAPIView):
         return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
 
 
-class TripDetail(RetrieveAPIView):
-    serializer_class = TripDetailSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def get_queryset(self):
-        return Trip.objects.prefetch_related(Prefetch('route_set', queryset=Route.objects.all().order_by('index')))
+@api_view(['GET'])
+def trip_detail(request, pk):
+    if request.method == 'GET':
+        try:
+            trip_detail = Trip.objects.prefetch_related(
+                Prefetch('route_set', queryset=Route.objects.order_by('-pk')
+                )).get(pk=pk)
+        except Trip.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        trip_detail_serializer = TripDetailSerializer(trip_detail)
+        return Response(status=status.HTTP_200_OK, data=trip_detail_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class TripCreate(CreateAPIView):
