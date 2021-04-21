@@ -3,6 +3,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from . import api
 
 urlpatterns = [
+    path('api/webhook/', api.detrack_webhook, name='detrack_webhook'),
     path('api/customers/', api.CustomerList.as_view(), name='customer_list'),
     path('api/customers/sync/', api.customer_sync, name='customer_sync'),
     path('api/products/', api.ProductList.as_view(), name='product_list'),
@@ -19,7 +20,6 @@ urlpatterns = [
     path('api/orderitems/', api.get_filter_orderitem_rows, name='orderitems_filter'),
     path('api/taxes/', api.get_all_taxes, name='taxes_list'),
     path('api/invoice/create/', api.create_invoice, name='invoice_create'),
-    path('api/groups/all/', api.GroupList.as_view(), name='list_all_groups'),
     path('api/group/create/', api.group_create, name='group_create'),
     path('api/group/update/', api.update_grouping, name='group_update'),
     path('api/customer/link/', api.link_customer, name='link_customers'),
@@ -36,19 +36,20 @@ urlpatterns = [
     path('api/customers/<int:pk>/products/', api.CustomerProductList.as_view(), name='customerproduct_list'),
     path('api/customerproduct/<int:pk>/', api.CustomerProductDetail.as_view(), name='customerproduct_detail'),
     path('api/customerproduct/<int:pk>/delete/', api.customerproduct_delete, name='customerproduct_delete'),
+    path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
+    path('api/routes/<int:pk>/update/', api.route_update, name='route_update'),
+    path('api/routes/<int:pk>/', api.RouteDetail.as_view(), name='route_detail'),
+    #  not in use
+    #  path('api/routes/create/', api.route_create, name='route_create'),
     path('api/customers/<int:pk>/customerproduct/arrangement/', api.customerproduct_arrangement, name='customerproduct_arrangement'),
     path('api/customers/<int:pk>/routes/', api.CustomerRouteList.as_view(), name='customerroute_list'),
     path('api/trips/', api.TripList.as_view(), name='trip_list'),
-    path('api/trips/<int:pk>/', api.TripDetail.as_view(), name='api_trip_detail'),
     path('api/trip/create/', api.TripCreate.as_view(), name='trip_create'),
-    path('api/trip/update/<int:pk>/', api.TripUpdate.as_view(), name='trip_update'),
+    path('api/trips/<int:pk>/', api.trip_detail, name='api_trip_detail'),
+    path('api/trip/<int:pk>/update/', api.trip_update, name='trip_update'),
     path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
     path('api/trip/<int:pk>/duplicate/', api.TripDuplicate.as_view(), name='trip_duplicate'),
     path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
-    path('api/trips/<int:pk>/detail/routes/add/', api.TripRouteCreate.as_view(), name='trip_route_create'),
-    path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
-    path('api/routes/<int:pk>/update/', api.RouteUpdate.as_view(), name='route_update'),
-    path('api/routes/<int:pk>/', api.RouteDetail.as_view(), name='route_detail'),
     path('api/orderitem/<int:pk>/', api.OrderItemDetail.as_view(), name='orderitem_detail'),
     path('api/trips/<int:pk>/routes/arrange/', api.route_arrange, name='route_arrange'),
 ]
