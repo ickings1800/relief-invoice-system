@@ -159,14 +159,6 @@ class TripRouteCreate(CreateAPIView):
         return Response(status=status.HTTP_201_CREATED, data=rs.data)
 
 
-class TripRouteList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        try:
-            routes = Route.objects.filter(trip_id=self.kwargs['pk'])
-        except Trip.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        route_serializer = RouteSerializer(instance=routes, many=True)
-        return Response(status=status.HTTP_200_OK, data=route_serializer.data)
 
 
 class OrderItemDetail(RetrieveAPIView):

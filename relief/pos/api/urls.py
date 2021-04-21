@@ -45,7 +45,6 @@ urlpatterns = [
     path('api/trip/<int:pk>/delete/', api.TripDelete.as_view(), name='trip_delete'),
     path('api/trip/<int:pk>/duplicate/', api.TripDuplicate.as_view(), name='trip_duplicate'),
     path('api/trip/<int:pk>/packingsum/', api.trip_packing_sum, name='trip_packing_sum'),
-    path('api/trips/<int:pk>/detail/routes/', api.TripRouteList.as_view(), name='trip_route_list'),
     path('api/trips/<int:pk>/detail/routes/add/', api.TripRouteCreate.as_view(), name='trip_route_create'),
     path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
     path('api/routes/<int:pk>/update/', api.RouteUpdate.as_view(), name='route_update'),
