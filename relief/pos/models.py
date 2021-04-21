@@ -44,6 +44,8 @@ class Trip(models.Model):
                 orderitem = OrderItem.objects.create(customerproduct=cp, route=route)
         print("Create route")
         return route
+    class Meta:
+        ordering = ['pk']
 
     def duplicate_trip(trip_id):
         trip_copy = get_object_or_404(Trip, id=trip_id)

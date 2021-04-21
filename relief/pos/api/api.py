@@ -88,7 +88,7 @@ class TripList(ListAPIView):
             date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
             trips = Trip.get_trips_by_date(date_start_formatted, date_end_formatted)
         else:
-            trips = Trip.objects.all().order_by('-date')
+            trips = Trip.objects.all()
         trip_serializer = TripListDetailUpdateSerializer(trips, many=True, context={'request': request})
         return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
 
