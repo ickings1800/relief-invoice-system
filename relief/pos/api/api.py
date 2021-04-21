@@ -49,7 +49,6 @@ def detrack_webhook(request):
             route = Route.objects.get(do_number=do_number)
             print('route exists')
             route.date = parsed_do_date.date()
-            route.datetime = parsed_do_date
             route.save()
             for item in delivery_items:
                 item_sku = item.get('sku')
@@ -68,8 +67,7 @@ def detrack_webhook(request):
             #  enter do date into route object create
             route = Route.objects.create(
                 do_number=do_number,
-                date=parsed_do_date.date(),
-                datetime=parsed_do_date
+                date=parsed_do_date.date()
             )
             route.save()
             for item in delivery_items:
