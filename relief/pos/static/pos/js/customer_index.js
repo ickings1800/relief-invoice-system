@@ -74,9 +74,12 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
             </table>
         </div>
         <div class="modal-footer">
-            <div class="divider"></div>
+            <span v-if="!different_price_for_product" class="text-error">
+              Unit price for product must be consistent throughout the invoice
+            </span>
             <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
             <a id="customer-update-submit-button"
+             v-bind:class="{ disabled: !different_price_for_product }"
              href="#save"
              class="btn btn-primary" v-on:click.prevent="updateInvoice">Update</a>
         </div>
@@ -85,6 +88,23 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
    `,
    props: ['opened', 'selected_invoice'],
    components: {},
+   computed: {
+    different_price_for_product: function() {
+      let price_map = {}
+      for (let i = 0; i < this.customer_orderitems.length; i++){
+        let orderitem = this.customer_orderitems[i];
+        if (this.selected_orderitems.indexOf(orderitem.id) > -1){
+          if (!price_map[orderitem.product_name]){
+            price_map[orderitem.product_name] = orderitem.unit_price
+          }
+          if (price_map[orderitem.product_name] != orderitem.unit_price){
+            return false
+          }
+        }
+      }
+      return true
+    }
+   },
    watch: {
      opened: function(val){
        if (val) {
@@ -847,16 +867,37 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         </div>
         <div class="modal-footer">
             <div class="divider"></div>
+            <span v-if="!different_price_for_product" class="text-error">
+              Unit price for product must be consistent throughout the invoice
+            </span>
             <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
-            <a id="customer-create-submit-button"
-             href="#save"
-             class="btn btn-primary" v-on:click.prevent="createInvoice">Submit</a>
+            <a 
+              id="customer-create-submit-button"
+              href="#save"
+              class="btn btn-primary" 
+              v-bind:class="{ disabled: !different_price_for_product }"
+              v-on:click.prevent="createInvoice">Submit</a>
         </div>
       </div>
     </div>
    `,
    props: ['opened', 'selected_customer', 'orderitems'],
    components: {},
+   computed: {
+    different_price_for_product: function() {
+      let price_map = {}
+      for (let i = 0; i < this.selected_orderitems.length; i++){
+        let orderitem = this.selected_orderitems[i];
+        if (!price_map[orderitem.product_name]){
+          price_map[orderitem.product_name] = orderitem.unit_price
+        }
+        if (price_map[orderitem.product_name] != orderitem.unit_price){
+          return false
+        }
+      }
+      return true
+    }
+   },
    watch: {
      opened: function(val){
        if (val) {
@@ -1269,6 +1310,7 @@ var CustomerList = Vue.component('CustomerList', {
             <th>Date</th>
             <th>Client Name</th>
             <th>Item Name</th>
+            <th>Unit Price</th>
             <th>Quantity</th>
             <th>Driver Quantity</th>
             <th>D/O</th>
@@ -1282,6 +1324,7 @@ var CustomerList = Vue.component('CustomerList', {
             <td>{{ orderitem.date }}</td>
             <td>{{ orderitem.customer_name }}</td>
             <td>{{ orderitem.product_name }}</td>
+            <td>{{ orderitem.unit_price }}</td>
             <td>{{ orderitem.quantity }}</td>
             <td>{{ orderitem.driver_quantity }}</td>
             <td>{{ orderitem.do_number }}</td>
@@ -1909,6 +1952,7 @@ function updateOrderItem(data){
       }
     }).catch(error => console.error('Error: ', error));
 }
+
 function updateQuote(data) {
   let url = `${origin}/pos/api/quote/${data.id}/update/`;
   return fetch(url, {

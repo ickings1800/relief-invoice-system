@@ -454,6 +454,14 @@ def create_invoice(request):
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
+        price_map = {}
+        for oi in invoice_orderitems:
+            product_name = oi.customerproduct.product.name
+            if not price_map.get(product_name):
+                price_map[product_name] = oi.unit_price
+            if not price_map[product_name] != oi.unit_price:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
+
         client_id = settings.FRESHBOOKS_CLIENT_ID
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
@@ -1121,17 +1129,22 @@ def invoice_update(request, pk):
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
-        token = request.session['oauth_token']
-        freshbooks_account_id = request.session['freshbooks_account_id']
-        freshbooks = OAuth2Session(client_id, token=token)
-        #  change invoice_create_url
-        headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
-
         invoice_lines = []
 
         #  list of ints
 
         print("Selected ID: ", orderitems_id)
+
+        orderitem_set_existing_invoice = OrderItem.objects.filter(pk__in=orderitems_id)
+        
+        price_map = {}
+        for oi in orderitem_set_existing_invoice:
+            product_name = oi.customerproduct.product.name
+            if not price_map.get(product_name):
+                price_map[product_name] = oi.unit_price
+            if not price_map[product_name] != oi.unit_price:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
+
 
         for oi in existing_invoice.orderitem_set.all():
             print("set orderitem null -> ", oi.pk)
@@ -1139,12 +1152,18 @@ def invoice_update(request, pk):
             oi.invoice = None
             oi.save()
 
-        orderitem_set_existing_invoice = OrderItem.objects.filter(pk__in=orderitems_id)
+
         for oi in orderitem_set_existing_invoice:
             oi.invoice = existing_invoice
             oi.save()
 
         existing_invoice.refresh_from_db()
+
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks = OAuth2Session(client_id, token=token)
+        headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
+
         for orderitem in existing_invoice.orderitem_set.all():
             tax_id = orderitem.customerproduct.freshbooks_tax_1
             if tax_id:
