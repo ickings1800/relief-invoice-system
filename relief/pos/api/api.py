@@ -37,6 +37,7 @@ extra = {
 @authentication_classes([])
 def detrack_webhook(request):
     if request.method == 'POST':
+        print(request.data)
         do_number = request.data.get('do_number')
         do_date = request.data.get('pod_at')
         delivery_items = request.data.get('items')
@@ -54,12 +55,14 @@ def detrack_webhook(request):
                 item_sku = item.get('sku')
                 quantity = item.get('quantity')
                 driver_quantity = item.get('actual_quantity')
+                po_number = item.get('purchase_order_number')
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 orderitem = OrderItem.objects.get(
                     customerproduct=customerproduct, route=route
                 )
                 orderitem.quantity = quantity
                 orderitem.driver_quantity = driver_quantity
+                orderitem.note = po_number
                 orderitem.save()
             rs = RouteSerializer(route)
             return Response(status=status.HTTP_200_OK, data=rs.data)
@@ -71,12 +74,17 @@ def detrack_webhook(request):
             )
             route.save()
             for item in delivery_items:
+                item_sku = item.get('sku')
+                quantity = item.get('quantity')
+                driver_quantity = item.get('actual_quantity')
+                po_number = item.get('purchase_order_number')
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 if customerproduct:
                     orderitem = OrderItem.objects.create(
                         quantity=quantity,
                         driver_quantity=driver_quantity,
                         unit_price=customerproduct.quote_price,
+                        note=po_number,
                         customerproduct=customerproduct,
                         route=route
                     )
@@ -660,14 +668,20 @@ def create_invoice(request):
                         token = freshbooks.refresh_token(refresh_url, **extra)
                         token_updater(request, token)
 
-                    tax = res.get('response').get('result').get('tax')
                     #  get freshbooks tax
-                    invoice_line =  {
-                      "type": 0,
-                      "description": "DATE: {0} D/O: {1}".format(
+                    tax = res.get('response').get('result').get('tax')
+
+                    description = "DATE: {0} D/O: {1} ".format(
                           datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
                           orderitem.route.do_number
-                      ),
+                    )
+
+                    if orderitem.note:
+                        description += "P/O: {0}".format(orderitem.note)
+
+                    invoice_line =  {
+                      "type": 0,
+                      "description": description,
                       "taxName1": tax.get('name'),
                       "taxAmount1": tax.get('amount'),
                       "name": orderitem.customerproduct.product.name,
@@ -677,12 +691,17 @@ def create_invoice(request):
 
                     invoice_lines.append(invoice_line)
                 else:
-                    invoice_line =  {
-                      "type": 0,
-                      "description": "DATE: {0} D/O: {1}".format(
+                    description = "DATE: {0} D/O: {1} ".format(
                           datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
                           orderitem.route.do_number
-                      ),
+                    )
+
+                    if orderitem.note:
+                        description += "P/O: {0}".format(orderitem.note)
+
+                    invoice_line =  {
+                      "type": 0,
+                      "description": description,
                       "name": orderitem.customerproduct.product.name,
                       "qty": orderitem.driver_quantity,
                       "unit_cost": { "amount": str(orderitem.unit_price) }
@@ -1347,14 +1366,20 @@ def invoice_update(request, pk):
                     token = freshbooks.refresh_token(refresh_url, **extra)
                     token_updater(request, token)
 
-                tax = res.get('response').get('result').get('tax')
                 #  get freshbooks tax
-                invoice_line =  {
-                  "type": 0,
-                  "description": "DATE: {0} D/O: {1}".format(
+                tax = res.get('response').get('result').get('tax')
+
+                description = "DATE: {0} D/O: {1} ".format(
                       datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
                       orderitem.route.do_number
-                  ),
+                )
+
+                if orderitem.note:
+                    description += "P/O: {0}".format(orderitem.note)
+
+                invoice_line =  {
+                  "type": 0,
+                  "description": description,
                   "taxName1": tax.get('name'),
                   "taxAmount1": tax.get('amount'),
                   "name": orderitem.customerproduct.product.name,
@@ -1364,12 +1389,17 @@ def invoice_update(request, pk):
 
                 invoice_lines.append(invoice_line)
             else:
-                invoice_line =  {
-                  "type": 0,
-                  "description": "DATE: {0} D/O: {1}".format(
+                description = "DATE: {0} D/O: {1} ".format(
                       datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
                       orderitem.route.do_number
-                  ),
+                )
+
+                if orderitem.note:
+                    description += "P/O: {0}".format(orderitem.note)
+
+                invoice_line =  {
+                  "type": 0,
+                  "description": description,
                   "name": orderitem.customerproduct.product.name,
                   "qty": orderitem.driver_quantity,
                   "unit_cost": { "amount": str(orderitem.unit_price) }

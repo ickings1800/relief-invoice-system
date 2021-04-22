@@ -164,7 +164,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity', 'customer_name', 'customer_id', 'product_name', 'date', 'do_number', 'unit_price')
+        fields = ('id', 'driver_quantity', 'quantity', 'customer_name', 'customer_id', 'product_name', 'date', 'do_number', 'unit_price', 'note')
 
     def get_customer_name(self, obj):
         return obj.customerproduct.customer.name
@@ -185,7 +185,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderItemUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ('id', 'driver_quantity', 'quantity')
+        fields = ('id', 'driver_quantity', 'quantity', 'note')
 
 
 class RouteDetailSerializer(serializers.ModelSerializer):

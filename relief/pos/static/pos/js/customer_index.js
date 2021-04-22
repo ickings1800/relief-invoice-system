@@ -54,6 +54,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
                   <th>Item Name</th>
                   <th>Driver Quantity</th>
                   <th>Unit Price</th>
+                  <th>P/O</th>
                   <th>D/O</th>
                 </tr>
               </thead>
@@ -68,6 +69,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
                   <td>{{ orderitem.product_name }}</td>
                   <td>{{ orderitem.driver_quantity }}</td>
                   <td>{{ orderitem.unit_price }}</td>
+                  <td>{{ orderitem.note }}</td>
                   <td>{{ orderitem.do_number }}</td>
                 </tr>
               </tbody>
@@ -629,6 +631,7 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
       return {
         edit_quantity: null,
         edit_driver_quantity: null,
+        note: null,
       }
   },
 
@@ -654,6 +657,10 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
               <label class="form-label" for="driver-quantity">Driver Quantity</label>
               <input class="form-input" type="number" id="driver-quantity" v-model="edit_driver_quantity">
             </div>
+            <div class="form-group">
+              <label class="form-label" for="note">P/O</label>
+              <input class="form-input" type="text" id="note" v-model="note">
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -675,7 +682,7 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
           if (val) {
             this.edit_quantity = this.orderitem.quantity;
             this.edit_driver_quantity = this.orderitem.driver_quantity;
-            
+            this.note = this.orderitem.note;
           }
        }
    },
@@ -684,6 +691,7 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
            console.log("show orderitem edit modal close");
            this.edit_quantity = null;
            this.edit_driver_quantity = null;
+           this.note = null;
            this.$emit('show-orderitem-edit-modal');
        },
        saveOrderItem: function() {
@@ -691,7 +699,8 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
         const data = {
           'id': this.orderitem.id,
           'quantity': this.edit_quantity,
-          'driver_quantity': this.edit_driver_quantity
+          'driver_quantity': this.edit_driver_quantity,
+          'note': this.note,
         }
         updateOrderItem(data)
         .then(res => res.json())
@@ -846,6 +855,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
                   <th>Item Name</th>
                   <th>Driver Quantity</th>
                   <th>Unit Price</th>
+                  <th>P/O</th>
                   <th>D/O</th>
                 </tr>
               </thead>
@@ -860,6 +870,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
                   <td>{{ orderitem.product_name }}</td>
                   <td>{{ orderitem.driver_quantity }}</td>
                   <td>{{ orderitem.unit_price }}</td>
+                  <td>{{ orderitem.note }}</td>
                   <td>{{ orderitem.do_number }}</td>
                 </tr>
               </tbody>
@@ -1365,6 +1376,7 @@ var CustomerList = Vue.component('CustomerList', {
             <th>Unit Price</th>
             <th>Quantity</th>
             <th>Driver Quantity</th>
+            <th>P/O</th>
             <th>D/O</th>
           </tr>
         </thead>
@@ -1379,6 +1391,7 @@ var CustomerList = Vue.component('CustomerList', {
             <td>{{ orderitem.unit_price }}</td>
             <td>{{ orderitem.quantity }}</td>
             <td>{{ orderitem.driver_quantity }}</td>
+            <td>{{ orderitem.note }}</td>
             <td>{{ orderitem.do_number }}</td>
           </tr>
         </tbody>
