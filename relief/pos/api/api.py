@@ -646,7 +646,7 @@ def create_invoice(request):
             product_name = oi.customerproduct.product.name
             if not price_map.get(product_name):
                 price_map[product_name] = oi.unit_price
-            if not price_map[product_name] != oi.unit_price:
+            if price_map[product_name] != oi.unit_price:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
 
         client_id = settings.FRESHBOOKS_CLIENT_ID
@@ -1340,7 +1340,7 @@ def invoice_update(request, pk):
             product_name = oi.customerproduct.product.name
             if not price_map.get(product_name):
                 price_map[product_name] = oi.unit_price
-            if not price_map[product_name] != oi.unit_price:
+            if price_map[product_name] != oi.unit_price:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
 
 
