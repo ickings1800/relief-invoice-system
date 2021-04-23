@@ -540,7 +540,11 @@ def invoice_pdf_view(request, pk):
         notes_style.fontName = 'Helvetica-Bold'
 
         total_data = []
-        notes_paragraph = Paragraph(invoice.remark, notes_style)
+        if invoice.remark:
+            notes_paragraph = Paragraph(invoice.remark, notes_style)
+        else:
+            notes_paragraph = Paragraph("", notes_style)
+
         total_data.append([notes_paragraph, "SUB-TOTAL ($)", str(subtotal)])
 
         if invoice.minus > 0:

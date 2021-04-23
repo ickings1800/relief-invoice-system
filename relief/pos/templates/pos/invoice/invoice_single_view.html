@@ -73,7 +73,11 @@
             </tr> 
             <tr><td class="borderless"></td></tr>
             <tr>
-                <td colspan="3" class="borderless align-left"><b>{{ invoice.remark }}</b></td>
+                <td colspan="3" class="borderless align-left">
+                    {% if invoice.remark %}
+                    <b>{{ invoice.remark }}</b>
+                    {% endif %}
+                </td>
                 <td class="align-left border"><b>SUBTOTAL:</b></td>
                 <td class="border-right"><b>{{ subtotal }}</b></td>
             </tr>
