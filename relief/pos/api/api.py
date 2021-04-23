@@ -42,13 +42,19 @@ def detrack_webhook(request):
         do_date = request.data.get('pod_at')
         delivery_items = request.data.get('items')
         parsed_do_date = datetime.fromisoformat(do_date)
+        do_type = request.data.get('type')
+
+        if do_type == 'Collection':
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={'error': 'Collection D/O not supported yet.'}
+            )
 
         route_exists = Route.objects.filter(do_number=do_number).count()
 
         if route_exists > 0:
             #  existing route exists
             route = Route.objects.get(do_number=do_number)
-            print('route exists')
             route.date = parsed_do_date.date()
             route.save()
             for item in delivery_items:
@@ -56,14 +62,16 @@ def detrack_webhook(request):
                 quantity = item.get('quantity')
                 driver_quantity = item.get('actual_quantity')
                 po_number = item.get('purchase_order_number')
+
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
-                orderitem = OrderItem.objects.get(
-                    customerproduct=customerproduct, route=route
-                )
-                orderitem.quantity = quantity
-                orderitem.driver_quantity = driver_quantity
-                orderitem.note = po_number
-                orderitem.save()
+                if customerproduct:
+                    orderitem = OrderItem.objects.get(
+                        customerproduct=customerproduct, route=route
+                    )
+                    orderitem.quantity = quantity
+                    orderitem.driver_quantity = driver_quantity
+                    orderitem.note = po_number
+                    orderitem.save()
             rs = RouteSerializer(route)
             return Response(status=status.HTTP_200_OK, data=rs.data)
         else:
@@ -78,6 +86,7 @@ def detrack_webhook(request):
                 quantity = item.get('quantity')
                 driver_quantity = item.get('actual_quantity')
                 po_number = item.get('purchase_order_number')
+
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 if customerproduct:
                     orderitem = OrderItem.objects.create(
@@ -89,12 +98,8 @@ def detrack_webhook(request):
                         route=route
                     )
                     orderitem.save()
-
-                #  print('item sku: ', item_sku)
-                #  print('quantity: ', quantity)
-                #  print('driver_quantity: ', driver_quantity)
-                rs = RouteSerializer(route)
-                return Response(status=status.HTTP_200_OK, data=rs.data)
+            rs = RouteSerializer(route)
+            return Response(status=status.HTTP_200_OK, data=rs.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 def token_updater(request, token):
