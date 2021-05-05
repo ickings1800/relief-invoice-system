@@ -549,7 +549,7 @@ def invoice_pdf_view(request, pk):
 
         if invoice.minus > 0:
             if invoice.discount_description:
-                total_data.append([invoice.discount_description, str(invoice.minus)])
+                total_data.append(["" , invoice.discount_description, str(invoice.minus)])
             else:
                 total_data.append(["", "MINUS ($)", str(invoice.minus)])
             total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
