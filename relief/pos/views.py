@@ -551,8 +551,8 @@ def invoice_pdf_view(request, pk):
             if invoice.discount_description:
                 total_data.append([invoice.discount_description, str(invoice.minus)])
             else:
-                total_data.append(["MINUS ($)", str(invoice.minus)])
-            total_data.append(["TOTAL NETT AMT ($)", str(total_nett_amt)])
+                total_data.append(["", "MINUS ($)", str(invoice.minus)])
+            total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
 
         total_data.append(["", "GST ({0}%)".format(invoice_customer.gst), str(gst)])
         total_data.append(["", "TOTAL (inc. GST) ($)", str(total_incl_gst)])
