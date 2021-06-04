@@ -60,7 +60,6 @@ def detrack_webhook(request):
             for item in delivery_items:
                 item_sku = item.get('sku')
                 quantity = item.get('quantity')
-                driver_quantity = item.get('actual_quantity')
                 po_number = item.get('purchase_order_number')
 
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
@@ -69,10 +68,7 @@ def detrack_webhook(request):
                         customerproduct=customerproduct, route=route
                     )
                     orderitem.quantity = quantity
-                    if driver_quantity:
-                        orderitem.driver_quantity = driver_quantity
-                    else:
-                        orderitem.driver_quantity = quantity
+                    orderitem.driver_quantity = quantity
                     orderitem.note = po_number
                     orderitem.save()
             rs = RouteSerializer(route)
@@ -87,14 +83,13 @@ def detrack_webhook(request):
             for item in delivery_items:
                 item_sku = item.get('sku')
                 quantity = item.get('quantity')
-                driver_quantity = item.get('actual_quantity')
                 po_number = item.get('purchase_order_number')
 
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 if customerproduct:
                     orderitem = OrderItem.objects.create(
                         quantity=quantity,
-                        driver_quantity=driver_quantity,
+                        driver_quantity=quantity,
                         unit_price=customerproduct.quote_price,
                         note=po_number,
                         customerproduct=customerproduct,
