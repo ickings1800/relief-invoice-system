@@ -465,32 +465,41 @@ class CustomerProductCreate(CreateAPIView):
         return self.create(request, *args, **kwargs)
 
 
-class CustomerProductUpdate(UpdateAPIView):
-    queryset = CustomerProduct.objects.all()
-    serializer_class = CustomerProductUpdateSerializer
+@api_view(['PUT'])
+def customerproduct_update(request, pk):
+    def get_freshbooks_tax(freshbooks_tax_id):
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        try:
+            freshbooks = OAuth2Session(client_id, token=token)
+            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
+                .format(freshbooks_account_id, freshbooks_tax_id)).json()
+        except TokenExpiredError as e:
+            token = freshbooks.refresh_token(refresh_url, **extra)
+            token_updater(request, token)
 
-    def put(self, request, *args, **kwargs):
-        def get_freshbooks_tax(freshbooks_tax_id):
-            token = request.session['oauth_token']
-            freshbooks_account_id = request.session['freshbooks_account_id']
-            try:
-                freshbooks = OAuth2Session(client_id, token=token)
-                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
-                    .format(freshbooks_account_id, freshbooks_tax_id)).json()
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
+        tax = res.get('response').get('result').get('tax')
+        return tax
 
-            tax = res.get('response').get('result').get('tax')
-            return tax
 
-        freshbooks_tax_id = request.data.get('freshbooks_tax_1', None)
-        quote_price = request.data.get('quote_price', None)
+    freshbooks_tax_id = request.data.get('freshbooks_tax_1', None)
+    quote_price = request.data.get('quote_price', None)
+    print('fb_tax_id: ', freshbooks_tax_id)
+    print('quote_price:', quote_price)
+    try:
         if freshbooks_tax_id:
             get_valid_tax = get_freshbooks_tax(freshbooks_tax_id)
             if not get_valid_tax.get('taxid'):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
-        return self.update(request, *args, **kwargs)
+    except Exception as e:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e) })
+
+    customerproduct = CustomerProduct.objects.get(pk=pk)
+    customerproduct.freshbooks_tax_1 = freshbooks_tax_id
+    customerproduct.quote_price = quote_price
+    customerproduct.save()
+    customerproduct_serializer = CustomerProductListDetailSerializer(customerproduct)
+    return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
 
 
 class CustomerRouteList(ListAPIView):
