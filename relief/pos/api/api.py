@@ -69,7 +69,10 @@ def detrack_webhook(request):
                         customerproduct=customerproduct, route=route
                     )
                     orderitem.quantity = quantity
-                    orderitem.driver_quantity = driver_quantity
+                    if driver_quantity:
+                        orderitem.driver_quantity = driver_quantity
+                    else:
+                        orderitem.driver_quantity = quantity
                     orderitem.note = po_number
                     orderitem.save()
             rs = RouteSerializer(route)
