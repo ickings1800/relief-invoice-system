@@ -62,15 +62,29 @@ def detrack_webhook(request):
                 quantity = item.get('quantity')
                 po_number = item.get('purchase_order_number')
 
+                if quantity is None or quantity < 0:
+                    continue
+
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 if customerproduct:
-                    orderitem = OrderItem.objects.get(
-                        customerproduct=customerproduct, route=route
-                    )
-                    orderitem.quantity = quantity
-                    orderitem.driver_quantity = quantity
-                    orderitem.note = po_number
-                    orderitem.save()
+                    try:
+                        orderitem = OrderItem.objects.get(
+                            customerproduct=customerproduct, route=route
+                        )
+                        orderitem.quantity = quantity
+                        orderitem.driver_quantity = quantity
+                        orderitem.note = po_number
+                        orderitem.save()
+                    except OrderItem.DoesNotExist:
+                        orderitem = OrderItem.objects.create(
+                            quantity=quantity,
+                            driver_quantity=quantity,
+                            unit_price=customerproduct.quote_price,
+                            note=po_number,
+                            customerproduct=customerproduct,
+                            route=route
+                        )
+                        orderitem.save()
             rs = RouteSerializer(route)
             return Response(status=status.HTTP_200_OK, data=rs.data)
         else:
@@ -84,6 +98,9 @@ def detrack_webhook(request):
                 item_sku = item.get('sku')
                 quantity = item.get('quantity')
                 po_number = item.get('purchase_order_number')
+
+                if quantity is None or quantity < 0:
+                    continue
 
                 customerproduct = CustomerProduct.objects.get(pk=item_sku)
                 if customerproduct:
