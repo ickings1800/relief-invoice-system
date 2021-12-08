@@ -298,8 +298,20 @@ font-size: 1vw;
 
 
 #invoice-create-modal-window, #invoice-update-modal-window {
-    width: unset !important;
-    max-width: unset !important;
+    max-width: 80% !important;
+}
+
+.create-update-invoice-modal-body {
+	display: flex;
+}
+
+.create-update-invoice-modal-body .invoice-form {
+	flex: 1;
+}
+
+.create-update-invoice-modal-body .invoice-create-update-table {
+	flex: 4;
+	overflow-y: scroll;
 }
 
 .del-row-btn {
