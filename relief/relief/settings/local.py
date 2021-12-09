@@ -16,6 +16,8 @@ DEBUG_TOOLBAR_CONFIG = {
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [os.environ['CSRF_TRUSTED_ORIGIN']]
+
 STATIC_ROOT = os.path.join(BASE_DIR, '/pos/static/')
 
 INSTALLED_APPS += [
@@ -41,3 +43,11 @@ FRESHBOOKS_REDIRECT_URI = os.environ['REDIRECT_URI']
 print(FRESHBOOKS_CLIENT_ID)
 print(FRESHBOOKS_CLIENT_SECRET)
 print(FRESHBOOKS_REDIRECT_URI)
+#  configure rest framework to not use authentication for local tests
+REST_FRAMEWORK = {
+    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S",
+    "DATETIME_INPUT_FORMATS": ["%d-%m-%Y %H:%M"],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
