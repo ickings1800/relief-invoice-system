@@ -1,9 +1,9 @@
-Django==2.2
-django-cors-headers==3.0.2
-django-widget-tweaks==1.4.2
-djangorestframework==3.9.0
+Django==4.0
+django-cors-headers
+django-widget-tweaks
+djangorestframework
 psycopg2-binary
-pytz==2018.5
+pytz
 requests
 requests_oauthlib
 reportlab

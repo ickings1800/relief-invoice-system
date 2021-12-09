@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from django.db import models
-from django.db.models import Q, Max, IntegerField
+from django.db.models import Q, Max, IntegerField, JSONField
 from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
-from django.contrib.postgres.fields import JSONField
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.utils import timezone
