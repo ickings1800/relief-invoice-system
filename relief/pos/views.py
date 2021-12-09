@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
 from django.views.generic import ListView, UpdateView, FormView, DeleteView, DetailView, TemplateView
@@ -365,18 +365,19 @@ def download_invoice(request, pk=None):
     if invoice:
         #  invoice is in the db
         print('in db')
+        invoice_name = invoice.customer.get_download_file_name(invoice_number)
         if invoice.pivot:
             print('pivot')
-            return invoice_pdf_view(request, invoice.pk)
+            return invoice_pdf_view(request, invoice.pk, file_name=invoice_name)
         else:
             print('freshbooks')
-            return freshbooks_invoice_download(request, pk=invoice.pk)
+            return freshbooks_invoice_download(request, pk=invoice.pk, file_name=invoice_name)
         
     return HttpResponseBadRequest()
 
 
 @login_required
-def invoice_pdf_view(request, pk):
+def invoice_pdf_view(request, pk, file_name=''):
     invoice = Invoice.objects.select_related('customer').get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
@@ -410,7 +411,7 @@ def invoice_pdf_view(request, pk):
         total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="{0}".pdf'.format(invoice.invoice_number)
+        response['Content-Disposition'] = 'attachment; filename="{0}".pdf'.format(file_name)
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=5*mm, bottomMargin=5*mm)
@@ -577,7 +578,7 @@ def invoice_pdf_view(request, pk):
     return HttpResponseBadRequest()
 
 @login_required
-def freshbooks_invoice_download(request, pk=None, invoice_number=None):
+def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name=''):
     if pk:
         invoice = Invoice.objects.get(pk=pk)
         invoice_number = invoice.invoice_number
@@ -612,6 +613,28 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None):
             freshbooks_account_id, freshbooks_invoice_id
         )
 
+        #  TODO: check if freshbooks customer id is in database for file name
+        try:
+            freshbooks_invoice_client_id = freshbooks_invoice_search[0].get('customerid')
+            invoice_customer = Customer.objects.get(freshbooks_client_id=freshbooks_invoice_client_id)
+            file_name = invoice_customer.get_download_file_name(invoice_number)
+        except ObjectDoesNotExist:
+            #  customer not registered in database
+            #  different file name format for customers not registered in database
+            file_name = str(invoice_number)
+            freshbooks_first_name = freshbooks_invoice_search[0].get('fname', '')
+            freshbooks_last_name = freshbooks_invoice_search[0].get('lname', '')
+            freshbooks_organization = freshbooks_invoice_search[0].get('organization', '')
+            if freshbooks_first_name:
+                file_name += ('_' + freshbooks_first_name)
+            if freshbooks_last_name:
+                file_name += ('_' + freshbooks_last_name)
+            if freshbooks_organization:
+                file_name += ('_' + freshbooks_organization)
+        except MultipleObjectsReturned:
+            #  more than one customer with the same freshbooks client id
+            return HttpResponseBadRequest()
+
         try:
             pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
         except TokenExpiredError as e:
@@ -619,9 +642,8 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None):
             token_updater(request, token)
         except Exception as e:
             return HttpResponseBadRequest()
-        response = FileResponse(
-            pdf.raw, as_attachment=True, filename='{0}.pdf'.format(invoice_number)
-        )
+
+        response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))  
         return response
     return HttpResponseBadRequest()
 

@@ -1027,10 +1027,7 @@ def get_filter_orderitem_rows(request):
             orderitem_qset = orderitem_qset.filter(customerproduct__customer_id__in=parsed_customer_ids)
 
         orderitem_qset = orderitem_qset.filter(invoice__isnull=True)
-        print(orderitem_qset.query)
-
         rows = list(orderitem_qset)
-        print(rows)
         orderitem_serializer = OrderItemSerializer(rows, many=True)
         return Response(status=status.HTTP_200_OK, data=orderitem_serializer.data)
 
@@ -1193,6 +1190,12 @@ def link_customer(request):
         freshbooks_client_id = request.data.get('freshbooks_client_id', None)
         pivot_invoice = request.data.get('pivot_invoice', False)
         gst = request.data.get('gst', 0)
+        download_prefix = request.data.get('download_prefix', None)
+        download_suffix = request.data.get('download_suffix', None)
+        to_fax = request.data.get('to_fax', False)
+        to_email = request.data.get('to_email', False)
+        to_print = request.data.get('to_print', False)
+        to_whatsapp = request.data.get('to_whatsapp', False)
         freshbooks_client = None
         if not customer_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -1201,6 +1204,12 @@ def link_customer(request):
             return Response(status=status.HTTP_404_NOT_FOUND)
         customer_obj.pivot_invoice = pivot_invoice
         customer_obj.gst = gst
+        customer_obj.download_prefix = download_prefix
+        customer_obj.download_suffix = download_suffix
+        customer_obj.to_fax = to_fax
+        customer_obj.to_email = to_email
+        customer_obj.to_print = to_print
+        customer_obj.to_whatsapp = to_whatsapp
         if freshbooks_client_id:
             try:
                 response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)

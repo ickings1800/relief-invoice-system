@@ -742,19 +742,44 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
             <label class="form-label">Postal code: {{ customer.postal_code }}</label>
             <div class="form-group">
               <label class="form-label">GST
-
                 <input class="form-input" type="number" id="gst" placeholder="GST" v-model="gst">
               </label>
             </div>
-            <label class="form-checkbox my-2">
-              <input type="checkbox" v-model="invoice_pivot">
-              <i class="form-icon"></i> Pivot Invoice
+            <div class="form-group">
+              <label class="form-label form-inline">Prefix
+                <input class="form-input" placeholder="Prefix" v-model="dowlnoad_prefix">
+              </label>
+              <label class="form-label form-inline">Suffix
+                <input class="form-input" placeholder="Suffix" v-model="download_suffix">
+              </label>
+            </div>
+            <div class="form-group">
+            <label class="form-checkbox my-2 form-inline">
+              <input type="checkbox" v-model="to_fax">
+              <i class="form-icon"></i> Fax
             </label>
+            <label class="form-checkbox my-2 form-inline">
+              <input type="checkbox" v-model="to_print">
+              <i class="form-icon"></i> Print
+            </label>
+            <label class="form-checkbox my-2 form-inline">
+              <input type="checkbox" v-model="to_email">
+              <i class="form-icon"></i> Email
+            </label>
+            <label class="form-checkbox my-2 form-inline">
+              <input type="checkbox" v-model="to_whatsapp">
+              <i class="form-icon"></i> Whatsapp
+            </label>
+            </div>
             <label class="form-label">Freshbooks Name</label>
             <select class="form-select" v-model="freshbooks_client_id">
               <option :value="null"></option>
               <option v-for="client in freshbooks_clients" :value="client.id">{{ client.organization }}</option>
             </select>
+            <label class="form-checkbox my-2">
+              <input type="checkbox" v-model="invoice_pivot">
+              <i class="form-icon"></i> Pivot Invoice
+            </label>
           </div>
         </div>
         <div class="modal-footer">
@@ -774,6 +799,12 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
            this.freshbooks_client_id = this.customer.freshbooks_client_id;
            this.invoice_pivot = this.customer.pivot_invoice;
            this.gst = this.customer.gst
+           this.download_prefix = this.customer.download_prefix;
+           this.download_suffix = this.customer.download_suffix;
+           this.to_fax = this.customer.to_fax;
+           this.to_email = this.customer.to_email;
+           this.to_print = this.customer.to_print;
+           this.to_whatsapp = this.customer.to_whatsapp;
            getFreshbooksClients()
            .then(res => res.json())
            .then(res => this.freshbooks_clients = res);
@@ -788,13 +819,24 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
            this.freshbooks_account_id = null;
            this.freshbooks_client_id = null;
            this.gst = null;
+           this.download_prefix = null;
+           this.download_suffix = null;
+           this.to_fax = null;
+           this.to_email = null;
+           this.to_print = null;
        },
        linkClient: function(event) {
         const data = {
           'customer_id': this.customer.id,
           'freshbooks_client_id': this.freshbooks_client_id,
           'pivot_invoice': this.invoice_pivot,
-          'gst': this.gst
+          'gst': this.gst,
+          'download_prefix': this.download_prefix,
+          'download_suffix': this.download_suffix,
+          'to_fax': this.to_fax,
+          'to_email': this.to_email,
+          'to_print': this.to_print,
+          'to_whatsapp': this.to_whatsapp,
         }
         linkClient(data).then(res => res.json()).then(() => this.close())
        }

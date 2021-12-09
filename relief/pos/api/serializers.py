@@ -26,7 +26,8 @@ class CustomerListDetailUpdateSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'name', 'gst', 'group', 'freshbooks_account_id',
             'freshbooks_client_id', 'pivot_invoice', 'address','postal_code',
-            'country'
+            'country', 'download_prefix', 'download_suffix', 'to_fax','to_email',
+            'to_print', 'to_whatsapp'
         )
 
     def get_group(self, obj):
@@ -52,7 +53,11 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ('id', 'name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst', 'group')
+        fields = (
+            'id', 'name', 'address', 'postal_code', 'tel_no', 'fax_no', 'term', 'gst',
+            'group', 'download_prefix', 'download_suffix', 'to_fax', 'to_email', 'to_print',
+            'to_whatsapp',
+        )
 
 
 class ProductListDetailUpdateSerializer(serializers.ModelSerializer):

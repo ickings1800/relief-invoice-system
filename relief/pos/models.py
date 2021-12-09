@@ -145,6 +145,12 @@ class Customer(models.Model):
     freshbooks_account_id = models.CharField(max_length=8, null=True, blank=False)
     freshbooks_client_id = models.CharField(max_length=8, null=True, blank=False)
     pivot_invoice = models.BooleanField(default=False)
+    download_prefix = models.CharField(max_length=128, null=True, blank=False)
+    download_suffix = models.CharField(max_length=128, null=True, blank=False)
+    to_print = models.BooleanField(default=False)
+    to_fax = models.BooleanField(default=False)
+    to_email = models.BooleanField(default=False)
+    to_whatsapp = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['name']
@@ -152,6 +158,27 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_download_file_name(self, invoice_number):
+        invoice_name = ''
+
+        if self.download_prefix:
+            invoice_name += self.download_prefix + '_'
+
+        invoice_name += str(invoice_number)
+
+        if self.download_suffix:
+            invoice_name += self.download_suffix
+        if self.to_whatsapp:
+            invoice_name += '_whatsapp'
+        if self.to_email:
+            invoice_name += '_email'
+        if self.to_fax:
+            invoice_name += '_fax'
+        if self.to_print:
+            invoice_name += '_print'
+
+        return invoice_name
 
     def handle_customer_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
