@@ -31,10 +31,12 @@ class InvoiceTestCase(APITestCase):
 
     def test_create_invoice_error_400_when_inconsistent_orderitem_unit_price(self):
         url = reverse('pos:invoice_create')
+        customer = Customer.objects.get(name="Test Customer")
+        orderitem_list = [oi.pk for oi in OrderItem.objects.all()]
         data = {
-            'customer_id': 1,
+            'customer_id': customer.pk,
             'create_date': "2021-03-31",
-            'orderitems_id': [1,2],
+            'orderitems_id': orderitem_list,
             'discount': 0
         }
         response = self.client.post(url, data, format='json')
@@ -45,15 +47,16 @@ class InvoiceTestCase(APITestCase):
 
     def test_update_invoice_error_400_when_inconsistent_orderitem_unit_price(self):
         #  set up order items to invoice before updating with inconsistent unit price
-        customer = Customer.objects.get(pk=2)
-        orderitem = OrderItem.objects.get(pk=3)
+        customer = Customer.objects.get(name="Test Customer")
+        orderitem = OrderItem.objects.first()
         invoice = Invoice.objects.create(invoice_number="20210000", customer=customer)
         orderitem.invoice=invoice
         orderitem.save()
+        orderitem_list = [oi.pk for oi in OrderItem.objects.all()]
 
         url = reverse('pos:invoice_update', args=[1])
         data = {
-            'orderitems_id':[3,4],
+            'orderitems_id':orderitem_list,
             'discount': 0
         }
         response = self.client.put(url, data, format='json')
