@@ -413,7 +413,7 @@ def invoice_pdf_view(request, pk):
         response['Content-Disposition'] = 'attachment; filename="{0}".pdf'.format(invoice.invoice_number)
 
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1*cm, bottomMargin=2*cm)
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=5*mm, bottomMargin=5*mm)
 
         # container for the "Flowable" objects
         elements = []
