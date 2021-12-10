@@ -1007,7 +1007,7 @@ def get_filter_orderitem_rows(request):
                 parsed_end_date = datetime.strptime(end_date, '%Y-%m-%d')
 
             if customer_ids:
-                parsed_customer_ids = customer_ids.split(';')
+                parsed_customer_ids = [x for x in customer_ids.split(';') if x != '']
 
         except ValueError:
             return Response(status=HTTP_400_BAD_REQUEST)
