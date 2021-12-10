@@ -365,7 +365,7 @@ def download_invoice(request, pk=None):
     if invoice:
         #  invoice is in the db
         print('in db')
-        invoice_name = invoice.customer.get_download_file_name(invoice_number)
+        invoice_name = invoice.customer.get_download_file_name(invoice.invoice_number)
         if invoice.pivot:
             print('pivot')
             return invoice_pdf_view(request, invoice.pk, file_name=invoice_name)
