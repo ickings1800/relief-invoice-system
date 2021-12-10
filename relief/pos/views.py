@@ -381,7 +381,7 @@ def invoice_pdf_view(request, pk, file_name=''):
     invoice = Invoice.objects.select_related('customer').get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
-        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
+        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by('route__date')
         unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
         unique_quote_price_set = set(query_oi.values_list('customerproduct__product__name', 'unit_price'))
         unique_quote_price_dict = {k:v for k,v in unique_quote_price_set}
