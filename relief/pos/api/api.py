@@ -645,6 +645,7 @@ def bulk_import_orders(request):
             quantity = row.get('quantity')
             date = row.get('date')
             do_number = row.get('do_number')
+            po_number = row.get('po_number')
 
             customer_exists = Customer.objects.get(id=customer_id)
             customerproduct_exists = CustomerProduct.objects.get(id=customerproduct_id)
@@ -657,6 +658,7 @@ def bulk_import_orders(request):
                     new_orderitem = OrderItem(
                         quantity=quantity, 
                         driver_quantity=quantity,
+                        note=po_number,
                         unit_price=customerproduct_exists.quote_price,
                         customerproduct=customerproduct_exists,
                         route=route)
@@ -667,6 +669,7 @@ def bulk_import_orders(request):
                     new_orderitem = OrderItem(
                         quantity=quantity, 
                         driver_quantity=quantity,
+                        note=po_number,
                         unit_price=customerproduct_exists.quote_price,
                         customerproduct=customerproduct_exists,
                         route=route)

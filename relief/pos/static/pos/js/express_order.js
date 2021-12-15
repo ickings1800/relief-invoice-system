@@ -32,7 +32,7 @@ var OrderRow = Vue.component('OrderRow', {
         <!-- form input control -->
         <div class="form-group mx-1">
             <label class="form-label" v-if="index === 0">Date</label>
-            <input class="form-input" type="date" :value="data.date" v-on:input="data.date = formatDate($event.target.valueAsDate)">
+            <input class="form-input" type="date" :value="data.date" tabindex="-1" v-on:input="data.date = formatDate($event.target.valueAsDate)">
         </div>
         <!-- form input control -->
         <div class="form-group mx-1">
@@ -52,7 +52,11 @@ var OrderRow = Vue.component('OrderRow', {
         <!-- form input control -->
         <div class="form-group mx-1">
             <label class="form-label" v-if="index === 0">D/O</label>
-            <input class="form-input" type="text" placeholder="D/O" v-on:keydown.tab="tabHandler" v-model="data.do_number">
+            <input class="form-input" type="text" placeholder="D/O" v-model="data.do_number">
+        </div>
+        <div class="form-group mx-1">
+            <label class="form-label" v-if="index === 0">P/O</label>
+            <input class="form-input" type="text" placeholder="P/O" v-on:keydown.tab="tabHandler" v-model="data.po_number">
         </div>
         <button class="btn btn-error m-2 del-row-btn" v-on:click.prevent="deleteRow(index)">Delete</button>
     </div>
@@ -104,7 +108,15 @@ var OrderRow = Vue.component('OrderRow', {
 var OrderForm = Vue.component('OrderForm', {
   data: function () {
       return {
-        dataArray: [{'selectedCustomer': null, 'selectedProduct': null, 'date': new Date(), 'quantity': null, 'do_number': null, 'error': []}]
+        dataArray: [{
+          'selectedCustomer': null, 
+          'selectedProduct': null, 
+          'date': new Date(), 
+          'quantity': null, 
+          'do_number': null, 
+          'po_number': null,
+          'error': []
+        }]
       }
   },
   created: function() {
@@ -128,20 +140,39 @@ var OrderForm = Vue.component('OrderForm', {
    methods: {
     createRow: function(prevRowDate) {
       console.log(prevRowDate)
-      this.dataArray.push({'selectedCustomer': null, 'selectedProduct': null, 'date': prevRowDate, 'quantity': null, 'do_number': null, 'error': []})
+      this.dataArray.push({
+        'selectedCustomer': null,
+        'selectedProduct': null,
+        'date': prevRowDate,
+        'quantity': null,
+        'do_number': null,
+        'po_number': null,
+        'error': []
+      })
     },
     deleteRow: function(rowIndex) {
       console.log('delete row', rowIndex);
       if (this.dataArray.length > 1){
         this.dataArray.splice(rowIndex, 1);
       } else {
-        Vue.set(this.dataArray, 0, {'selectedCustomer': null, 'selectedProduct': null, 'date': null, 'quantity': null, 'do_number': null, 'error': []});
+        Vue.set(this.dataArray, 0, {
+          'selectedCustomer': null, 
+          'selectedProduct': null, 
+          'date': null, 
+          'quantity': null, 
+          'do_number': null, 
+          'po_number': null,
+          'error': []
+        });
       }
     },
     importData: function() {
       console.log('bulk import')
       if (!this.validateData(this.dataArray)) {
-        bulkImport(this.dataArray).then(res => res.json()).then(() => this.clearDataArray()).catch(error => { console.log(error) })
+        bulkImport(this.dataArray)
+        .then(res => res.json())
+        .then(() => this.clearDataArray())
+        .catch(error => { console.log(error) })
       }
     },
     validateData: function(data){
@@ -173,7 +204,15 @@ var OrderForm = Vue.component('OrderForm', {
       return error;
     },
     clearDataArray: function(){
-      this.dataArray = [{'selectedCustomer': null, 'selectedProduct': null, 'date': new Date(), 'quantity': null, 'do_number': null, 'error': []}]
+      this.dataArray = [{
+        'selectedCustomer': null, 
+        'selectedProduct': null, 
+        'date': new Date(), 
+        'quantity': null, 
+        'do_number': null, 
+        'po_number': null,
+        'error': []
+      }]
     }
    },
    computed: {}
