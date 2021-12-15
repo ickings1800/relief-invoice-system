@@ -78,6 +78,7 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'remark',
             'customer_name',
             'date_generated',
+            'date_created',
             'po_number',
             'minus',
             'discount_description',

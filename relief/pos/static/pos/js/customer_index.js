@@ -27,18 +27,16 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
 	        <div class="invoice-form">
 	            <!-- form input control -->
 	            <div class="form-group">
-	              <label class="form-label">Customer: {{ selected_invoice.customer_name }}</label>
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="update-date">Create Date: {{ selected_invoice.date_generated }}</label>
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="invoice-number">Invoice Number</label>
-	              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
+	              <label class="form-label" for="update-date">Create Date</label>
+                <input class="form-input" id="update-date" type="date" v-model="selected_invoice.date_created" readonly>
 	            </div>
 	            <div class="form-group">
 	              <label class="form-label" for="po-number">PO Number</label>
 	              <input class="form-input" type="text" id="po-number" v-model="po_number">
+	            </div>
+	            <div class="form-group">
+	              <label class="form-label" for="invoice-number">Invoice Number</label>
+	              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
 	            </div>
 	            <div class="form-group">
 	              <label class="form-label" for="discount-desc">Discount Description</label>
@@ -870,15 +868,8 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
 	        <div class="invoice-form">
 		        <!-- form input control -->
 		        <div class="form-group">
-		          <label class="form-label">Customer: {{ selected_customer.name }}</label>
-		        </div>
-		        <div class="form-group">
 		          <label class="form-label" for="create-date">Create Date</label>
 		          <input class="form-input" type="date" id="create-date" v-model="create_date">
-		        </div>
-		        <div class="form-group">
-		          <label class="form-label" for="invoice-number">Invoice Number</label>
-		          <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
 		        </div>
 		        <div class="form-group">
 		          <label class="form-label" for="po-number">PO Number</label>
@@ -892,41 +883,44 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
 		          <label class="form-label" for="discount">Discount (Credit Note)</label>
 		          <input class="form-input" type="text" id="discount" v-model="discount">
 		        </div>
-		    </div>
-		    <div class="divider-vert"></div>
-		    <div class="invoice-create-update-table">
-		        <table class="table">
-		          <thead>
-		            <tr>
-		              <th>
-		                <label class="form-checkbox">
-		                  <input type="checkbox" v-model="select_all"><i class="form-icon"></i> Date
-		                </label>
-		              </th>
-		              <th>Item Name</th>
-		              <th>Driver Quantity</th>
-		              <th>Unit Price</th>
-		              <th>P/O</th>
-		              <th>D/O</th>
-		            </tr>
-		          </thead>
-		          <tbody>
-		            <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
-		              <td>
-		                <label class="form-checkbox">
-		                  <input type="checkbox" v-bind:value="orderitem" v-model="selected_orderitems">
-		                  <i class="form-icon"></i> {{ orderitem.date }}
-		                </label>
-		              </td>
-		              <td>{{ orderitem.product_name }}</td>
-		              <td>{{ orderitem.driver_quantity }}</td>
-		              <td>{{ orderitem.unit_price }}</td>
-		              <td>{{ orderitem.note }}</td>
-		              <td>{{ orderitem.do_number }}</td>
-		            </tr>
-		          </tbody>
-		        </table>
-		    </div>
+		        <div class="form-group">
+		          <label class="form-label" for="invoice-number">Invoice Number</label>
+		          <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
+		        </div>
+          </div>
+  		    <div class="invoice-create-update-table">
+  		        <table class="table">
+  		          <thead>
+  		            <tr>
+  		              <th>
+  		                <label class="form-checkbox">
+  		                  <input type="checkbox" v-model="select_all"><i class="form-icon"></i> Date
+  		                </label>
+  		              </th>
+  		              <th>Item Name</th>
+  		              <th>Driver Quantity</th>
+  		              <th>Unit Price</th>
+  		              <th>P/O</th>
+  		              <th>D/O</th>
+  		            </tr>
+  		          </thead>
+  		          <tbody>
+  		            <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
+  		              <td>
+  		                <label class="form-checkbox">
+  		                  <input type="checkbox" v-bind:value="orderitem" v-model="selected_orderitems">
+  		                  <i class="form-icon"></i> {{ orderitem.date }}
+  		                </label>
+  		              </td>
+  		              <td>{{ orderitem.product_name }}</td>
+  		              <td>{{ orderitem.driver_quantity }}</td>
+  		              <td>{{ orderitem.unit_price }}</td>
+  		              <td>{{ orderitem.note }}</td>
+  		              <td>{{ orderitem.do_number }}</td>
+  		            </tr>
+  		          </tbody>
+  		        </table>
+  		    </div>
         </div>
         <div class="modal-footer">
             <div class="divider"></div>
