@@ -25,21 +25,10 @@ import requests
 import json
 import io
 
-refresh_url = "https://api.freshbooks.com/auth/oauth/token"
-client_id = settings.FRESHBOOKS_CLIENT_ID
-client_secret = settings.FRESHBOOKS_CLIENT_SECRET
-
-extra = {
-    'client_id': client_id,
-    'client_secret': client_secret,
-}
-
-def token_updater(request, token):
-    request.session['oauth_token'] = token
-
 
 # Create your views here.
 def redirect_to_freshbooks_auth(request):
+    refresh_url = "https://api.freshbooks.com/auth/oauth/token"
     client_id = settings.FRESHBOOKS_CLIENT_ID
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
@@ -48,10 +37,10 @@ def redirect_to_freshbooks_auth(request):
 
 
 def get_token(request):
-    client_id = settings.FRESHBOOKS_CLIENT_ID
-    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
-    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
     callback_url = request.get_full_path()
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
     token = oauth.fetch_token(
             "https://api.freshbooks.com/auth/oauth/token",
@@ -67,24 +56,6 @@ def overview(request):
     template_name = 'pos/customer/index.html'
 
     if request.method == 'GET':
-
-        token = request.session['oauth_token']
-        session_account_id = request.session.get('freshbooks_account_id', None)
-
-        if not session_account_id:
-            try:
-                freshbooks = OAuth2Session(client_id,token=token)
-                res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-
-            account_id = res.get('response')\
-                            .get('business_memberships')[0]\
-                            .get('business')\
-                            .get('account_id')
-
-            request.session['freshbooks_account_id'] = account_id
         return render(request, template_name)
 
 
@@ -416,26 +387,22 @@ def invoice_pdf_view(request, pk, file_name=''):
     return HttpResponseBadRequest()
 
 @login_required
+@freshbooks_access
 def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name=''):
     if pk:
         invoice = Invoice.objects.get(pk=pk)
         invoice_number = invoice.invoice_number
     if invoice_number:
         #  find the invoice id from freshbooks
+        client_id = request.session['client_id']
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
-        freshbooks_client_id = settings.FRESHBOOKS_CLIENT_ID
+        freshbooks = OAuth2Session(client_id, token=token)
         search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
             freshbooks_account_id, invoice_number
         )
-        try:
-            freshbooks = OAuth2Session(freshbooks_client_id, token=token)
-            freshbooks_invoice = freshbooks.get(search_url).json()
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
+        freshbooks_invoice = freshbooks.get(search_url).json()
 
-        print(freshbooks_invoice)
         freshbooks_invoice_search = freshbooks_invoice.get('response')\
                                                     .get('result')\
                                                     .get('invoices')
@@ -475,9 +442,6 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
 
         try:
             pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
         except Exception as e:
             return HttpResponseBadRequest()
 

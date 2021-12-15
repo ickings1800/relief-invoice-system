@@ -16,17 +16,9 @@ from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product,
 from datetime import datetime, date
 from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
+from ..freshbooks import freshbooks_access
 import requests
 import json
-
-refresh_url = "https://api.freshbooks.com/auth/oauth/token"
-client_id = settings.FRESHBOOKS_CLIENT_ID
-client_secret = settings.FRESHBOOKS_CLIENT_SECRET
-
-extra = {
-    'client_id': client_id,
-    'client_secret': client_secret,
-}
 
 @api_view(['POST'])
 @permission_classes([])
@@ -113,8 +105,6 @@ def detrack_webhook(request):
             return Response(status=status.HTTP_200_OK, data=rs.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
-def token_updater(request, token):
-    request.session['oauth_token'] = token
 
 class GroupList(ListAPIView):
     serializer_class = GroupListSerializer
@@ -143,18 +133,15 @@ class ProductList(ListAPIView):
         product_serializer = ProductListDetailUpdateSerializer(products, many=True)
         return Response(status=status.HTTP_200_OK, data=product_serializer.data)
 
-@api_view(['GET'])
-def product_detail(request, pk):
-    if (request.method == 'GET'):
-        product = Product.objects.get(pk=pk)
-        if (product):
-            token = request.session['oauth_token']
-            try:
-                product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
 
+@api_view(['GET'])
+@freshbooks_access
+def product_detail(request, pk):
+    if request.method == 'GET':
+        product = Product.objects.get(pk=pk)
+        if product:
+            token = request.session['oauth_token']
+            product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
             return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -317,21 +304,18 @@ class CustomerProductCreate(CreateAPIView):
 
 
 @api_view(['PUT'])
+@freshbooks_access
 def customerproduct_update(request, pk):
+
     def get_freshbooks_tax(freshbooks_tax_id):
         token = request.session['oauth_token']
+        client_id = request.session['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
-        try:
-            freshbooks = OAuth2Session(client_id, token=token)
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
-                .format(freshbooks_account_id, freshbooks_tax_id)).json()
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
-
+        freshbooks = OAuth2Session(client_id, token=token)
+        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
+            .format(freshbooks_account_id, freshbooks_tax_id)).json()
         tax = res.get('response').get('result').get('tax')
         return tax
-
 
     freshbooks_tax_id = request.data.get('freshbooks_tax_1', None)
     quote_price = request.data.get('quote_price', None)
@@ -414,6 +398,7 @@ def hard_delete_invoice(request, pk):
 
 
 @api_view(['POST'])
+@freshbooks_access
 def create_invoice(request):
     if request.method == 'POST':
         customer_id = request.data.get('customer_id')
@@ -443,7 +428,7 @@ def create_invoice(request):
             if price_map[product_name] != oi.unit_price:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
 
-        client_id = settings.FRESHBOOKS_CLIENT_ID
+        client_id = request.sesion['client_id']
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
         freshbooks = OAuth2Session(client_id, token=token)
@@ -461,12 +446,11 @@ def create_invoice(request):
             for orderitem in invoice_orderitems:
                 tax_id = orderitem.customerproduct.freshbooks_tax_1
                 if tax_id:
-                    try:
-                        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(freshbooks_account_id, tax_id)).json()
-                    except TokenExpiredError as e:
-                        token = freshbooks.refresh_token(refresh_url, **extra)
-                        token_updater(request, token)
-
+                    res = freshbooks.get(
+                        "https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(
+                            freshbooks_account_id, tax_id
+                        )
+                    ).json()
                     #  get freshbooks tax
                     tax = res.get('response').get('result').get('tax')
 
@@ -611,9 +595,10 @@ def get_all_quotes(request):
 
 
 @api_view(['GET'])
+@freshbooks_access
 def get_all_taxes(request):
     if (request.method == 'GET'):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
+        client_id = request.session['client_id']
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
         freshbooks = OAuth2Session(client_id, token=token)
@@ -622,15 +607,9 @@ def get_all_taxes(request):
         while(True):
             print(page)
             print(freshbooks_account_id, page)
-            try:
-                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes?page={1}".format(freshbooks_account_id, page)).json()
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes?page={1}".format(freshbooks_account_id, page)).json()
-            except Exception:
-                print('Invalid Grant Error')
-            print(res)
+            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes?page={1}".format(
+                freshbooks_account_id, page
+            )).json()
             max_pages = res.get('response')\
                             .get('result')\
                             .get('pages')
@@ -652,8 +631,6 @@ def get_all_taxes(request):
 
         return Response(status=status.HTTP_200_OK, data=taxes_arr)
     return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
 
 
 @api_view(['POST'])
@@ -747,22 +724,18 @@ def get_filter_orderitem_rows(request):
 
 
 @api_view(['GET'])
+@freshbooks_access
 def get_freshbooks_products(request):
-    client_id = settings.FRESHBOOKS_CLIENT_ID
+    client_id = request.session['client_id']
     freshbooks_account_id = request.session['freshbooks_account_id']
     token = request.session['oauth_token']
     freshbooks = OAuth2Session(client_id, token=token)
     page = 1
     item_arr = []
     while(True):
-        print(page)
-        try:
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
-
-        print(res)
+        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(
+            freshbooks_account_id, page
+        )).json()
         max_pages = res.get('response')\
                         .get('result')\
                         .get('pages')
@@ -785,18 +758,14 @@ def get_freshbooks_products(request):
 
 
 @api_view(['GET'])
+@freshbooks_access
 def get_freshbooks_import_clients(request):
-    client_id = settings.FRESHBOOKS_CLIENT_ID
+    client_id = request.session['client_id']
     freshbooks_account_id = request.session['freshbooks_account_id']
     token = request.session['oauth_token']
     existing_freshbooks_clients = Customer.objects.filter(freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False)
     existing_client_ids = [client.freshbooks_client_id for client in existing_freshbooks_clients]
-    try:
-        freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
-    except TokenExpiredError as e:
-        token = freshbooks.refresh_token(refresh_url, **extra)
-        token_updater(request, token)
-
+    freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
     not_exists_freshbooks_client = []
     for client in freshbooks_clients:
         if str(client.get('id')) not in existing_client_ids:
@@ -805,9 +774,10 @@ def get_freshbooks_import_clients(request):
 
 
 @api_view(['POST'])
+@freshbooks_access
 def import_freshbooks_clients(request):
     if request.method == 'POST':
-        client_id = settings.FRESHBOOKS_CLIENT_ID
+        client_id = request.session['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
         import_client_ids = request.data.get('freshbooks_id_list')
@@ -820,30 +790,21 @@ def import_freshbooks_clients(request):
                 valid_import_client_ids.append(res)
             else:
                 return Response(status=status.HTTP_404_NOT_FOUND, data=import_client_ids)
-        try:
-            Customer.import_freshbooks_clients(valid_import_client_ids, freshbooks_account_id, token)
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
-
+        Customer.import_freshbooks_clients(valid_import_client_ids, freshbooks_account_id, token)
         return Response(status=status.HTTP_201_CREATED, data=import_client_ids)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
+@freshbooks_access
 def get_freshbooks_import_products(request):
     if request.method == 'GET':
-        client_id = settings.FRESHBOOKS_CLIENT_ID
+        client_id = request.session['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
         existing_freshbooks_products = Product.objects.filter(freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False)
         existing_product_ids = [product.freshbooks_item_id for product in existing_freshbooks_products]
-        try:
-            freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
-            freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
+        freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
 
         not_exists_freshbooks_products = []
         for product in freshbooks_products:
@@ -854,20 +815,15 @@ def get_freshbooks_import_products(request):
 
 
 @api_view(['POST'])
+@freshbooks_access
 def import_freshbooks_products(request):
     if request.method == 'POST':
-        client_id = settings.FRESHBOOKS_CLIENT_ID
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
         import_product_ids = request.data.get('freshbooks_id_list')
         valid_import_product_list = []
         for import_product_id in import_product_ids:
-            try:
-                valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-                valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
+            valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
             print(valid_product)
             res = valid_product.get('response').get('result').get('item')
             if res.get('id'):
@@ -882,20 +838,16 @@ def import_freshbooks_products(request):
 
 
 @api_view(['GET'])
+@freshbooks_access
 def get_freshbooks_clients(request):
-    client_id = settings.FRESHBOOKS_CLIENT_ID
     freshbooks_account_id = request.session['freshbooks_account_id']
     token = request.session['oauth_token']
-    try:
-        freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
-    except TokenExpiredError as e:
-        token = freshbooks.refresh_token(refresh_url, **extra)
-        token_updater(request, token)
-
+    freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
     return Response(status=status.HTTP_200_OK, data=freshbooks_clients)
 
 
 @api_view(['PUT'])
+@freshbooks_access
 def link_customer(request):
     if request.method == 'PUT':
         freshbooks_account_id = request.session['freshbooks_account_id']
@@ -925,12 +877,7 @@ def link_customer(request):
         customer_obj.to_print = to_print
         customer_obj.to_whatsapp = to_whatsapp
         if freshbooks_client_id:
-            try:
-                response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-
+            response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)
             freshbooks_client = response.get('response').get('result').get('client')
         if freshbooks_client_id and freshbooks_client:
             customer_obj.freshbooks_client_id = str(freshbooks_client.get('id'));
@@ -947,6 +894,7 @@ def link_customer(request):
 
 
 @api_view(['PUT'])
+@freshbooks_access
 def link_product(request):
     if request.method == 'PUT':
         freshbooks_account_id = request.session['freshbooks_account_id']
@@ -960,13 +908,7 @@ def link_product(request):
         if not product_obj:
             return Response(status=status.HTTP_404_NOT_FOUND)
         if freshbooks_item_id:
-            try:
-                response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-                response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
-
+            response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
             freshbooks_product = response.get('response').get('result').get('item')
         if freshbooks_item_id and freshbooks_product:
             product_obj.freshbooks_item_id = str(freshbooks_product.get('id'));
@@ -999,15 +941,13 @@ def orderitem_delete(request, pk):
 
 
 @api_view(['POST'])
+@freshbooks_access
 def customer_sync(request):
     if request.method == 'POST':
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
         try:
             Customer.update_freshbooks_clients(freshbooks_account_id, token)
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
-            token_updater(request, token)
         except Exception as err:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
@@ -1017,6 +957,7 @@ def customer_sync(request):
 
 
 @api_view(['POST'])
+@freshbooks_access
 def invoice_sync(request):
     if request.method == 'POST':
         token = request.session['oauth_token']
@@ -1026,14 +967,8 @@ def invoice_sync(request):
             search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
                 freshbooks_account_id, invoice.invoice_number
             )
-            try:
-                freshbooks = OAuth2Session(client_id, token=token)
-                freshbooks_invoice = freshbooks.get(search_url).json()
-            except TokenExpiredError as e:
-                token = freshbooks.refresh_token(refresh_url, **extra)
-                token_updater(request, token)
-                freshbooks_invoice = freshbooks.get(search_url).json()
-
+            freshbooks = OAuth2Session(client_id, token=token)
+            freshbooks_invoice = freshbooks.get(search_url).json()
             print(freshbooks_invoice)
             freshbooks_invoice_search = freshbooks_invoice.get('response')\
                                                         .get('result')\
@@ -1056,6 +991,7 @@ def invoice_sync(request):
 
 
 @api_view(['PUT'])
+@freshbooks_access
 def invoice_update(request, pk):
     if request.method == 'PUT':
         #  list of ints
@@ -1106,17 +1042,16 @@ def invoice_update(request, pk):
 
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
+        client_id = request.session['client_id']
         freshbooks = OAuth2Session(client_id, token=token)
         headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
 
         for orderitem in existing_invoice.orderitem_set.all():
             tax_id = orderitem.customerproduct.freshbooks_tax_1
             if tax_id:
-                try:
-                    res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(freshbooks_account_id, tax_id)).json()
-                except TokenExpiredError as e:
-                    token = freshbooks.refresh_token(refresh_url, **extra)
-                    token_updater(request, token)
+                res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}".format(
+                    freshbooks_account_id, tax_id
+                )).json()
 
                 #  get freshbooks tax
                 tax = res.get('response').get('result').get('tax')
