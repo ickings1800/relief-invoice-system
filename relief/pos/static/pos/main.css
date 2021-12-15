@@ -301,17 +301,13 @@ font-size: 1vw;
     max-width: 80% !important;
 }
 
-.create-update-invoice-modal-body {
-	display: flex;
+.invoice-form {
+    display: flex;
 }
 
-.create-update-invoice-modal-body .invoice-form {
-	flex: 1;
-}
-
-.create-update-invoice-modal-body .invoice-create-update-table {
-	flex: 4;
-	overflow-y: scroll;
+.invoice-form .form-group {
+    flex: 1;
+    margin: .2rem;
 }
 
 .del-row-btn {
