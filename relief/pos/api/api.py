@@ -4,21 +4,17 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
 from rest_framework.decorators import permission_classes, authentication_classes
 from .serializers import \
-    TripListDetailUpdateSerializer, CustomerListDetailUpdateSerializer, ProductListDetailUpdateSerializer, \
-    CustomerCreateSerializer, ProductCreateSerializer, TripCreateSerializer, CustomerProductListDetailSerializer,\
-    CustomerProductCreateSerializer, CustomerProductUpdateSerializer, RouteListSerializer, InvoiceListSerializer,\
-    TripDetailSerializer, OrderItemUpdateSerializer, RouteUpdateSerializer, RouteDetailSerializer, RouteSerializer,\
+    CustomerListDetailUpdateSerializer, ProductListDetailUpdateSerializer, \
+    CustomerProductListDetailSerializer,\
+    CustomerProductCreateSerializer, InvoiceListSerializer,\
+    OrderItemUpdateSerializer, RouteSerializer,\
     InvoiceDetailSerializer, GroupListSerializer, GroupCreateSerializer, OrderItemSerializer
 
 from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
-from datetime import datetime, timedelta, date
-from django.db.models import Prefetch
-from django.conf import settings
+from datetime import datetime, date
 from requests_oauthlib import OAuth2Session
-from oauthlib.oauth2 import TokenExpiredError
 from decimal import Decimal, ROUND_UP
 import requests
 import json
@@ -162,148 +158,6 @@ def product_detail(request, pk):
             return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
-class TripList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        date_start_string = self.request.query_params.get('date_start')
-        date_end_string = self.request.query_params.get('date_end')
-        if date_start_string and date_end_string:
-            date_start = datetime.strptime(date_start_string, '%Y-%m-%d')
-            date_end = datetime.strptime(date_end_string, '%Y-%m-%d')
-            date_end += timedelta(hours=23, minutes=59, seconds=59)
-            date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
-            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
-            trips = Trip.get_trips_by_date(date_start_formatted, date_end_formatted)
-        else:
-            trips = Trip.objects.all()
-        trip_serializer = TripListDetailUpdateSerializer(trips, many=True, context={'request': request})
-        return Response(status=status.HTTP_200_OK, data=trip_serializer.data)
-
-
-@api_view(['GET'])
-def trip_detail(request, pk):
-    if request.method == 'GET':
-        try:
-            trip_detail = Trip.objects.prefetch_related(
-                Prefetch('route_set', queryset=Route.objects.order_by('-pk')
-                )).get(pk=pk)
-        except Trip.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        trip_detail_serializer = TripDetailSerializer(trip_detail)
-        return Response(status=status.HTTP_200_OK, data=trip_detail_serializer.data)
-    return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-class TripCreate(CreateAPIView):
-    serializer_class = TripCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
-
-
-class TripDuplicate(CreateAPIView):
-    serializer_class = TripCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        try:
-            trip_id = self.kwargs['pk']
-            print(trip_id)
-            duplicated_trip = Trip.duplicate_trip(trip_id)
-            tcs = TripCreateSerializer(duplicated_trip)
-            return Response(status=status.HTTP_201_CREATED, data=tcs.data)
-        except Trip.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['PUT'])
-def trip_update(request, pk):
-    if request.method == 'PUT':
-        notes = request.data.get('notes')
-        selected_trip = Trip.objects.get(pk=pk)
-
-        if selected_trip.notes != notes:
-            selected_trip.notes = notes
-            selected_trip.save()
-            ts = TripListDetailUpdateSerializer(selected_trip, context={'request': request})
-            return Response(status=status.HTTP_200_OK, data=ts.data)
-        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error updating trip"})
-    return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error updating trip"})
-
-
-@api_view(['POST'])
-def route_create(request):
-    if request.method == 'POST':
-        #  try:
-        #      body = json.loads(request.data.get('body'))
-        #  except Exception as e:
-        #      return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "error parsing json"})
-        body = request.data
-        driver = request.user
-
-        validated_note = body.get('note')
-        validated_do_number = body.get('do_number')
-        validated_po_number = body.get('po_number')
-        validated_customer = body.get('customer')
-        validated_customerproducts = body.get('customerproducts')
-        signature_base64 = body.get('signature')
-
-        if validated_do_number:
-            try:
-                do_number_int = int(validated_do_number)
-            except ValueError:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "do_number is not an integer"})
-
-            route_exists = Route.objects.filter(do_number=validated_do_number).count()
-            if route_exists > 0:
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"error": "route already exists with do_number {0}".format(validated_do_number)}
-                )
-
-        print(validated_customerproducts)
-        for cp in range(len(validated_customerproducts)):
-            cp_id = validated_customerproducts[cp].get('id')
-            cp_driver_qty = validated_customerproducts[cp].get('driver_quantity')
-            print("quantity:", cp_driver_qty)
-            try:
-                if not cp_id:
-                    return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "customerproduct id not found"})
-                if cp_driver_qty is None:
-                    return Response(
-                        status=status.HTTP_400_BAD_REQUEST,
-                        data={"error": "driver quantity is none"}
-                    )
-                if int(cp_driver_qty) < 0:
-                    return Response(
-                        status=status.HTTP_400_BAD_REQUEST,
-                        data={"error": "driver quantity or quantity cannot be less than zero"}
-                    )
-            except Exception as e:
-                print(e)
-                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": e})
-
-        assigned_trip = Trip.objects.get(driver=driver)
-        if assigned_trip:
-            route = Route.create_route(
-                validated_note,
-                validated_do_number,
-                validated_po_number,
-                validated_customer,
-                validated_customerproducts,
-                assigned_trip
-            )
-            rs = RouteSerializer(route)
-            return Response(status=status.HTTP_201_CREATED, data=rs.data)
-        return response(status=status.HTTP_404_NOT_FOUND, data={"error": "trip for driver not found"})
-    return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-class OrderItemDetail(RetrieveAPIView):
-    queryset = OrderItem.objects.all()
-    serializer_class = OrderItemSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
 
 class OrderItemUpdate(UpdateAPIView):
     queryset = OrderItem.objects.all()
@@ -312,13 +166,6 @@ class OrderItemUpdate(UpdateAPIView):
     def put(self, request, *args, **kwargs):
         print(request.data)
         return self.update(request, *args, **kwargs)
-
-
-class TripDelete(DestroyAPIView):
-    queryset = Trip.objects.all()
-
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
 
 
 class RouteDetail(RetrieveAPIView):
@@ -405,19 +252,6 @@ def route_update(request, pk):
         print(rs.data)
         return Response(status=status.HTTP_200_OK, data=rs.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-def route_arrange(request, pk):
-    if request.method == 'POST':
-        trip_id = pk
-        arrangement = request.data.get('id_arrangement')
-        try:
-            Trip.arrange_route_index(trip_id, arrangement)
-        except APIException as e:
-            print(e.detail)
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_200_OK, data=request.data)
 
 
 @api_view(['PUT'])
@@ -519,40 +353,6 @@ def customerproduct_update(request, pk):
     return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
 
 
-class CustomerRouteList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        customer_id = self.kwargs['pk']
-        # date_start_string = self.request.query_params.get('start_date')
-        # date_end_string = self.request.query_params.get('end_date')
-        # if date_start_string is not None and date_end_string is not None:
-        #     date_start = datetime.strptime(date_start_string, '%Y-%m-%d %H:%M:%S')
-        #     date_end = datetime.strptime(date_end_string, '%Y-%m-%d %H:%M:%S')
-            #  date_start will start from exactly midnight by default
-            #  date_end will have to add timedelta because it will also end at exactly at midnight,
-            #  causing the last route order to not be included.
-        #     date_end += timedelta(hours=23, minutes=59, seconds=59)
-        #     date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
-        #     date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
-        #     routes = Route.get_customer_routes_orderitems_by_date(date_start_formatted, date_end_formatted, customer_id)
-        #     route_serializer = RouteSerializer(routes, many=True)
-        # else:
-        get_checked_routes = request.GET.get("checked")
-        # only accept "true" from querystring
-        if get_checked_routes == "true":
-            routes = Route.get_customer_routes_for_invoice(customer_id)
-        else:
-            routes = Route.get_customer_detail_routes(customer_id)
-        route_serializer = RouteListSerializer(routes, many=True, context={'request': request})
-        return Response(status=status.HTTP_200_OK, data=route_serializer.data)
-
-
-class CustomerInvoiceList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        invoices = Invoice.get_customer_invoices(self.kwargs['pk'])
-        invoice_serializer = InvoiceListSerializer(invoices, many=True)
-        return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
-
-
 class InvoiceDetail(RetrieveAPIView):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceDetailSerializer
@@ -568,36 +368,6 @@ class InvoiceList(ListAPIView):
             invoices, many=True, context={'request': request}
         )
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
-
-
-class InvoiceDateRange(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        print(self.request.__str__)
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        date_start_string = request.GET.get('date_start', '')
-        date_end_string = request.GET.get('date_end', '')
-
-        try:
-            if date_start_string and date_end_string:
-                date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
-                date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
-                #  date_start will start from exactly midnight by default
-                #  date_end will have to add timedelta because it will also end at exactly at midnight,
-                #  causing the last route order to not be included.
-                date_end += timedelta(hours=23, minutes=59, seconds=59)
-                date_end_formatted = datetime.strftime(date_end, '%Y-%m-%d %H:%M:%S')
-                date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
-
-                route_list = Route.get_customer_routes_orderitems_by_date(date_start_formatted,
-                                                                          date_end_formatted,
-                                                                          customer.id)
-                print(route_list)
-                rs = RouteListSerializer(route_list, many=True, context={'request': request})
-                return Response(status=status.HTTP_200_OK, data=rs.data)
-            else:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-        except ValueError:
-            return Response(status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['PUT'])
@@ -810,46 +580,6 @@ def create_invoice(request):
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 
-@api_view(['GET'])
-def trip_packing_sum(request, pk):
-    if request.method == 'GET':
-        trip_id = pk
-        packing_sum = Trip.get_packing_sum(trip_id)
-        return Response(status=status.HTTP_200_OK, data=packing_sum)
-
-
-@api_view(['GET'])
-def get_customer_latest_invoice(request, pk):
-    if request.method == 'GET':
-        customer = get_object_or_404(Customer, id=pk)
-        invoice = Invoice.get_customer_latest_invoice(customer.pk)
-        if invoice:
-            invoice_serializer = InvoiceDetailSerializer(instance=invoice)
-            return Response(status=status.HTTP_200_OK, data={'invoice': invoice_serializer.data})
-        return Response(status=status.HTTP_200_OK, data={'invoice': None})
-
-
-@api_view(['POST'])
-def customerproduct_arrangement(request, pk):
-    if request.method == 'POST':
-        customer = get_object_or_404(Customer, id=pk)
-        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
-        all_customerproducts_ids = [cp.id for cp in customerproducts]
-        arrangement = request.data.get('arrangement')
-        print(arrangement)
-        print(all_customerproducts_ids)
-        if len(list(set(all_customerproducts_ids) - set(arrangement))) == 0:
-            for cp in customerproducts:
-                change_index = arrangement.index(cp.pk)
-                cp.index = change_index
-                cp.save()
-            refresh_customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
-            customerproduct_serializer = CustomerProductListDetailSerializer(instance=refresh_customerproducts, many=True)
-            return Response(data=customerproduct_serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Not all customerproducts is in the list"}, status=status.HTTP_400_BAD_REQUEST)
-
-
 @api_view(['DELETE'])
 def customerproduct_delete(request, pk):
     if request.method == 'DELETE':
@@ -866,22 +596,6 @@ def customerproduct_delete(request, pk):
             # customerproduct.save()
             # customerproduct_serializer = CustomerProductListDetailSerializer(instance=customerproduct)
             # return Response(customerproduct_serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view(['DELETE'])
-def customer_delete(request, pk):
-    if request.method == 'DELETE':
-        customer = get_object_or_404(Customer, id=pk)
-        customerproducts = CustomerProduct.objects.filter(customer_id=customer.pk)
-        customerroutes = Route.get_customer_detail_routes(customer.pk)
-        if len(customerproducts) == 0 and len(customerroutes) == 0:
-            customergroup = CustomerGroup.objects.filter(customer_id=customer.pk)
-            customergroup.delete()
-            customer.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            # Dont implement soft delete for now
-            return Response({"error": "Customer has references to it"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])

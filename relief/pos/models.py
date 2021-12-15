@@ -6,14 +6,10 @@ from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.core.validators import MinValueValidator
-from django.utils import timezone
-from django.dispatch import receiver
 from decimal import Decimal
 from rest_framework.exceptions import APIException
 from datetime import date, datetime
 from requests_oauthlib import OAuth2Session
-from oauthlib.oauth2 import TokenExpiredError
-import uuid
 import csv
 
 # Create your models here.
