@@ -428,7 +428,7 @@ def create_invoice(request):
             if price_map[product_name] != oi.unit_price:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
 
-        client_id = request.sesion['client_id']
+        client_id = request.session['client_id']
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
         freshbooks = OAuth2Session(client_id, token=token)
