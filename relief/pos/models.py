@@ -163,7 +163,7 @@ class Customer(models.Model):
         invoice_name += str(invoice_number)
 
         if self.download_suffix:
-            invoice_name += self.download_suffix
+            invoice_name += '_' + self.download_suffix
         if self.to_whatsapp:
             invoice_name += '_whatsapp'
         if self.to_email:
