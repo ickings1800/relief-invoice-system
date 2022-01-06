@@ -523,10 +523,24 @@ class Route(models.Model):
     trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
     checked = models.BooleanField(default=False)
     date = models.DateField(default=date.today)
+    do_image = models.FileField(null=True)
 
     # Route automatically defaults to order by index ascending in database model level
     class Meta:
         ordering = ['index']
+
+    def handle_s3_import(csv_file):
+        csv_reader = csv.DictReader(csv_file)
+        for row in csv_reader:
+            do_number = row['do_number']
+            key = row['key']
+
+            #  to handle s3 import
+            route_obj = Route.objects.filter(do_number=do_number).first()
+            if route_obj:
+                route_obj.do_image = key
+                route_obj.save()
+
 
     def create_route(
             note, do_number, po_number, customer_data, customerproducts, trip

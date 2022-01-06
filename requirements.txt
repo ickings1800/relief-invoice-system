@@ -9,3 +9,4 @@ requests_oauthlib
 reportlab
 django-pivot
 django-debug-toolbar
+django-storages

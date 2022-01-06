@@ -570,6 +570,7 @@ def import_items(request):
             import_quote_file = request.FILES.get('import_quote_file', None)
             import_orderitem_file = request.FILES.get('import_orderitem_file', None)
             import_invoice_file = request.FILES.get('import_invoice_file', None)
+            import_s3_file = request.FILES.get('import_s3_file', None)
 
             if import_customer_file:
                 with open('/tmp/customer_import.csv', 'wb+') as destination:
@@ -602,6 +603,14 @@ def import_items(request):
                         destination.write(chunk)
                 with open('/tmp/orderitem_import.csv') as csv_file:
                     OrderItem.handle_orderitem_import(csv_file)
+            #  import do_number, s3_key for do image
+            if import_s3_file:
+                with open('/tmp/s3_import.csv', 'wb+') as destination:
+                    for chunk in import_orderitem_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/s3_import.csv') as csv_file:
+                    #  handle s3 import
+                    Route.handle_s3_import(csv_file)
             return HttpResponseRedirect(reverse('pos:import_items'))
     else:
         form = ImportFileForm()
