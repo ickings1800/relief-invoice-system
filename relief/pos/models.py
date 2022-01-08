@@ -532,7 +532,7 @@ class Route(models.Model):
     def handle_s3_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
-            do_number = row['do_number']
+            do_number = row['do_number'].strip()
             key = row['key']
 
             #  to handle s3 import

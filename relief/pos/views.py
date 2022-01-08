@@ -606,9 +606,9 @@ def import_items(request):
             #  import do_number, s3_key for do image
             if import_s3_file:
                 with open('/tmp/s3_import.csv', 'wb+') as destination:
-                    for chunk in import_orderitem_file.chunks():
+                    for chunk in import_s3_file.chunks():
                         destination.write(chunk)
-                with open('/tmp/s3_import.csv') as csv_file:
+                with open('/tmp/s3_import.csv', encoding='utf-8-sig') as csv_file:
                     #  handle s3 import
                     Route.handle_s3_import(csv_file)
             return HttpResponseRedirect(reverse('pos:import_items'))

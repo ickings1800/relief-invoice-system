@@ -11,6 +11,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         po_number: null,
         discount: 0,
         discount_description: null,
+        highlight_index: 0,
       }
   },
 
@@ -23,62 +24,73 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         <div class="modal-title h5">Update {{ selected_invoice.customer_name }} Invoice</div>
           <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
         </div>
-        <div class="modal-body create-update-invoice-modal-body">
-	        <div class="invoice-form">
-	            <!-- form input control -->
-	            <div class="form-group">
-	              <label class="form-label" for="update-date">Create Date</label>
-                <input class="form-input" id="update-date" type="date" v-model="selected_invoice.date_created" readonly>
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="po-number">PO Number</label>
-	              <input class="form-input" type="text" id="po-number" v-model="po_number">
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="invoice-number">Invoice Number</label>
-	              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="discount-desc">Discount Description</label>
-	              <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
-	            </div>
-	            <div class="form-group">
-	              <label class="form-label" for="discount">Discount (Credit Note)</label>
-	              <input class="form-input" type="text" id="discount" v-model="discount">
-	            </div>
-	        </div>
-	        <div class="divider-vert"></div>
-	        <div class="invoice-create-update-table">
-		        <table class="table">
-		          <thead>
-		            <tr>
-		              <th>Date</th>
-		              <th>Item Name</th>
-		              <th>Driver Quantity</th>
-		              <th>Unit Price</th>
-		              <th>P/O</th>
-		              <th>D/O</th>
-		            </tr>
-		          </thead>
-		          <tbody>
-		            <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
-		              <td>
-		                <label class="form-checkbox">
-		                  <input type="checkbox" v-bind:value="orderitem.id" v-model="selected_orderitems">
-		                  <i class="form-icon"></i> {{ orderitem.date }}
-		                </label>
-		              </td>
-		              <td>{{ orderitem.product_name }}</td>
-		              <td>{{ orderitem.driver_quantity }}</td>
-		              <td>{{ orderitem.unit_price }}</td>
-		              <td>{{ orderitem.note }}</td>
-		              <td>{{ orderitem.do_number }}</td>
-		            </tr>
-		          </tbody>
-		        </table>
-		    </div>
+        <div class="modal-body create-update-invoice-modal-body columns">
+          <div class="column col-6 invoice-modal-body-left">
+  	        <div class="invoice-form">
+  	            <!-- form input control -->
+  	            <div class="form-group">
+  	              <label class="form-label" for="update-date">Create Date</label>
+                  <input class="form-input" id="update-date" type="date" v-model="selected_invoice.date_created" readonly>
+  	            </div>
+  	            <div class="form-group">
+  	              <label class="form-label" for="po-number">PO Number</label>
+  	              <input class="form-input" type="text" id="po-number" v-model="po_number">
+  	            </div>
+  	            <div class="form-group">
+  	              <label class="form-label" for="invoice-number">Invoice Number</label>
+  	              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
+  	            </div>
+  	        </div>
+            <div class="invoice-form">
+              <div class="form-group">
+                <label class="form-label" for="discount-desc">Discount Description</label>
+                <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="discount">Discount (Credit Note)</label>
+                <input class="form-input" type="text" id="discount" v-model="discount">
+              </div>
+            </div>
+  	        <div class="invoice-create-update-table">
+  		        <table class="table">
+  		          <thead>
+  		            <tr>
+  		              <th>Date</th>
+  		              <th>Item Name</th>
+  		              <th>Driver Quantity</th>
+  		              <th>Unit Price</th>
+  		              <th>P/O</th>
+  		              <th>D/O</th>
+  		            </tr>
+  		          </thead>
+  		          <tbody>
+  		            <tr v-for="(orderitem, index) in customer_orderitems" 
+                  :class="{ highlight: highlight_index === index }"
+                  :key="orderitem.id"
+                  v-on:keyup="nextItem">
+  		              <td>
+  		                <label class="form-checkbox">
+  		                  <input type="checkbox" v-bind:value="orderitem.id" v-model="selected_orderitems">
+  		                  <i class="form-icon"></i> {{ orderitem.date }}
+  		                </label>
+  		              </td>
+  		              <td>{{ orderitem.product_name }}</td>
+  		              <td>{{ orderitem.driver_quantity }}</td>
+  		              <td>{{ orderitem.unit_price }}</td>
+  		              <td>{{ orderitem.note }}</td>
+  		              <td>{{ orderitem.do_number }}</td>
+  		            </tr>
+  		          </tbody>
+  		        </table>
+  		      </div>
+          </div>
+          <div class="column col-6 invoice-modal-body-right">
+            <img class="img-responsive do-image" v-if="customer_orderitems[highlight_index]" :src="customer_orderitems[highlight_index].do_image" />
+          </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer columns">
+          <div class="divider"></div>
+          <div class="column col-6 col-mr-auto">
             <span v-if="!different_price_for_product" class="text-error">
               Unit price for product must be consistent throughout the invoice
             </span>
@@ -87,6 +99,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
              v-bind:class="{ disabled: !different_price_for_product }"
              href="#save"
              class="btn btn-primary" v-on:click.prevent="updateInvoice">Update</a>
+          </div>
         </div>
       </div>
     </div>
@@ -132,10 +145,23 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
               res.forEach(oi => this.customer_orderitems.push(oi))
             })
          })
+         document.addEventListener("keyup", this.nextItem)
        }
+
+       if (!val) {
+        document.removeEventListener("keyup", this.nextItem);
+       }
+       this.highlight_index = 0;
      },
    },
    methods: {
+       nextItem: function() {
+          if (event.keyCode === 38 && this.highlight_index > 0) {
+            this.highlight_index--
+          } else if (event.keyCode === 40 && this.highlight_index < this.customer_orderitems.length-1) {
+            this.highlight_index++
+          }
+       },
        close: function(event){
            console.log("update customer modal close");
            this.resetInputs();
@@ -852,6 +878,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         discount: 0,
         discount_description: null,
         select_all: false,
+        highlight_index: 0,
       }
   },
 
@@ -864,76 +891,88 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         <div class="modal-title h5">Create {{ selected_customer.name }} Invoice</div>
           <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
         </div>
-        <div class="modal-body create-update-invoice-modal-body">
-	        <div class="invoice-form">
-		        <!-- form input control -->
-		        <div class="form-group">
-		          <label class="form-label" for="create-date">Create Date</label>
-		          <input class="form-input" type="date" id="create-date" v-model="create_date">
-		        </div>
-		        <div class="form-group">
-		          <label class="form-label" for="po-number">PO Number</label>
-		          <input class="form-input" type="text" id="po-number" v-model="po_number">
-		        </div>
-		        <div class="form-group">
-		          <label class="form-label" for="discount-desc">Discount Description</label>
-		          <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
-		        </div>
-		        <div class="form-group">
-		          <label class="form-label" for="discount">Discount (Credit Note)</label>
-		          <input class="form-input" type="text" id="discount" v-model="discount">
-		        </div>
-		        <div class="form-group">
-		          <label class="form-label" for="invoice-number">Invoice Number</label>
-		          <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
-		        </div>
-          </div>
-  		    <div class="invoice-create-update-table">
-  		        <table class="table">
-  		          <thead>
-  		            <tr>
-  		              <th>
-  		                <label class="form-checkbox">
-  		                  <input type="checkbox" v-model="select_all"><i class="form-icon"></i> Date
-  		                </label>
-  		              </th>
-  		              <th>Item Name</th>
-  		              <th>Driver Quantity</th>
-  		              <th>Unit Price</th>
-  		              <th>P/O</th>
-  		              <th>D/O</th>
-  		            </tr>
-  		          </thead>
-  		          <tbody>
-  		            <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
-  		              <td>
-  		                <label class="form-checkbox">
-  		                  <input type="checkbox" v-bind:value="orderitem" v-model="selected_orderitems">
-  		                  <i class="form-icon"></i> {{ orderitem.date }}
-  		                </label>
-  		              </td>
-  		              <td>{{ orderitem.product_name }}</td>
-  		              <td>{{ orderitem.driver_quantity }}</td>
-  		              <td>{{ orderitem.unit_price }}</td>
-  		              <td>{{ orderitem.note }}</td>
-  		              <td>{{ orderitem.do_number }}</td>
-  		            </tr>
-  		          </tbody>
-  		        </table>
+        <div class="modal-body create-update-invoice-modal-body columns">
+          <div class="column col-6 invoice-modal-body-left">
+  	        <div class="invoice-form">
+  		        <!-- form input control -->
+  		        <div class="form-group">
+  		          <label class="form-label" for="create-date">Create Date</label>
+  		          <input class="form-input" type="date" id="create-date" v-model="create_date">
+  		        </div>
+  		        <div class="form-group">
+  		          <label class="form-label" for="po-number">PO Number</label>
+  		          <input class="form-input" type="text" id="po-number" v-model="po_number">
+  		        </div>
+  		        <div class="form-group">
+  		          <label class="form-label" for="invoice-number">Invoice Number</label>
+  		          <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
+  		        </div>
+            </div>
+            <div class="invoice-form">
+              <div class="form-group">
+                <label class="form-label" for="discount-desc">Discount Description</label>
+                <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="discount">Discount (Credit Note)</label>
+                <input class="form-input" type="text" id="discount" v-model="discount">
+              </div>
+            </div>
+    		    <div class="invoice-create-update-table">
+    		        <table class="table">
+    		          <thead>
+    		            <tr>
+    		              <th>
+    		                <label class="form-checkbox">
+    		                  <input type="checkbox" v-model="select_all"><i class="form-icon"></i> Date
+    		                </label>
+    		              </th>
+    		              <th>Item Name</th>
+    		              <th>Driver Quantity</th>
+    		              <th>Unit Price</th>
+    		              <th>P/O</th>
+    		              <th>D/O</th>
+    		            </tr>
+    		          </thead>
+    		          <tbody>
+    		            <tr v-for="(orderitem, index) in customer_orderitems" 
+                    :class="{ highlight: highlight_index === index }"
+                    :key="orderitem.id"
+                    v-on:keyup="nextItem">
+    		              <td>
+    		                <label class="form-checkbox">
+    		                  <input type="checkbox" v-bind:value="orderitem" v-model="selected_orderitems">
+    		                  <i class="form-icon"></i> {{ orderitem.date }}
+    		                </label>
+    		              </td>
+    		              <td>{{ orderitem.product_name }}</td>
+    		              <td>{{ orderitem.driver_quantity }}</td>
+    		              <td>{{ orderitem.unit_price }}</td>
+    		              <td>{{ orderitem.note }}</td>
+    		              <td>{{ orderitem.do_number }}</td>
+    		            </tr>
+    		          </tbody>
+    		        </table>
+            </div>
   		    </div>
+          <div class="column col-6 invoice-modal-body-right">
+            <img class="img-responsive do-image" v-if="customer_orderitems[highlight_index]" :src="customer_orderitems[highlight_index].do_image" />
+          </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer columns">
             <div class="divider"></div>
-            <span v-if="!different_price_for_product" class="text-error">
-              Unit price for product must be consistent throughout the invoice
-            </span>
-            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
-            <a 
-              id="customer-create-submit-button"
-              href="#save"
-              class="btn btn-primary" 
-              v-bind:class="{ disabled: !different_price_for_product }"
-              v-on:click.prevent="createInvoice">Submit</a>
+            <div class="column col-6 col-mr-auto">
+              <span v-if="!different_price_for_product" class="text-error">
+                Unit price for product must be consistent throughout the invoice
+              </span>
+              <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
+              <a 
+                id="customer-create-submit-button"
+                href="#save"
+                class="btn btn-primary" 
+                v-bind:class="{ disabled: !different_price_for_product }"
+                v-on:click.prevent="createInvoice">Submit</a>
+            </div>
         </div>
       </div>
     </div>
@@ -958,9 +997,14 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
    watch: {
      opened: function(val){
        if (val) {
-         console.log("opened is true");
          this.filterOrderItemsByCustomer(this.selected_customer.id)
+         document.addEventListener("keyup", this.nextItem);
        }
+
+       if (!val) {
+        document.removeEventListener("keyup", this.nextItem);
+       }
+       this.highlight_index = 0;
      },
      select_all: function(val) {
       if (val){
@@ -972,6 +1016,13 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
      }
    },
    methods: {
+      nextItem: function() {
+          if (event.keyCode === 38 && this.highlight_index > 0) {
+            this.highlight_index--
+          } else if (event.keyCode === 40 && this.highlight_index < this.customer_orderitems.length-1) {
+            this.highlight_index++
+          }
+       },
        close: function(event){
            console.log("create customer modal close");
            this.resetInputs();
@@ -1579,6 +1630,34 @@ var app = new Vue({
     getAllTaxes().then(res => res.json()).then(res => this.taxes = res).catch((err) => window.location.href=origin)
     getAllGroups().then(res => res.json()).then(res => this.groups = res)
     getAllInvoices().then(res => res.json()).then(res => this.invoices = res)
+  },
+  computed: {
+    modal_opened: function() {
+      let open =  this.show_quote_modal ||
+                  this.show_quote_edit_modal ||
+                  this.show_create_group_modal ||
+                  this.show_create_invoice_modal ||
+                  this.show_update_invoice_modal ||
+                  this.show_edit_group_modal ||
+                  this.show_customer_detail_modal ||
+                  this.show_product_detail_modal ||
+                  this.show_orderitem_edit_modal ||
+                  this.show_invoice_delete_modal ||
+                  this.show_import_client_modal ||
+                  this.show_download_range_modal ||
+                  this.show_import_product_modal
+      return open
+    }
+  },
+  watch: {
+    modal_opened: function(open) {
+      if (open) {
+        document.body.classList.add('modal-open');
+      }
+      if (!open) {
+        document.body.classList.remove('modal-open');
+      }
+    }
   },
   components: {
       'edit-quote-modal': EditQuoteModal,

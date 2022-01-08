@@ -10,3 +10,4 @@ reportlab
 django-pivot
 django-debug-toolbar
 django-storages
+boto3
