@@ -65,59 +65,6 @@ def express_order(request):
         return render(request, template_name)
 
 
-@login_required
-def InvoiceSingleView(request, pk):
-    template_name = 'pos/invoice/invoice_single_view.html'
-    invoice = Invoice.objects.select_related('customer').get(pk=pk)
-    if invoice:
-        invoice_customer = invoice.customer
-        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk)
-        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
-        unique_quote_price_set = set(query_oi.values_list('customerproduct__product__name', 'unit_price'))
-        unique_quote_price_dict = {k:v for k,v in unique_quote_price_set}
-        #  find product headings where sum of products is greater than zero
-        pv_table = pivot(
-            query_oi,
-            ['route__do_number', 'route__date'],
-            'customerproduct__product__name', 'driver_quantity',
-            default=0
-        )
-
-        product_sum = Counter()
-
-        for row in pv_table:
-            mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
-            product_sum.update(mapped_row)
-
-        nett_amt = { name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names }
-
-        subtotal = 0
-        for k, v in nett_amt.items():
-            subtotal += v
-
-        #  subtotal to reference total_nett_amt from this point
-        total_nett_amt = subtotal - invoice.minus
-        gst_decimal = Decimal(invoice_customer.gst / 100)
-        gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
-
-        ctx = {
-            'pv_table': pv_table,
-            'customerproducts': unique_orderitem_names,
-            'quote_price': unique_quote_price_dict,
-            'product_sum': product_sum,
-            'nett_amt': nett_amt ,
-            'total_nett_amt': total_nett_amt,
-            'subtotal': subtotal,
-            'gst': gst,
-            'total_incl_gst': total_incl_gst,
-            'invoice': invoice
-        }
-
-        return render(request, template_name, ctx)
-    return HttpResponseBadRequest()
-
-
 class NumberedPageCanvas(canvas.Canvas):
     """
     http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/

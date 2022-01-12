@@ -7,8 +7,6 @@ app_name = 'pos'
 urlpatterns = [
     #  /pos/customers/detail/<pk>/
     path('quotes/', views.overview, name='overview'),
-    #  /pos/invoice/<int:pk>/
-    path('invoice/<int:pk>/', views.InvoiceSingleView, name='invoice_detail'),
     #  /pos/invoice/pdf/
     path('invoice/pdf/', views.download_invoice, name='invoice_download_range'),
     #  /pos/invoice/<int:pk>/pdf/
