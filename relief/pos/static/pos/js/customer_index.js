@@ -669,8 +669,8 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
               <input class="form-input" type="date" id="date" v-model="orderitem.date" readonly>
             </div>
             <div class="form-group mx-1 orderitem-form-group">
-             <label class="form-label">D/O:</label>
-              <input class="form-input" type="text" id="do-number" v-model="orderitem.do_number" readonly>
+              <label class="form-label">Product:</label>
+              <input class="form-input" type="text" id="date" v-model="orderitem.product_name" readonly>
             </div>
             <div class="form-group mx-1 orderitem-form-group">
               <label class="form-label" for="quantity">Quantity:</label>
@@ -679,6 +679,10 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
             <div class="form-group mx-1 orderitem-form-group">
               <label class="form-label" for="driver-quantity">Driver Quantity:</label>
               <input class="form-input" type="number" id="driver-quantity" v-model="edit_driver_quantity">
+            </div>
+            <div class="form-group mx-1 orderitem-form-group">
+             <label class="form-label">D/O:</label>
+              <input class="form-input" type="text" id="do-number" v-model="orderitem.do_number" readonly>
             </div>
             <div class="form-group mx-1 orderitem-form-group">
               <label class="form-label" for="note">P/O:</label>
