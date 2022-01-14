@@ -724,7 +724,7 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
    },
    computed: {
     next: function() {
-      return this.selected_orderitem_index+1 < this.orderitems.length-1
+      return this.selected_orderitem_index+1 < this.orderitems.length
     },
     prev: function() {
       return this.orderitems.length > 0 && this.selected_orderitem_index-1 >= 0
