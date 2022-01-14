@@ -11,7 +11,6 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         po_number: null,
         discount: 0,
         discount_description: null,
-        highlight_index: 0,
       }
   },
 
@@ -24,8 +23,8 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         <div class="modal-title h5">Update {{ selected_invoice.customer_name }} Invoice</div>
           <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
         </div>
-        <div class="modal-body create-update-invoice-modal-body columns">
-          <div class="column col-6 invoice-modal-body-left">
+        <div class="modal-body create-update-invoice-modal-body">
+          <div class="invoice-modal-body-left">
   	        <div class="invoice-form">
   	            <!-- form input control -->
   	            <div class="form-group">
@@ -64,10 +63,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
   		            </tr>
   		          </thead>
   		          <tbody>
-  		            <tr v-for="(orderitem, index) in customer_orderitems" 
-                  :class="{ highlight: highlight_index === index }"
-                  :key="orderitem.id"
-                  v-on:keyup="nextItem">
+  		            <tr v-for="(orderitem, index) in customer_orderitems" :key="orderitem.id">
   		              <td>
   		                <label class="form-checkbox">
   		                  <input type="checkbox" v-bind:value="orderitem.id" v-model="selected_orderitems">
@@ -84,13 +80,10 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
   		        </table>
   		      </div>
           </div>
-          <div class="column col-6 invoice-modal-body-right">
-            <img class="img-responsive do-image" v-if="customer_orderitems[highlight_index]" :src="customer_orderitems[highlight_index].do_image" />
-          </div>
         </div>
-        <div class="modal-footer columns">
+        <div class="modal-footer">
           <div class="divider"></div>
-          <div class="column col-6 col-mr-auto">
+          <div>
             <span v-if="!different_price_for_product" class="text-error">
               Unit price for product must be consistent throughout the invoice
             </span>
@@ -155,13 +148,6 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
      },
    },
    methods: {
-       nextItem: function() {
-          if (event.keyCode === 38 && this.highlight_index > 0) {
-            this.highlight_index--
-          } else if (event.keyCode === 40 && this.highlight_index < this.customer_orderitems.length-1) {
-            this.highlight_index++
-          }
-       },
        close: function(event){
            console.log("update customer modal close");
            this.resetInputs();
@@ -661,6 +647,8 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
         edit_quantity: null,
         edit_driver_quantity: null,
         note: null,
+        orderitem: null,
+        selected_orderitem_index: null,
       }
   },
 
@@ -671,30 +659,43 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
       <div class="modal-container orderitem-edit-modal-window">
         <div class="modal-header h6">Edit {{ orderitem.customer_name }}'s OrderItem</div>
         <div class="modal-body">
-          <div class="form-group">
-            <!-- form input control -->
-            <div class="form-group">
-              <label class="form-label">Customer: {{ orderitem.customer_name }}</label>
-              <label class="form-label">Date: {{ orderitem.date }}</label>
-              <label class="form-label">D/O: {{ orderitem.do_number }}</label>
+          <div class=" d-inline-flex">
+            <div class="form-group mx-1 orderitem-form-group">
+              <label class="form-label">Customer:</label>
+              <input class="form-input" type="text" id="customer-name" v-model="orderitem.customer_name" readonly>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="quantity">Quantity</label>
-              <input class="form-input" type="number" id="quantity" v-model="edit_quantity">
+            <div class="form-group mx-1 orderitem-form-group">
+              <label class="form-label">Date:</label>
+              <input class="form-input" type="date" id="date" v-model="orderitem.date" readonly>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="driver-quantity">Driver Quantity</label>
+            <div class="form-group mx-1 orderitem-form-group">
+             <label class="form-label">D/O:</label>
+              <input class="form-input" type="text" id="do-number" v-model="orderitem.do_number" readonly>
+            </div>
+            <div class="form-group mx-1 orderitem-form-group">
+              <label class="form-label" for="quantity">Quantity:</label>
+              <input class="form-input" type="number" id="quantity" v-model="orderitem.quantity">
+            </div>
+            <div class="form-group mx-1 orderitem-form-group">
+              <label class="form-label" for="driver-quantity">Driver Quantity:</label>
               <input class="form-input" type="number" id="driver-quantity" v-model="edit_driver_quantity">
             </div>
-            <div class="form-group">
-              <label class="form-label" for="note">P/O</label>
+            <div class="form-group mx-1 orderitem-form-group">
+              <label class="form-label" for="note">P/O:</label>
               <input class="form-input" type="text" id="note" v-model="note">
             </div>
+          </div>
+          <div class="do-image-container" v-if="orderitem.do_image">
+            <img class="do-image" :src="orderitem.do_image" />
           </div>
         </div>
         <div class="modal-footer">
           <div class="delete-container">
               <button class="btn btn-error float-left" v-on:click.prevent="deleteOrderItem(orderitem.id)">Delete</button>
+          </div>
+          <div class="next-prev-container">
+            <button class="btn" v-on:click.prevent="prevOrderitem" v-bind:class="{ disabled: !prev }">Previous</button>
+            <button class="btn" v-on:click.prevent="nextOrderitem" v-bind:class="{ disabled: !next }">Next</button>
           </div>
           <div class="action-container">
               <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
@@ -704,16 +705,26 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
       </div>
     </div>
    `,
-   props: ['opened', 'orderitem'],
+   props: ['opened', 'orderitems', 'edit_orderitem_index'],
    components: {},
    watch: {
        opened: function(val){
           if (val) {
+            this.selected_orderitem_index = this.edit_orderitem_index;
+            this.orderitem = this.orderitems[this.selected_orderitem_index];
             this.edit_quantity = this.orderitem.quantity;
             this.edit_driver_quantity = this.orderitem.driver_quantity;
             this.note = this.orderitem.note;
           }
        }
+   },
+   computed: {
+    next: function() {
+      return this.selected_orderitem_index+1 < this.orderitems.length-1
+    },
+    prev: function() {
+      return this.orderitems.length > 0 && this.selected_orderitem_index-1 >= 0
+    }
    },
    methods: {
        close: function(event){
@@ -721,7 +732,26 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
            this.edit_quantity = null;
            this.edit_driver_quantity = null;
            this.note = null;
+           this.selected_orderitem_index = null;
            this.$emit('show-orderitem-edit-modal');
+       },
+       nextOrderitem: function() {
+        if (this.next){
+          this.selected_orderitem_index += 1;
+          this.orderitem = this.orderitems[this.selected_orderitem_index]
+          this.edit_quantity = this.orderitem.quantity;
+          this.edit_driver_quantity = this.orderitem.driver_quantity;
+          this.note = this.orderitem.note;
+        }
+       },
+       prevOrderitem: function() {
+        if (this.prev) {
+          this.selected_orderitem_index -= 1;
+          this.orderitem = this.orderitems[this.selected_orderitem_index]
+          this.edit_quantity = this.orderitem.quantity;
+          this.edit_driver_quantity = this.orderitem.driver_quantity;
+          this.note = this.orderitem.note;
+        }
        },
        saveOrderItem: function() {
         console.log('save orderitem')
@@ -878,7 +908,6 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         discount: 0,
         discount_description: null,
         select_all: false,
-        highlight_index: 0,
       }
   },
 
@@ -891,8 +920,8 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         <div class="modal-title h5">Create {{ selected_customer.name }} Invoice</div>
           <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
         </div>
-        <div class="modal-body create-update-invoice-modal-body columns">
-          <div class="column col-6 invoice-modal-body-left">
+        <div class="modal-body create-update-invoice-modal-body">
+          <div class="invoice-modal-body-left">
   	        <div class="invoice-form">
   		        <!-- form input control -->
   		        <div class="form-group">
@@ -935,10 +964,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
     		            </tr>
     		          </thead>
     		          <tbody>
-    		            <tr v-for="(orderitem, index) in customer_orderitems" 
-                    :class="{ highlight: highlight_index === index }"
-                    :key="orderitem.id"
-                    v-on:keyup="nextItem">
+    		            <tr v-for="orderitem in customer_orderitems" :key="orderitem.id">
     		              <td>
     		                <label class="form-checkbox">
     		                  <input type="checkbox" v-bind:value="orderitem" v-model="selected_orderitems">
@@ -955,13 +981,10 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
     		        </table>
             </div>
   		    </div>
-          <div class="column col-6 invoice-modal-body-right">
-            <img class="img-responsive do-image" v-if="customer_orderitems[highlight_index]" :src="customer_orderitems[highlight_index].do_image" />
-          </div>
         </div>
-        <div class="modal-footer columns">
+        <div class="modal-footer">
             <div class="divider"></div>
-            <div class="column col-6 col-mr-auto">
+            <div>
               <span v-if="!different_price_for_product" class="text-error">
                 Unit price for product must be consistent throughout the invoice
               </span>
@@ -1016,13 +1039,6 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
      }
    },
    methods: {
-      nextItem: function() {
-          if (event.keyCode === 38 && this.highlight_index > 0) {
-            this.highlight_index--
-          } else if (event.keyCode === 40 && this.highlight_index < this.customer_orderitems.length-1) {
-            this.highlight_index++
-          }
-       },
        close: function(event){
            console.log("create customer modal close");
            this.resetInputs();
@@ -1471,22 +1487,20 @@ var CustomerList = Vue.component('CustomerList', {
             <th>Client Name</th>
             <th>Item Name</th>
             <th>Unit Price</th>
-            <th>Quantity</th>
-            <th>Driver Quantity</th>
+            <th>Qty</th>
             <th>P/O</th>
             <th>D/O</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="orderitem in orderitems" 
-              v-on:click.prevent="show_orderitem_edit(orderitem)" 
+          <tr v-for="(orderitem, index) in orderitems" 
+              v-on:click.prevent="show_orderitem_edit(index)" 
               :key="orderitem.id" 
               class="c-hand">
             <td>{{ orderitem.date }}</td>
             <td>{{ orderitem.customer_name }}</td>
             <td>{{ orderitem.product_name }}</td>
             <td>{{ orderitem.unit_price }}</td>
-            <td>{{ orderitem.quantity }}</td>
             <td>{{ orderitem.driver_quantity }}</td>
             <td>{{ orderitem.note }}</td>
             <td>{{ orderitem.do_number }}</td>
@@ -1547,8 +1561,8 @@ var CustomerList = Vue.component('CustomerList', {
         console.log('show product details')
         this.$emit('show-product-detail-modal', product);
        },
-       show_orderitem_edit: function(orderitem) {
-        this.$emit('show-orderitem-edit-modal', orderitem);
+       show_orderitem_edit: function(index) {
+        this.$emit('show-orderitem-edit-modal', index);
        },
        show_quote_edit: function(quote) {
         this.$emit('show-quote-edit-modal', quote);
@@ -1608,7 +1622,7 @@ var app = new Vue({
           edit_quote: null,
           detail_customer: null,
           detail_product: null,
-          edit_orderitem: null,
+          edit_orderitem_index: null,
           delete_invoice: null,
           create_invoice_customer: null,
           update_invoice: null,
@@ -1782,14 +1796,14 @@ var app = new Vue({
         getAllProducts().then(res => res.json()).then(res => this.products = res)
       }      
     },
-    show_orderitem_edit_modal_window: function(orderitem) {
+    show_orderitem_edit_modal_window: function(index) {
       console.log("show orderitem edit modal")
       this.show_orderitem_edit_modal = !this.show_orderitem_edit_modal;
       if (this.show_orderitem_edit_modal){
-        this.edit_orderitem = orderitem;
+        this.edit_orderitem_index = index;
       }
       if (!this.show_orderitem_edit_modal){
-        this.edit_orderitem = null;
+        this.edit_orderitem_index = null;
         getAllOrderitems().then(res => res.json()).then(res => this.orderitems = res)
       }
     },

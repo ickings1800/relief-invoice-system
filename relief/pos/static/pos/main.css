@@ -44,6 +44,7 @@ h4 {
 
 .container {
     padding:1rem;
+    align-items: center;
 }
 
 
@@ -301,8 +302,8 @@ font-size: 1vw;
 }
 
 
-#invoice-create-modal-window, #invoice-update-modal-window {
-    max-width: 80% !important;
+#invoice-create-modal-window, #invoice-update-modal-window, .orderitem-edit-modal-window {
+    max-width: 75% !important;
 }
 
 .invoice-form {
@@ -392,30 +393,25 @@ font-size: 1vw;
     border-radius: 1rem;
 }
 
+
+.do-image-container {
+    justify-content: center;
+    display: flex;
+}
+
 .do-image {
-    /* height: 480px; */
+    height: 480px;
 }
 
 .create-update-invoice-modal-body {
     overflow-y: unset;
 }
 
-.invoice-modal-body-left {
-    position: relative;
-    overflow-y: scroll;
-    height: 480px;
-}
-
-.invoice-modal-body-right {
-    display:  flex;
-    justify-content: center;
-    height: 480px;
-}
-
-.highlight {
-    background-color: lightgrey;
-}
 
 .modal.active {
     body: ;
+}
+
+.orderitem-form-group {
+    flex: 1;
 }

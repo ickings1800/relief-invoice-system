@@ -70,7 +70,8 @@
     </update-invoice-modal>
     <edit-orderitem-modal
         v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
-        v-bind:orderitem="edit_orderitem"
+        v-bind:orderitems="orderitems"
+        v-bind:edit_orderitem_index="edit_orderitem_index"
         v-bind:opened="show_orderitem_edit_modal">
     </edit-orderitem-modal>
     <edit-quote-modal
