@@ -1512,7 +1512,7 @@ var CustomerList = Vue.component('CustomerList', {
               <a href="#" v-on:click.prevent="show_invoice_delete(invoice)">{{ invoice.customer_name }}</a>
             </td>
             <td>
-              <a :href="invoice.url">{{ invoice.date_generated }}</a>
+              {{ invoice.date_generated }}
             </td>
             <td>{{ invoice.total_incl_gst }}</td>
             <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>

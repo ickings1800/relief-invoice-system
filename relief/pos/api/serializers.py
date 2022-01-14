@@ -83,13 +83,9 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'minus',
             'discount_description',
             'discount_percentage',
-            'url',
             'download_url',
             'customer_pk'
         )
-        extra_kwargs = {
-            'url': {'view_name': 'pos:invoice_detail', 'lookup_field': 'pk'},
-        }
 
     def get_customer_name(self, obj):
         return obj.customer.name
