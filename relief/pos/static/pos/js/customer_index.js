@@ -1375,9 +1375,15 @@ var CustomerList = Vue.component('CustomerList', {
         showArchivedQuotes: false,
         customerOrderitemCount: {},
         show_client_orderitem_data: [],
+        filter_invoice_customer_id: null,
+        filter_invoice_year: null,
+        available_filter_invoices_years: []
       }
   },
   created: function() {
+    getInvoicesYears()
+    .then(res => res.json())
+    .then(res => this.available_filter_invoices_years = res)
   },
   template:`
     <div class="container">
@@ -1405,9 +1411,21 @@ var CustomerList = Vue.component('CustomerList', {
         <button class="btn btn-primary" v-on:click="$emit('show-import-client-modal')">Import Clients</button>
       </div> 
 
-      <div class="btn-group btn-group-block float-right my-2" v-if="currentTab === 'invoices'">
-        <button class="btn" v-on:click="$emit('sync-invoices')">Sync Invoices</button>
-        <button class="btn btn-primary" v-on:click="$emit('show-download-range-modal')">Range Download</button>
+      <div id="invoice-btn-group" class="d-inline-flex my-2" v-if="currentTab === 'invoices'">
+          <div class="input-group" id="invoice-filter">
+            <select class="input-group-addon" v-model="filter_invoice_customer_id">
+              <option></option>
+              <option v-for="client in clients" :key="client.id" :value="client.id">{{ client.name }}</option>
+            </select>
+            <select class="input-group-addon" v-model="filter_invoice_year">
+              <option v-for="year in available_filter_invoices_years">{{ year }}</option>
+            </select>
+            <button class="btn btn-primary input-group-btn" v-on:click.prevent="filterInvoices">Filter</button>
+          </div>
+          <div class="input-group" id="invoice-sync-download">
+            <button class="input-group-btn btn" v-on:click="$emit('sync-invoices')">Sync Invoices</button>
+            <button class="input-group-btn btn btn-primary" v-on:click="$emit('show-download-range-modal')">Range Download</button>
+          </div>
       </div> 
 
       <div class="btn-group btn-group-block float-right my-2" v-if="currentTab === 'items'">
@@ -1517,6 +1535,7 @@ var CustomerList = Vue.component('CustomerList', {
             <th>Invoice Number</th>
             <th>Customer Name</th>
             <th>Date Generated</th>
+            <th>Invoice Date</th>
             <th>Total</th>
             <th>PDF</th>
           </tr>
@@ -1531,6 +1550,9 @@ var CustomerList = Vue.component('CustomerList', {
             </td>
             <td>
               {{ invoice.date_generated }}
+            </td>
+            <td>
+              {{ invoice.date_created }}
             </td>
             <td>{{ invoice.total_incl_gst }}</td>
             <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>
@@ -1553,6 +1575,9 @@ var CustomerList = Vue.component('CustomerList', {
        },
        filterQuotesByArchived: function(archived) {
         return this.quotes.filter(quote => quote.archived === archived)
+       },
+       filterInvoices: function() {
+        this.$emit('filter-invoice', this.filter_invoice_customer_id, this.filter_invoice_year)
        },
        getTax: function(tax_id){
         return this.taxes.find(tax => tax.id.toString() === tax_id)
@@ -1837,6 +1862,10 @@ var app = new Vue({
     sync_invoices: function() {
       console.log('sync invoices')
       syncInvoices().then(res => res.json()).then(res => this.invoices = res)
+    },
+    filter_invoices: function(customer_id, year) {
+      console.log('customer list filter invoices')
+      getAllInvoices(customer_id, year).then(res => res.json()).then(res => this.invoices = res)
     }
   }
 })
@@ -1972,7 +2001,7 @@ function importProduct(data){
 }
 
 
-function getFreshbooksClientsImport() {
+function getClientsImport() {
   let url = origin + '/pos/api/customers/freshbooks/import/';
   let response = fetch(url, {
       method: 'GET', // or 'PUT'
@@ -2013,11 +2042,31 @@ function getProductDetail(product_id){
   return response;
 }
 
-function getAllInvoices(){
-  let url = origin + '/pos/api/invoices/'
+function getInvoicesYears(){
+  let url = origin + '/pos/api/invoices/years/';
   let response = fetch(url, {
       method: 'GET', // or 'PUT'
   });
+  return response;
+}
+
+function getAllInvoices(customer_id='', year=new Date().getFullYear()){
+  let url = origin + '/pos/api/invoices/?'
+  let params = new URLSearchParams();
+  if (customer_id) {
+   params.set('customer_id', customer_id);
+  }
+
+  if (year) {
+    params.set('year', year);
+  }
+
+  url += params.toString();
+  console.log(url)
+  let response = fetch(url, {
+      method: 'GET', // or 'PUT'
+  });
+
   return response;
 }
 

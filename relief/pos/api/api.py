@@ -345,13 +345,33 @@ class InvoiceDetail(RetrieveAPIView):
         return self.retrieve(request, *args, **kwargs)
 
 
-class InvoiceList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        invoices = Invoice.objects.select_related('customer').all()
+@api_view(['GET'])
+def invoice_list(request):
+    filter_customer_id = request.GET.get('customer_id')
+    filter_invoice_year = request.GET.get('year')
+    invoices = Invoice.objects.select_related('customer')
+    try:
+        if filter_invoice_year:
+            invoices = invoices.filter(date_generated__year=filter_invoice_year)
+        if filter_customer_id:
+            invoices = invoices.filter(customer__pk=filter_customer_id)
         invoice_serializer = InvoiceListSerializer(
-            invoices, many=True, context={'request': request}
+            list(invoices), many=True, context={'request': request}
         )
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
+    except ValueError:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': 'Unable to filter invoice year'})
+    except Exception as e:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e)})    
+
+
+@api_view(['GET'])
+def get_available_invoice_years_filter(request):
+    if request.method == 'GET':
+        available_years = Invoice.objects.dates('date_generated', 'year', order='DESC')
+        years = [dt.year for dt in available_years]
+        return Response(status=status.HTTP_200_OK, data=years)
+    return Response(status=HTTP_400_BAD_REQUEST, data={'error': 'Unable to get invoice years'})
 
 
 @api_view(['PUT'])

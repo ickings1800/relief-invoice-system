@@ -415,3 +415,17 @@ font-size: 1vw;
 .orderitem-form-group {
     flex: 1;
 }
+
+#invoice-btn-group {
+    width: 100%;
+}
+
+
+#invoice-filter {
+    flex: 3;
+}
+
+#invoice-sync-download {
+    flex: 1;
+    justify-content: end;
+}
