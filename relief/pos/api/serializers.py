@@ -69,6 +69,9 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
     download_url = serializers.HyperlinkedIdentityField(
         view_name="pos:invoice_download", lookup_field="pk", lookup_url_kwarg="pk"
     )
+    attachments_url = serializers.HyperlinkedIdentityField(
+        view_name="pos:invoice_attachments", lookup_field="pk", lookup_url_kwarg="pk"
+    )
     class Meta:
         model = Invoice
         fields = (
@@ -84,6 +87,7 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'discount_description',
             'discount_percentage',
             'download_url',
+            'attachments_url',
             'customer_pk'
         )
 

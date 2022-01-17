@@ -9,6 +9,8 @@ urlpatterns = [
     path('quotes/', views.overview, name='overview'),
     #  /pos/invoice/pdf/
     path('invoice/pdf/', views.download_invoice, name='invoice_download_range'),
+    #  /pos/invoice/<int:pk>/attachments/
+    path('invoice/<int:pk>/attachments/', views.download_attachments, name='invoice_attachments'),
     #  /pos/invoice/<int:pk>/pdf/
     path('invoice/<int:pk>/pdf/', views.download_invoice, name='invoice_download'),
     #  /pos/orderitem/summary/

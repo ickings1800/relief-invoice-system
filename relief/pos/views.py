@@ -3,6 +3,8 @@ from django.shortcuts import render, get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
+from django.core.files.storage import default_storage
+from django.db.models import Q
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Frame, Spacer
 from reportlab.lib import colors
 from reportlab.lib.units import cm, mm
@@ -24,6 +26,7 @@ import csv
 import requests
 import json
 import io
+import zipfile
 
 
 # Create your views here.
@@ -100,6 +103,25 @@ class NumberedPageCanvas(canvas.Canvas):
         self.setFont("Helvetica-Bold", 8)
         self.drawRightString(200*mm, 10*mm,
             "Page %d of %d" % (self._pageNumber, page_count))
+
+
+@login_required
+def download_attachments(request, pk):
+    b = io.BytesIO()
+    invoice = get_object_or_404(Invoice, pk=pk)
+    routes = [oi.route.pk for oi in invoice.orderitem_set.all()]
+    routes_with_attachments = Route.objects.filter(pk__in=routes).exclude(Q(do_image='')|Q(do_image=None))
+    attachments = [file.do_image for file in routes_with_attachments]
+    zfname = invoice.customer.get_download_file_name(invoice.invoice_number) + '.zip'
+    with zipfile.ZipFile(b, 'w') as zf:
+        for file in attachments:
+            if file.storage.exists(file.name):
+                f = file.open()
+                zf.writestr(file.name, bytes(f))
+
+        response = HttpResponse(zf, content_type="application/x-zip-compressed")
+        response['Content-Disposition'] = 'attachment; filename={}'.format(zfname)
+        return response
 
 
 @login_required

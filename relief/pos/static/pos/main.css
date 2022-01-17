@@ -429,3 +429,15 @@ font-size: 1vw;
     flex: 1;
     justify-content: end;
 }
+
+#update-invoice-modal-footer {
+    display: inline-flex;
+}
+
+#footer-download-left {
+    flex: 1;
+}
+
+#footer-download-right {
+    flex: 3;
+}
