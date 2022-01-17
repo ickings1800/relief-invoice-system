@@ -83,8 +83,8 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         </div>
         <div class="modal-footer" id="update-invoice-modal-footer">
           <div id="footer-download-left">
-            <a :href="selected_invoice.attachments_url" class="btn float-left"
-              v-on:click="download_attachments">Download Attachments
+            <a :href="selected_invoice.attachments_url" class="btn float-left">
+              Download Attachments
             </a>
           </div>
           <div id="footer-download-right">
