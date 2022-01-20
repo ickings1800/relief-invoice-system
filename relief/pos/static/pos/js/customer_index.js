@@ -659,11 +659,11 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
       <div class="modal-container orderitem-edit-modal-window">
         <div class="modal-header h6">Edit {{ orderitem.customer_name }}'s OrderItem</div>
         <div class="modal-body">
-          <div class=" d-inline-flex">
-            <div class="form-group mx-1 orderitem-form-group">
-              <label class="form-label">Customer:</label>
-              <input class="form-input" type="text" id="customer-name" v-model="orderitem.customer_name" readonly>
-            </div>
+          <div class="form-group mx-1 orderitem-form-group">
+            <label class="form-label">Customer:</label>
+            <input class="form-input" type="text" id="customer-name" v-model="orderitem.customer_name" readonly>
+          </div>
+          <div class="d-inline-flex orderitem-form">
             <div class="form-group mx-1 orderitem-form-group">
               <label class="form-label">Date:</label>
               <input class="form-input" type="date" id="date" v-model="orderitem.date" readonly>
@@ -688,9 +688,6 @@ var OrderItemEditModal = Vue.component('OrderItemEditModal', {
               <label class="form-label" for="note">P/O:</label>
               <input class="form-input" type="text" id="note" v-model="note">
             </div>
-          </div>
-          <div class="do-image-container" v-if="orderitem.do_image">
-            <img class="do-image" :src="orderitem.do_image" />
           </div>
         </div>
         <div class="modal-footer">

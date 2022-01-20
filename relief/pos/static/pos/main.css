@@ -412,6 +412,10 @@ font-size: 1vw;
     body: ;
 }
 
+.orderitem-form {
+    width: 100%;
+}
+
 .orderitem-form-group {
     flex: 1;
 }
