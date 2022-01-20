@@ -447,23 +447,10 @@ class Route(models.Model):
     note = models.TextField(null=True, blank=True, max_length=255)
     checked = models.BooleanField(default=False)
     date = models.DateField(default=date.today)
-    do_image = models.FileField(null=True)
 
     # Route automatically defaults to order by index ascending in database model level
     class Meta:
         ordering = ['index']
-
-    def handle_s3_import(csv_file):
-        csv_reader = csv.DictReader(csv_file)
-        for row in csv_reader:
-            do_number = row['do_number'].strip()
-            key = row['key']
-
-            #  to handle s3 import
-            route_obj = Route.objects.filter(do_number=do_number).first()
-            if route_obj:
-                route_obj.do_image = key
-                route_obj.save()
 
 
 class CustomerProduct(models.Model):
