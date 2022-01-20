@@ -28,74 +28,6 @@ class Trip(models.Model):
     class Meta:
         ordering = ['pk']
 
-    def duplicate_trip(trip_id):
-        trip_copy = get_object_or_404(Trip, id=trip_id)
-        if trip_copy:
-            new_trip = Trip.objects.create(
-                date=trip_copy.date,
-                notes=trip_copy.notes,
-                packaging_methods=trip_copy.packaging_methods
-            )
-            new_trip.save()
-            for r in trip_copy.route_set.all():
-                orderitems = [OrderItem(quantity=oi.quantity,
-                                        driver_quantity=0,
-                                        note=oi.note,
-                                        customerproduct=oi.customerproduct,
-                                        packing=oi.packing) for oi in r.orderitem_set.all()]
-
-                # reset routes primary key to none so that can save to db.
-                r.pk = None
-                # reset do_number from previous trip
-                r.do_number = ""
-                r.invoice = None
-                r.trip = new_trip
-                r.save()
-                for oi in orderitems:
-                    oi.route = r
-                    oi.pk = None
-                    oi.save()
-            return new_trip
-
-    def rearrange_trip_routes_after_delete(trip_id):
-        route_list = Route.objects.filter(trip_id=trip_id).order_by('index')
-        for i in range(len(route_list)):
-            route_list[i].index = i+1
-            route_list[i].save()
-
-    def arrange_route_index(trip_id, arrangement):
-        trip = get_object_or_404(Trip, id=trip_id)
-        route_list = Route.objects.filter(trip_id=trip.pk)
-        route_id_list = [r.pk for r in route_list]
-        contains = all(elem in arrangement for elem in route_id_list)
-        if contains:
-            for r in route_list:
-                r.index = arrangement.index(r.pk) + 1
-                r.save()
-        else:
-            raise APIException('Unable to parse route_id_list')
-
-    def get_packing_sum(trip_id):
-        trip = get_object_or_404(Trip, id=trip_id)
-        if trip.packaging_methods:
-            packing_sum = {packing.strip(): 0 for packing in trip.packaging_methods.split(',')}
-            route_list = Route.objects.filter(trip_id=trip.pk)
-            for route in route_list:
-                orderitems = OrderItem.objects.filter(route_id=route.pk)
-                for oi in orderitems:
-                    packing = oi.packing
-                    if packing:
-                        for k in packing_sum:
-                            if packing.get(k):
-                                packing_sum[k] += int(packing.get(k))
-            return packing_sum
-        else:
-            return dict()
-
-    def get_trips_by_date(start_date, end_date):
-        trips = Trip.objects.filter(date__lte=end_date, date__gte=start_date).order_by('date')
-        return trips
-
 
 class Group(models.Model):
     name = models.CharField(max_length=255, null=False, blank=False)
@@ -520,7 +452,6 @@ class Route(models.Model):
     do_number = models.CharField(max_length=128, null=False, blank=False)
     po_number = models.TextField(null=True, blank=False, max_length=255)
     note = models.TextField(null=True, blank=True, max_length=255)
-    trip = models.ForeignKey(Trip, null=True, on_delete=models.CASCADE)
     checked = models.BooleanField(default=False)
     date = models.DateField(default=date.today)
     do_image = models.FileField(null=True)
@@ -540,62 +471,6 @@ class Route(models.Model):
             if route_obj:
                 route_obj.do_image = key
                 route_obj.save()
-
-
-    def create_route(
-            note, do_number, po_number, customer_data, customerproducts, trip
-        ):
-        if not do_number:
-            #  get new do_number
-            do_number = Route.objects\
-                            .filter(do_number__regex=r'^[0-9\.]+$') \
-                            .annotate(do_field=Cast('do_number', IntegerField())) \
-                            .order_by('-do_field')
-
-            if do_number.count() > 0:
-                do_number_next = int(do_number.first().do_number) + 1
-            else:
-                #  if there are no routes, start from 10000
-                do_number_next = 10000
-            print("create route do_number_next -> ", do_number_next)
-        else:
-            do_number_next = do_number
-
-        customer_id = customer_data.get('id')
-        if customer_id:
-            customer = Customer.objects.get(pk=customer_id)
-            customerproduct_ids = [cp.get('id') for cp in customerproducts]
-            orderitem_driver_qty_map = {
-                cp.get('id'): cp.get('driver_quantity') for cp in customerproducts
-            }
-            if customer:
-                customer_products_valid = CustomerProduct.objects.filter(
-                    customer_id=customer.pk, id__in=customerproduct_ids
-                )
-                route = Route.objects.create(
-                    note=note,
-                    do_number=do_number_next,
-                    po_number=po_number,
-                    trip=trip
-                )
-                for cp in customer_products_valid:
-                    driver_qty_valid = orderitem_driver_qty_map.get(cp.pk)
-                    #  create orderitem even if zero, orderitem may be updated later
-                    if int(driver_qty_valid) >= 0:
-                        orderitem = OrderItem.objects.create(
-                            customerproduct=cp,
-                            route=route,
-                            driver_quantity=driver_qty_valid,
-                            unit_price=cp.quote_price,
-                        )
-        else:
-            route = Route.objects.create(
-                note=note,
-                do_number=do_number_next,
-                po_number=po_number,
-                trip=trip
-            )
-        return route
 
 
 class CustomerProduct(models.Model):
@@ -646,12 +521,6 @@ class OrderItem(models.Model):
 
     class Meta:
         ordering = ['route__date']
-
-    def get_orderitem_summary_by_date(customer_id, start_date, end_date):
-        return OrderItem.objects.filter(route__trip__date__lte=end_date,
-                                        route__trip__date__gte=start_date,
-                                        customerproduct__customer_id=customer_id)\
-            .order_by('route__trip__date')
 
 
     def handle_orderitem_import(csv_file):

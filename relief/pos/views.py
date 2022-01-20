@@ -12,7 +12,7 @@ from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 from datetime import datetime
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
+from .models import Customer, Product, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
 from .forms import ImportFileForm, ExportOrderItemForm, ExportInvoiceForm
 from .freshbooks import freshbooks_access
 from requests_oauthlib import OAuth2Session

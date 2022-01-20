@@ -12,7 +12,7 @@ from .serializers import \
     OrderItemUpdateSerializer, RouteSerializer,\
     InvoiceDetailSerializer, GroupListSerializer, GroupCreateSerializer, OrderItemSerializer
 
-from ..models import Trip, Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
+from ..models import Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime, date
 from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
@@ -274,9 +274,7 @@ class RouteDelete(DestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         route_instance = self.get_object()
-        trip_id = route_instance.trip.pk
         response = self.destroy(request, *args, **kwargs)
-        Trip.rearrange_trip_routes_after_delete(trip_id)
         return response
 
 

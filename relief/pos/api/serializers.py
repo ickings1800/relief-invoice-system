@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
-from ..models import Customer, Product, Trip, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
+from ..models import Customer, Product, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
@@ -180,19 +180,14 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
 
 class RouteListSerializer(serializers.HyperlinkedModelSerializer):
     invoice_number = serializers.SerializerMethodField()
-    trip_date = serializers.SerializerMethodField()
     orderitem_set = OrderItemSerializer(many=True)
 
     class Meta:
         model = Route
-        fields = ('id', 'checked', 'index', 'do_number', 'note', 'invoice_number', 'trip_date', 'orderitem_set')
+        fields = ('id', 'checked', 'index', 'do_number', 'note', 'invoice_number', 'orderitem_set')
 
     def get_invoice_number(self, obj):
         if obj.invoice:
             return obj.invoice.invoice_number
         else:
             return ''
-
-    def get_trip_date(self, obj):
-        if (obj.trip):
-            return obj.trip.date.strftime("%d-%m-%Y")

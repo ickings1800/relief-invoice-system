@@ -1081,60 +1081,6 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
 })
 
 
-var CreateTripModal = Vue.component('CreateTripModal', {
-  data: function () {
-      return {
-          notes: null,
-      }
-  },
-
-  template:`
-    <!-- Add Customer Modal -->
-    <div class="modal" id="create-trip-modal" v-bind:class="{ 'active': opened }">
-      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click="close"></a>
-      <div class="modal-container customer-create-modal-window">
-        <div class="modal-header h6">Create Trip</div>
-        <div class="modal-body">
-            <!-- form input control -->
-            <div class="form-group">
-            <label class="form-label" for="note">Note</label>
-            <input class="form-input" type="text" id="note" placeholder="Enter Note" v-model="notes">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <div class="divider"></div>
-            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
-            <a id="trip-create-submit-button"
-             href="#save"
-             class="btn btn-primary" v-on:click.prevent="saveTrip">Create</a>
-        </div>
-      </div>
-    </div>
-   `,
-   props: ['opened'],
-   components: {},
-   watch: {
-       opened: function(val){
-           if (val) {
-               console.log("opened is true");
-           }
-       }
-   },
-   methods: {
-       close: function(event){
-           console.log("create trip modal close");
-           this.notes = null;
-           this.$emit('show-create-trip-modal');
-       },
-       saveTrip: function(event) {
-           console.log("save trip");
-           let data = {"notes": this.notes}
-           createTrip(data).then(res => res.json()).then(() => this.close());
-       }
-   }
-})
-
-
 var CreateGroupModal = Vue.component('CreateGroupModal', {
   data: function () {
       return {

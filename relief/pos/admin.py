@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.db import models
 from django.forms import forms, fields, ModelForm
-from .models import Trip, Customer, Product, Invoice, Route, CustomerProduct, OrderItem, CustomerGroup, Group
+from .models import Customer, Product, Invoice, Route, CustomerProduct, OrderItem, CustomerGroup, Group
 # Register your models here.
 
 
@@ -13,11 +13,6 @@ class AdminCustomer(admin.ModelAdmin):
 
 
 class AdminProduct(admin.ModelAdmin):
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
-class AdminTrip(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
@@ -51,5 +46,4 @@ class AdminGroup(admin.ModelAdmin):
 # admin.site.register(Group, AdminGroup)
 # admin.site.register(Customer, AdminCustomer)
 # admin.site.register(Product, AdminProduct)
-# admin.site.register(Trip, AdminTrip)
 # admin.site.register(CustomerProduct, AdminCustomerProduct)
