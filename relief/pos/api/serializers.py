@@ -100,14 +100,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField()
     date = serializers.SerializerMethodField()
     do_number = serializers.SerializerMethodField()
-    do_image = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
         fields = (
             'id', 'driver_quantity', 'quantity', 'customer_name', 
             'customer_id', 'product_name', 'date', 'do_number', 
-            'unit_price', 'note', 'do_image'
+            'unit_price', 'note'
         )
 
     def get_customer_name(self, obj):
@@ -124,11 +123,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_do_number(self,obj):
         return obj.route.do_number
-
-    def get_do_image(self, obj):
-        if obj.route.do_image:
-            return obj.route.do_image.url
-        return None
 
 
 class OrderItemUpdateSerializer(serializers.ModelSerializer):
