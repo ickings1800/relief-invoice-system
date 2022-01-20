@@ -82,11 +82,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
           </div>
         </div>
         <div class="modal-footer" id="update-invoice-modal-footer">
-          <div id="footer-download-left">
-            <a :href="selected_invoice.attachments_url" class="btn float-left">
-              Download Attachments
-            </a>
-          </div>
+          <div id="footer-download-left"></div>
           <div id="footer-download-right">
             <span v-if="!different_price_for_product" class="text-error">
               Unit price for product must be consistent throughout the invoice
