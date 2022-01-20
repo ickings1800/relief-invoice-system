@@ -35,26 +35,6 @@ class Group(models.Model):
         new_group = Group.objects.create(name=name)
         return new_group
 
-    def group_change(pk, group_id):
-        if pk and group_id:
-            customer_group = CustomerGroup.objects.get(pk=pk)
-            group = Group.objects.get(pk=group_id)
-            prev_customergroup_group_id = customer_group.group_id
-            next_group_index = len(CustomerGroup.objects.filter(group_id=group_id)) + 1
-            customer_group.group = group
-            customer_group.index = next_group_index
-            customer_group.save()
-            Group.customergroup_index_rearrange(prev_customergroup_group_id)
-
-    def customergroup_index_rearrange(group_id):
-        customergroup_rerrange = CustomerGroup.objects.filter(group_id=group_id).order_by('index')
-        for i in range(len(customergroup_rerrange)):
-            customergroup = customergroup_rerrange[i]
-            ordering = i + 1
-            if customergroup.index != ordering:
-                customergroup.index = ordering
-                customergroup.save()
-
 
 class Customer(models.Model):
     name = models.CharField(max_length=255)
@@ -397,15 +377,6 @@ class Invoice(models.Model):
         unique_together = ('invoice_number', 'customer')
         ordering = ['invoice_number']
 
-    def freshbooks_invoice_detail(freshbooks_invoice_id, freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}?include[]=lines".format(freshbooks_account_id, freshbooks_invoice_id)).json()
-        lines = res.get('response')\
-                    .get('result')\
-                    .get('invoice')\
-                    .get('lines')
-        return lines
 
     def handle_invoice_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
