@@ -22,13 +22,6 @@ class Company(models.Model):
     fax_no = models.CharField(max_length=8)
 
 
-class Trip(models.Model):
-    notes = models.CharField(max_length=255, null=True, blank=True)
-
-    class Meta:
-        ordering = ['pk']
-
-
 class Group(models.Model):
     name = models.CharField(max_length=255, null=False, blank=False)
 
