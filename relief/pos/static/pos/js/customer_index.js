@@ -481,7 +481,7 @@ var ImportClientModal = Vue.component('ImportClientModal', {
    }
 })
 
-// hard delete / unlink modal
+// hard delete modal
 var InvoiceDeleteModal = Vue.component('InvoiceDeleteModal', {
   data: function () {
       return {
@@ -510,7 +510,6 @@ var InvoiceDeleteModal = Vue.component('InvoiceDeleteModal', {
             </div>
             <div class="action-container">
               <a class="btn btn-link my-2" v-on:click.prevent="close">Cancel</a>
-              <a class="btn btn-primary" v-on:click.prevent="unlinkInvoice(invoice.id)">Unlink</a>
             </div>
         </div>
       </div>
@@ -528,11 +527,6 @@ var InvoiceDeleteModal = Vue.component('InvoiceDeleteModal', {
       close: function(event){
         this.$emit('show-invoice-delete-modal');
        },
-      unlinkInvoice: function(invoiceId){
-        console.log('unlink customer invoice');
-        const data = {'invoice_id': invoiceId}
-        unlinkInvoice(data).then(res => res.json()).then(() => this.close())
-      },
       deleteInvoice: function(invoiceId) {
         console.log('hard delete invoice');
         deleteInvoice(invoiceId).then(res => res.json()).then(() => this.close())
@@ -2167,19 +2161,6 @@ function updateQuote(data) {
   }).catch(error => console.error('Error: ', error));
 }
 
-function unlinkInvoice(data){
-  let url = `${origin}/pos/api/invoices/unlink/${data.invoice_id}/`;
-  return fetch(url, {
-    method: 'PUT', // or 'PUT'
-    credentials: 'same-origin',
-    body: JSON.stringify(data), // data can be `string` or {object}!
-    headers:{
-      'X-CSRFToken': getCookie('csrftoken'),
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    }
-  }).catch(error => console.error('Error: ', error));
-}
 
 function deleteInvoice(invoiceId){
   let url = `${origin}/pos/api/invoices/delete/${invoiceId}/`;

@@ -362,24 +362,6 @@ def get_available_invoice_years_filter(request):
     return Response(status=HTTP_400_BAD_REQUEST, data={'error': 'Unable to get invoice years'})
 
 
-@api_view(['PUT'])
-def unlink_invoice(request, pk):
-    if request.method == 'PUT':
-        unlink_invoice = Invoice.objects.prefetch_related(
-            'orderitem_set'
-        ).get(pk=pk)
-        if unlink_invoice:
-            unlink_orderitems = unlink_invoice.orderitem_set.all()
-            for oi in unlink_orderitems:
-                oi.invoice = None
-                oi.save()
-            unlink_invoice.delete()
-            return Response(status.HTTP_204_NO_CONTENT)
-        else:
-            return Response(status.HTTP_404_NOT_FOUND)
-    return Response(status.HTTP_400_BAD_REQUEST)
-
-
 @api_view(['DELETE'])
 def hard_delete_invoice(request, pk):
     if request.method == 'DELETE':
