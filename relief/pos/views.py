@@ -58,7 +58,7 @@ def overview(request):
     if request.method == 'GET':
         return render(request, template_name)
 
-
+@login_required
 def express_order(request):
     template_name = 'pos/route/express_order.html'
     if request.method == 'GET':
@@ -396,7 +396,7 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
         return response
     return HttpResponseBadRequest()
 
-
+@login_required
 def orderitem_summary(request):
     def get_invoice_number(orderitem):
         if orderitem.invoice:
@@ -439,6 +439,7 @@ def orderitem_summary(request):
         else:
             return HttpResponseBadRequest()
 
+@login_required
 def export_invoice(request):
     if request.method == 'GET':
         field_names = [
@@ -484,6 +485,7 @@ def export_invoice(request):
         else:
             return HttpResponseBadRequest()
 
+@login_required
 def export_quote(request):
     if request.method == 'GET':
         field_names = ['sku', 'customer', 'product', 'quote_price', 'freshbooks_tax_1']
@@ -506,7 +508,7 @@ def export_quote(request):
     else:
         return HttpResponseBadRequest()
 
-
+@login_required
 def import_items(request):
     template_name = 'pos/master/import_items.html'
     if request.method == 'POST':
