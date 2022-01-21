@@ -38,7 +38,6 @@ urlpatterns = [
     path('api/customers/<int:pk>/products/', api.CustomerProductList.as_view(), name='customerproduct_list'),
     path('api/customerproduct/<int:pk>/', api.CustomerProductDetail.as_view(), name='customerproduct_detail'),
     path('api/customerproduct/<int:pk>/delete/', api.customerproduct_delete, name='customerproduct_delete'),
-    path('api/routes/<int:pk>/delete/', api.RouteDelete.as_view(), name='route_delete'),
     path('api/routes/<int:pk>/update/', api.route_update, name='route_update'),
     path('api/routes/<int:pk>/', api.RouteDetail.as_view(), name='route_detail'),
 ]

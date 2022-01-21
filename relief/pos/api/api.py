@@ -268,16 +268,6 @@ def group_create(request):
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": str(group_name_exists)})
 
 
-
-class RouteDelete(DestroyAPIView):
-    queryset = Route.objects.all()
-
-    def delete(self, request, *args, **kwargs):
-        route_instance = self.get_object()
-        response = self.destroy(request, *args, **kwargs)
-        return response
-
-
 class CustomerProductList(ListAPIView):
     def get(self, request, *args, **kwargs):
         customer_id = self.kwargs['pk']
