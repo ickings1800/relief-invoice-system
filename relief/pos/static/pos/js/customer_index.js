@@ -1,4 +1,3 @@
-const draggable = window['vuedraggable'];
 const origin = location.origin;
 
 
@@ -1499,7 +1498,6 @@ var CustomerList = Vue.component('CustomerList', {
     </div>
   `,
    props: ['products', 'clients', 'quotes', 'taxes','groups', 'orderitems', 'invoices'],
-   components: {draggable, },
    methods: {
        createQuote: function(event){
         this.$emit('createquote', event)
@@ -1551,18 +1549,7 @@ var CustomerList = Vue.component('CustomerList', {
           this.customerOrderitemCount[oi.customer_name] += 1
       })
    }
- },
-   computed: {
-    dragOptions() {
-          return {
-            animation: 200,
-            group: "description",
-            disabled: false,
-            ghostClass: "ghost",
-            draggable: ".menu-item",
-          };
-        }
-    }
+ }
 })
 
 
