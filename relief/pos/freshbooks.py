@@ -20,25 +20,29 @@ def freshbooks_access(func):
         request.session['client_id'] = client_id
         request.session['client_secret'] = client_secret
         request.session['redirect_uri'] = redirect_uri
-        token = request.session['oauth_token']
-        freshbooks_account_id = request.session.get('freshbooks_account_id', None)
 
-        try:
-            freshbooks = OAuth2Session(client_id, token=token, redirect_uri=redirect_uri)
-
-            if not freshbooks_account_id:
-                res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
-
-                account_id = res.get('response')\
-                                .get('business_memberships')[0]\
-                                .get('business')\
-                                .get('account_id')
-
-                request.session['freshbooks_account_id'] = account_id
-
-        except TokenExpiredError as e:
-            token = freshbooks.refresh_token(refresh_url, **extra)
+        def token_updater(token):
             request.session['oauth_token'] = token
+
+        token = request.session['oauth_token']
+
+        freshbooks = OAuth2Session(
+            client_id,
+            token=token,
+            auto_refresh_kwargs=extra,
+            auto_refresh_url=refresh_url,
+            token_updater=token_updater,
+            redirect_uri=redirect_uri
+        )
+
+        res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
+
+        account_id = res.get('response')\
+                        .get('business_memberships')[0]\
+                        .get('business')\
+                        .get('account_id')
+
+        request.session['freshbooks_account_id'] = account_id
 
         response = func(request, *args, **kwargs)
 
