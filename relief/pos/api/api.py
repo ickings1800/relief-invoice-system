@@ -106,23 +106,27 @@ def detrack_webhook(request):
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class GroupList(ListAPIView):
-    serializer_class = GroupListSerializer
-    queryset = Group.objects.all()
+@api_view(['GET'])
+def group_list(request):
+    if request.method == 'GET':
+        groups = Group.objects.all()
+        group_list_serializer = GroupListSerializer(groups, many=True)
+        return Response(status=status.HTTP_200_OK, data=group_list_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
 
-
-class CustomerList(ListAPIView):
-    def get(self, request, *args, **kwargs):
+@api_view(['GET'])
+def customer_list(request):
+    if request.method == 'GET':
         customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProductList(ListAPIView):
-    def get(self, request, *args, **kwargs):
+@api_view(['GET'])
+def product_list(request):
+    if request.method == 'GET':
         customer_id = request.GET.get('customer_id')
         if customer_id:
             products_existing = CustomerProduct.objects.filter(customer_id=customer_id).distinct('product_id')
@@ -132,35 +136,41 @@ class ProductList(ListAPIView):
             products = Product.objects.all()
         product_serializer = ProductListDetailUpdateSerializer(products, many=True)
         return Response(status=status.HTTP_200_OK, data=product_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
 @freshbooks_access
 def product_detail(request, pk):
     if request.method == 'GET':
-        product = Product.objects.get(pk=pk)
-        if product:
-            token = request.session['oauth_token']
-            product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
-            return Response(status=status.HTTP_200_OK, data=product_detail)
+        product = get_object_or_404(Product, pk=pk)
+        token = request.session['oauth_token']
+        product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
+        return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class OrderItemUpdate(UpdateAPIView):
-    queryset = OrderItem.objects.all()
-    serializer_class = OrderItemUpdateSerializer
+@api_view(['PUT'])
+def orderitem_update(request, pk):
+    if request.method == 'PUT':
+        update_data = request.data
+        orderitem = get_object_or_404(OrderItem, pk=pk)
+        orderitem_update_serializer = OrderItemUpdateSerializer(orderitem, data=update_data)
+        if orderitem_update_serializer.is_valid():
+            orderitem_update_serializer.save()
+            return Response(status=status.HTTP_200_OK, data=orderitem_update_serializer.data)
+        return Response(status=status.HTTP_400_BAD_REQUEST, data=orderitem_update_serializer.errors)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, *args, **kwargs):
-        print(request.data)
-        return self.update(request, *args, **kwargs)
 
-
-class RouteDetail(RetrieveAPIView):
-    queryset = Route.objects.all()
-    serializer_class = RouteSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+@api_view(['GET'])
+@freshbooks_access
+def route_detail(request, pk):
+    if request.method == 'GET':
+        route = get_object_or_404(Route, pk=pk)
+        route_serializer = RouteSerializer(route)
+        return Response(status=status.HTTP_200_OK, data=route_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['PUT'])
@@ -268,27 +278,35 @@ def group_create(request):
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": str(group_name_exists)})
 
 
-class CustomerProductList(ListAPIView):
-    def get(self, request, *args, **kwargs):
-        customer_id = self.kwargs['pk']
-        customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
-        customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
-        return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
+@api_view(['GET'])
+@freshbooks_access
+def customerproduct_list(request, pk):
+    if request.method == 'GET':
+        customerproducts = CustomerProduct.objects.filter(customer_id=pk)
+        customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
+        return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class CustomerProductDetail(RetrieveAPIView):
-    queryset = CustomerProduct.objects.all()
-    serializer_class = CustomerProductListDetailSerializer
+@api_view(['GET'])
+@freshbooks_access
+def customerproduct_detail(request, pk):
+    if request.method == 'GET':
+        customerproduct = get_object_or_404(CustomerProduct, pk=pk)
+        customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproduct)
+        return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
 
-
-class CustomerProductCreate(CreateAPIView):
-    serializer_class = CustomerProductCreateSerializer
-
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+@api_view(['POST'])
+def customerproduct_create(request):
+    if request.method == 'POST':
+        customerproduct_create_serializer = CustomerProductCreateSerializer(data=request.data)
+        if customerproduct_create_serializer.is_valid():
+            customerproduct_create_serializer.save()
+            return Response(status=status.HTTP_201_CREATED, data=customerproduct_create_serializer.data)
+        return Response(status=status.HTTP_400_BAD_REQUEST, data=customerproduct_create_serializer.errors)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['PUT'])
@@ -325,12 +343,14 @@ def customerproduct_update(request, pk):
     return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
 
 
-class InvoiceDetail(RetrieveAPIView):
-    queryset = Invoice.objects.all()
-    serializer_class = InvoiceDetailSerializer
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+@api_view(['GET'])
+@freshbooks_access
+def invoice_detail(request, pk):
+    if request.method == 'GET':
+        invoice = get_object_or_404(Invoice, pk=pk)
+        invoice_serializer = InvoiceDetailSerializer(invoice)
+        return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
