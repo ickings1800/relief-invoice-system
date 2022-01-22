@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import reverse
-from .models import Customer, Product, Invoice, Route, CustomerProduct, OrderItem, CustomerGroup, Group
+from .models import *
 # Register your models here.
 
 

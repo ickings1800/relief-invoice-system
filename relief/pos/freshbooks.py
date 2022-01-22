@@ -2,6 +2,7 @@ from requests_oauthlib import OAuth2Session
 from django.conf import settings
 import functools
 
+
 def freshbooks_access(func):
     # One-time configuration and initialization.
     refresh_url = "https://api.freshbooks.com/auth/oauth/token"
@@ -13,6 +14,7 @@ def freshbooks_access(func):
         'client_id': client_id,
         'client_secret': client_secret,
     }
+
     @functools.wraps(func)
     def freshbooks_wrapper(request, *args, **kwargs):
         # Code to be executed for each request before

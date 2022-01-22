@@ -3,19 +3,14 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.decorators import permission_classes, authentication_classes
-from .serializers import \
-    CustomerListDetailUpdateSerializer, ProductListDetailUpdateSerializer, \
-    CustomerProductListDetailSerializer,\
-    CustomerProductCreateSerializer, InvoiceListSerializer,\
-    OrderItemUpdateSerializer, RouteSerializer,\
-    InvoiceDetailSerializer, GroupListSerializer, GroupCreateSerializer, OrderItemSerializer
-
-from ..models import Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
 from datetime import datetime
 from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
 from ..freshbooks import freshbooks_access
+from ..models import *
+from .serializers import *
 import json
+
 
 @api_view(['POST'])
 @permission_classes([])
@@ -115,7 +110,8 @@ def group_list(request):
 @api_view(['GET'])
 def customer_list(request):
     if request.method == 'GET':
-        customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
+        customers = Customer.objects.prefetch_related(
+            'customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -126,7 +122,8 @@ def product_list(request):
     if request.method == 'GET':
         customer_id = request.GET.get('customer_id')
         if customer_id:
-            products_existing = CustomerProduct.objects.filter(customer_id=customer_id).distinct('product_id')
+            products_existing = CustomerProduct.objects.filter(
+                customer_id=customer_id).distinct('product_id')
             products_existing_ids = [cp.product_id for cp in products_existing]
             products = Product.objects.exclude(id__in=products_existing_ids)
         else:
@@ -142,7 +139,8 @@ def product_detail(request, pk):
     if request.method == 'GET':
         product = get_object_or_404(Product, pk=pk)
         token = request.session['oauth_token']
-        product_detail = Product.freshbooks_product_detail(product.freshbooks_item_id, product.freshbooks_account_id, token)
+        product_detail = Product.freshbooks_product_detail(
+            product.freshbooks_item_id, product.freshbooks_account_id, token)
         return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -207,8 +205,9 @@ def route_update(request, pk):
                 route_exists = Route.objects.filter(do_number=validated_do_number).count()
                 if route_exists > 0:
                     return Response(
-                        status=status.HTTP_400_BAD_REQUEST, 
-                        data={"error": "route already exists with do_number {0}".format(validated_do_number)}
+                        status=status.HTTP_400_BAD_REQUEST,
+                        data={"error": "route already exists with do_number {0}".format(
+                            validated_do_number)}
                     )
                 else:
                     route.do_number = do_number_int
@@ -279,7 +278,8 @@ def group_create(request):
 def customerproduct_list(request, pk):
     if request.method == 'GET':
         customerproducts = CustomerProduct.objects.filter(customer_id=pk)
-        customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
+        customerproduct_list_serializer = CustomerProductListDetailSerializer(
+            customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -315,7 +315,7 @@ def customerproduct_update(request, pk):
         freshbooks_account_id = request.session['freshbooks_account_id']
         freshbooks = OAuth2Session(client_id, token=token)
         res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/taxes/taxes/{1}"
-            .format(freshbooks_account_id, freshbooks_tax_id)).json()
+                             .format(freshbooks_account_id, freshbooks_tax_id)).json()
         tax = res.get('response').get('result').get('tax')
         return tax
 
@@ -329,7 +329,7 @@ def customerproduct_update(request, pk):
             if not get_valid_tax.get('taxid'):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e) })
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e)})
 
     customerproduct = CustomerProduct.objects.get(pk=pk)
     customerproduct.freshbooks_tax_1 = freshbooks_tax_id
@@ -366,7 +366,7 @@ def invoice_list(request):
     except ValueError:
         return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': 'Unable to filter invoice year'})
     except Exception as e:
-        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e)})    
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': str(e)})
 
 
 @api_view(['GET'])
@@ -400,7 +400,6 @@ def hard_delete_invoice(request, pk):
         else:
             return Response(status.HTTP_404_NOT_FOUND)
     return Response(status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['POST'])
@@ -438,7 +437,8 @@ def create_invoice(request):
         token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
         freshbooks = OAuth2Session(client_id, token=token)
-        invoice_create_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices'.format(freshbooks_account_id)
+        invoice_create_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices'.format(
+            freshbooks_account_id)
         headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
 
         print(invoice_customer, invoice_orderitems, parsed_create_date)
@@ -460,39 +460,39 @@ def create_invoice(request):
                     tax = res.get('response').get('result').get('tax')
 
                     description = "DATE: {0} D/O: {1} ".format(
-                          datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
-                          orderitem.route.do_number
+                        datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                        orderitem.route.do_number
                     )
 
                     if orderitem.note:
                         description += "P/O: {0}".format(orderitem.note)
 
-                    invoice_line =  {
-                      "type": 0,
-                      "description": description,
-                      "taxName1": tax.get('name'),
-                      "taxAmount1": tax.get('amount'),
-                      "name": orderitem.customerproduct.product.name,
-                      "qty": orderitem.driver_quantity,
-                      "unit_cost": { "amount": str(orderitem.unit_price) }
+                    invoice_line = {
+                        "type": 0,
+                        "description": description,
+                        "taxName1": tax.get('name'),
+                        "taxAmount1": tax.get('amount'),
+                        "name": orderitem.customerproduct.product.name,
+                        "qty": orderitem.driver_quantity,
+                        "unit_cost": {"amount": str(orderitem.unit_price)}
                     }
 
                     invoice_lines.append(invoice_line)
                 else:
                     description = "DATE: {0} D/O: {1} ".format(
-                          datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
-                          orderitem.route.do_number
+                        datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                        orderitem.route.do_number
                     )
 
                     if orderitem.note:
                         description += "P/O: {0}".format(orderitem.note)
 
-                    invoice_line =  {
-                      "type": 0,
-                      "description": description,
-                      "name": orderitem.customerproduct.product.name,
-                      "qty": orderitem.driver_quantity,
-                      "unit_cost": { "amount": str(orderitem.unit_price) }
+                    invoice_line = {
+                        "type": 0,
+                        "description": description,
+                        "name": orderitem.customerproduct.product.name,
+                        "qty": orderitem.driver_quantity,
+                        "unit_cost": {"amount": str(orderitem.unit_price)}
                     }
                     invoice_lines.append(invoice_line)
 
@@ -502,11 +502,11 @@ def create_invoice(request):
 
             body = {
                 "invoice": {
-                  "customerid": freshbooks_client_id,
-                  "invoice_number": invoice_number,
-                  "po_number": po_number,
-                  "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
-                  "lines": [line for line in invoice_lines]
+                    "customerid": freshbooks_client_id,
+                    "invoice_number": invoice_number,
+                    "po_number": po_number,
+                    "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
+                    "lines": [line for line in invoice_lines]
                 }
             }
             #  create invoice
@@ -515,29 +515,28 @@ def create_invoice(request):
             if response.status_code == 200:
                 print(response)
                 invoice_number = response.json()\
-                                        .get('response')\
-                                        .get('result')\
-                                        .get('invoice')\
-                                        .get('invoice_number')
+                    .get('response')\
+                    .get('result')\
+                    .get('invoice')\
+                    .get('invoice_number')
 
                 freshbooks_account_id = response.json()\
-                                        .get('response')\
-                                        .get('result')\
-                                        .get('invoice')\
-                                        .get('accounting_systemid')
+                    .get('response')\
+                    .get('result')\
+                    .get('invoice')\
+                    .get('accounting_systemid')
 
                 freshbooks_invoice_id = response.json()\
-                                        .get('response')\
-                                        .get('result')\
-                                        .get('invoice')\
-                                        .get('id')
+                    .get('response')\
+                    .get('result')\
+                    .get('invoice')\
+                    .get('id')
 
                 created_date = response.json()\
-                                .get('response')\
-                                .get('result')\
-                                .get('invoice')\
-                                .get('create_date')
-
+                    .get('response')\
+                    .get('result')\
+                    .get('invoice')\
+                    .get('create_date')
 
                 gst_decimal = Decimal(invoice_customer.gst / 100)
                 net_total -= minus_decimal
@@ -551,7 +550,7 @@ def create_invoice(request):
                     gst=invoice_customer.gst,
                     net_gst=net_gst,
                     minus=minus_decimal,
-                    discount_description = minus_description,
+                    discount_description=minus_description,
                     total_incl_gst=total_incl_gst,
                     invoice_number=invoice_number,
                     customer=invoice_customer,
@@ -594,7 +593,8 @@ def get_all_quotes(request):
         customerproducts = CustomerProduct.objects.select_related('customer', 'product')
         if customer_id:
             customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
-        customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
+        customerproduct_serializer = CustomerProductListDetailSerializer(
+            customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -616,16 +616,16 @@ def get_all_taxes(request):
                 freshbooks_account_id, page
             )).json()
             max_pages = res.get('response')\
-                            .get('result')\
-                            .get('pages')
+                .get('result')\
+                .get('pages')
 
             curr_page = res.get('response')\
-                            .get('result')\
-                            .get('page')
+                .get('result')\
+                .get('page')
 
             taxes = res.get('response')\
-                            .get('result')\
-                            .get('taxes')
+                .get('result')\
+                .get('taxes')
 
             for tax in taxes:
                 taxes_arr.append(tax)
@@ -660,7 +660,7 @@ def bulk_import_orders(request):
                 if (len(route_exists) > 0):
                     route = route_exists[0]
                     new_orderitem = OrderItem(
-                        quantity=quantity, 
+                        quantity=quantity,
                         driver_quantity=quantity,
                         note=po_number,
                         unit_price=customerproduct_exists.quote_price,
@@ -671,7 +671,7 @@ def bulk_import_orders(request):
                     route = Route(do_number=do_number, date=date)
                     route.save()
                     new_orderitem = OrderItem(
-                        quantity=quantity, 
+                        quantity=quantity,
                         driver_quantity=quantity,
                         note=po_number,
                         unit_price=customerproduct_exists.quote_price,
@@ -685,6 +685,7 @@ def bulk_import_orders(request):
             return Response(status=status.HTTP_200_OK, data=error_rows)
         return Response(status=status.HTTP_201_CREATED, data=request.data)
 
+
 @api_view(['GET'])
 def get_filter_orderitem_rows(request):
     if (request.method == 'GET'):
@@ -695,7 +696,7 @@ def get_filter_orderitem_rows(request):
         parsed_start_date = None
         parsed_end_date = None
         parsed_customer_ids = None
-        
+
         try:
             if start_date:
                 parsed_start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -721,7 +722,8 @@ def get_filter_orderitem_rows(request):
         if parsed_end_date:
             orderitem_qset = orderitem_qset.filter(route__date__lte=parsed_end_date)
         if parsed_customer_ids:
-            orderitem_qset = orderitem_qset.filter(customerproduct__customer_id__in=parsed_customer_ids)
+            orderitem_qset = orderitem_qset.filter(
+                customerproduct__customer_id__in=parsed_customer_ids)
 
         orderitem_qset = orderitem_qset.filter(invoice__isnull=True)
         rows = list(orderitem_qset)
@@ -743,16 +745,16 @@ def get_freshbooks_products(request):
             freshbooks_account_id, page
         )).json()
         max_pages = res.get('response')\
-                        .get('result')\
-                        .get('pages')
+            .get('result')\
+            .get('pages')
 
         curr_page = res.get('response')\
-                        .get('result')\
-                        .get('page')
+            .get('result')\
+            .get('page')
 
         items = res.get('response')\
-                        .get('result')\
-                        .get('items')
+            .get('result')\
+            .get('items')
 
         for item in items:
             item_arr.append(item)
@@ -768,7 +770,8 @@ def get_freshbooks_products(request):
 def get_freshbooks_import_clients(request):
     freshbooks_account_id = request.session['freshbooks_account_id']
     token = request.session['oauth_token']
-    existing_freshbooks_clients = Customer.objects.filter(freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False)
+    existing_freshbooks_clients = Customer.objects.filter(
+        freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False)
     existing_client_ids = [client.freshbooks_client_id for client in existing_freshbooks_clients]
     freshbooks_clients = Customer.get_freshbooks_clients(freshbooks_account_id, token)
     not_exists_freshbooks_client = []
@@ -787,7 +790,8 @@ def import_freshbooks_clients(request):
         import_client_ids = request.data.get('freshbooks_id_list')
         valid_import_client_ids = []
         for import_client_id in import_client_ids:
-            valid_client = Customer.get_freshbooks_client(freshbooks_account_id, import_client_id, token)
+            valid_client = Customer.get_freshbooks_client(
+                freshbooks_account_id, import_client_id, token)
             print(valid_client)
             res = valid_client.get('response').get('result').get('client')
             if res.get('id'):
@@ -805,8 +809,10 @@ def get_freshbooks_import_products(request):
     if request.method == 'GET':
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
-        existing_freshbooks_products = Product.objects.filter(freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False)
-        existing_product_ids = [product.freshbooks_item_id for product in existing_freshbooks_products]
+        existing_freshbooks_products = Product.objects.filter(
+            freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False)
+        existing_product_ids = [
+            product.freshbooks_item_id for product in existing_freshbooks_products]
         freshbooks_products = Product.get_freshbooks_products(freshbooks_account_id, token)
 
         not_exists_freshbooks_products = []
@@ -826,7 +832,8 @@ def import_freshbooks_products(request):
         import_product_ids = request.data.get('freshbooks_id_list')
         valid_import_product_list = []
         for import_product_id in import_product_ids:
-            valid_product = Product.freshbooks_product_detail(import_product_id, freshbooks_account_id, token)
+            valid_product = Product.freshbooks_product_detail(
+                import_product_id, freshbooks_account_id, token)
             print(valid_product)
             res = valid_product.get('response').get('result').get('item')
             if res.get('id'):
@@ -837,7 +844,6 @@ def import_freshbooks_products(request):
         Product.freshbooks_import_products(valid_import_product_list, freshbooks_account_id, token)
         return Response(status=status.HTTP_201_CREATED, data=valid_import_product_list)
     return Response(status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['GET'])
@@ -880,16 +886,17 @@ def link_customer(request):
         customer_obj.to_print = to_print
         customer_obj.to_whatsapp = to_whatsapp
         if freshbooks_client_id:
-            response = Customer.get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token)
+            response = Customer.get_freshbooks_client(
+                freshbooks_account_id, freshbooks_client_id, token)
             freshbooks_client = response.get('response').get('result').get('client')
         if freshbooks_client_id and freshbooks_client:
-            customer_obj.freshbooks_client_id = str(freshbooks_client.get('id'));
+            customer_obj.freshbooks_client_id = str(freshbooks_client.get('id'))
             customer_obj.save()
             customer_serializer = CustomerListDetailUpdateSerializer(customer_obj)
             return Response(data=customer_serializer.data, status=status.HTTP_200_OK)
         if not freshbooks_client_id:
-            customer_obj.freshbooks_client_id = None;
-            customer_obj.freshbooks_account_id = None;
+            customer_obj.freshbooks_client_id = None
+            customer_obj.freshbooks_account_id = None
             customer_obj.save()
             customer_serializer = CustomerListDetailUpdateSerializer(customer_obj)
             return Response(data=customer_serializer.data, status=status.HTTP_200_OK)
@@ -911,21 +918,21 @@ def link_product(request):
         if not product_obj:
             return Response(status=status.HTTP_404_NOT_FOUND)
         if freshbooks_item_id:
-            response = Product.freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token)
+            response = Product.freshbooks_product_detail(
+                freshbooks_item_id, freshbooks_account_id, token)
             freshbooks_product = response.get('response').get('result').get('item')
         if freshbooks_item_id and freshbooks_product:
-            product_obj.freshbooks_item_id = str(freshbooks_product.get('id'));
+            product_obj.freshbooks_item_id = str(freshbooks_product.get('id'))
             product_obj.save()
             product_serializer = ProductListDetailUpdateSerializer(product_obj)
             return Response(data=product_serializer.data, status=status.HTTP_200_OK)
         if not freshbooks_item_id:
-            product_obj.freshbooks_item_id = None;
-            product_obj.freshbooks_account_id = None;
+            product_obj.freshbooks_item_id = None
+            product_obj.freshbooks_account_id = None
             product_obj.save()
             product_serializer = ProductListDetailUpdateSerializer(product_obj)
             return Response(data=product_serializer.data, status=status.HTTP_200_OK)
     return Response(status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['DELETE'])
@@ -953,7 +960,8 @@ def customer_sync(request):
             Customer.update_freshbooks_clients(freshbooks_account_id, token)
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
+        customers = Customer.objects.prefetch_related(
+            'customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -975,8 +983,8 @@ def invoice_sync(request):
             freshbooks_invoice = freshbooks.get(search_url).json()
             print(freshbooks_invoice)
             freshbooks_invoice_search = freshbooks_invoice.get('response')\
-                                                        .get('result')\
-                                                        .get('invoices')\
+                .get('result')\
+                .get('invoices')\
 
             if len(freshbooks_invoice_search) > 0:
                 freshbooks_invoice = freshbooks_invoice_search[0]
@@ -989,7 +997,8 @@ def invoice_sync(request):
         if not freshbooks_account_id or not token:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        invoice_serializer = InvoiceListSerializer(sync_invoices, context={'request': request}, many=True)
+        invoice_serializer = InvoiceListSerializer(
+            sync_invoices, context={'request': request}, many=True)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -1021,7 +1030,7 @@ def invoice_update(request, pk):
         print("Selected ID: ", orderitems_id)
 
         orderitem_set_existing_invoice = OrderItem.objects.filter(pk__in=orderitems_id)
-        
+
         price_map = {}
         for oi in orderitem_set_existing_invoice:
             product_name = oi.customerproduct.product.name
@@ -1030,13 +1039,11 @@ def invoice_update(request, pk):
             if price_map[product_name] != oi.unit_price:
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Orderitems unit pricing is inconsistent"})
 
-
         for oi in existing_invoice.orderitem_set.all():
             print("set orderitem null -> ", oi.pk)
             print(oi.quantity, oi.driver_quantity, oi.unit_price)
             oi.invoice = None
             oi.save()
-
 
         for oi in orderitem_set_existing_invoice:
             oi.invoice = existing_invoice
@@ -1061,39 +1068,39 @@ def invoice_update(request, pk):
                 tax = res.get('response').get('result').get('tax')
 
                 description = "DATE: {0} D/O: {1} ".format(
-                      datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
-                      orderitem.route.do_number
+                    datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                    orderitem.route.do_number
                 )
 
                 if orderitem.note:
                     description += "P/O: {0}".format(orderitem.note)
 
-                invoice_line =  {
-                  "type": 0,
-                  "description": description,
-                  "taxName1": tax.get('name'),
-                  "taxAmount1": tax.get('amount'),
-                  "name": orderitem.customerproduct.product.name,
-                  "qty": orderitem.driver_quantity,
-                  "unit_cost": { "amount": str(orderitem.unit_price) }
+                invoice_line = {
+                    "type": 0,
+                    "description": description,
+                    "taxName1": tax.get('name'),
+                    "taxAmount1": tax.get('amount'),
+                    "name": orderitem.customerproduct.product.name,
+                    "qty": orderitem.driver_quantity,
+                    "unit_cost": {"amount": str(orderitem.unit_price)}
                 }
 
                 invoice_lines.append(invoice_line)
             else:
                 description = "DATE: {0} D/O: {1} ".format(
-                      datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
-                      orderitem.route.do_number
+                    datetime.strftime(orderitem.route.date, '%d-%m-%Y'),
+                    orderitem.route.do_number
                 )
 
                 if orderitem.note:
                     description += "P/O: {0}".format(orderitem.note)
 
-                invoice_line =  {
-                  "type": 0,
-                  "description": description,
-                  "name": orderitem.customerproduct.product.name,
-                  "qty": orderitem.driver_quantity,
-                  "unit_cost": { "amount": str(orderitem.unit_price) }
+                invoice_line = {
+                    "type": 0,
+                    "description": description,
+                    "name": orderitem.customerproduct.product.name,
+                    "qty": orderitem.driver_quantity,
+                    "unit_cost": {"amount": str(orderitem.unit_price)}
                 }
                 invoice_lines.append(invoice_line)
 
@@ -1103,9 +1110,9 @@ def invoice_update(request, pk):
 
         body = {
             "invoice": {
-              "invoice_number": invoice_number,
-              "po_number": po_number,
-              "lines": [line for line in invoice_lines]
+                "invoice_number": invoice_number,
+                "po_number": po_number,
+                "lines": [line for line in invoice_lines]
             }
         }
         invoice_update_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}'.format(
@@ -1116,16 +1123,16 @@ def invoice_update(request, pk):
         response = freshbooks.put(invoice_update_url, data=json.dumps(body), headers=headers)
         if response.status_code == 200:
             invoice_number = response.json()\
-                                    .get('response')\
-                                    .get('result')\
-                                    .get('invoice')\
-                                    .get('invoice_number')
+                .get('response')\
+                .get('result')\
+                .get('invoice')\
+                .get('invoice_number')
 
             date_created = response.json()\
-                            .get('response')\
-                            .get('result')\
-                            .get('invoice')\
-                            .get('create_date')
+                .get('response')\
+                .get('result')\
+                .get('invoice')\
+                .get('create_date')
 
             gst_decimal = Decimal(existing_invoice.customer.gst / 100)
             net_total -= minus_decimal

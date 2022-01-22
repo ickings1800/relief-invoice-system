@@ -20,12 +20,13 @@ class GroupListSerializer(serializers.ModelSerializer):
 
 class CustomerListDetailUpdateSerializer(serializers.ModelSerializer):
     group = SerializerMethodField()
+
     class Meta:
         model = Customer
         fields = (
             'id', 'name', 'gst', 'group', 'freshbooks_account_id',
-            'freshbooks_client_id', 'pivot_invoice', 'address','postal_code',
-            'country', 'download_prefix', 'download_suffix', 'to_fax','to_email',
+            'freshbooks_client_id', 'pivot_invoice', 'address', 'postal_code',
+            'country', 'download_prefix', 'download_suffix', 'to_fax', 'to_email',
             'to_print', 'to_whatsapp'
         )
 
@@ -42,6 +43,7 @@ class ProductListDetailUpdateSerializer(serializers.ModelSerializer):
 class CustomerProductListDetailSerializer(serializers.ModelSerializer):
     customer_name = SerializerMethodField()
     product_name = SerializerMethodField()
+
     class Meta:
         model = CustomerProduct
         fields = (
@@ -69,6 +71,7 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
     download_url = serializers.HyperlinkedIdentityField(
         view_name="pos:invoice_download", lookup_field="pk", lookup_url_kwarg="pk"
     )
+
     class Meta:
         model = Invoice
         fields = (
@@ -104,8 +107,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = (
-            'id', 'driver_quantity', 'quantity', 'customer_name', 
-            'customer_id', 'product_name', 'date', 'do_number', 
+            'id', 'driver_quantity', 'quantity', 'customer_name',
+            'customer_id', 'product_name', 'date', 'do_number',
             'unit_price', 'note'
         )
 
@@ -115,13 +118,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
     def get_customer_id(self, obj):
         return obj.customerproduct.customer.id
 
-    def get_product_name(self,obj):
+    def get_product_name(self, obj):
         return obj.customerproduct.product.name
 
     def get_date(self, obj):
         return obj.route.date
 
-    def get_do_number(self,obj):
+    def get_do_number(self, obj):
         return obj.route.do_number
 
 
@@ -169,7 +172,6 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     def get_orderitem_set(self, obj):
         ordered_orderitem = obj.orderitem_set.order_by('route__date')
         return OrderItemSerializer(ordered_orderitem, many=True, context=self.context).data
-
 
 
 class RouteListSerializer(serializers.HyperlinkedModelSerializer):

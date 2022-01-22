@@ -10,6 +10,8 @@ from requests_oauthlib import OAuth2Session
 import csv
 
 # Create your models here.
+
+
 class Company(models.Model):
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255)
@@ -51,7 +53,6 @@ class Customer(models.Model):
 
     class Meta:
         ordering = ['name']
-
 
     def __str__(self):
         return self.name
@@ -121,11 +122,11 @@ class Customer(models.Model):
             customer_group = CustomerGroup(group=default_group, customer=new_client)
             customer_group.save()
 
-
     def get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token):
         client_id = settings.FRESHBOOKS_CLIENT_ID
         freshbooks = OAuth2Session(client_id, token=token)
-        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/users/clients/{1}".format(freshbooks_account_id, freshbooks_client_id)).json()
+        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/users/clients/{1}".format(
+            freshbooks_account_id, freshbooks_client_id)).json()
         #  print(res)
         return res
 
@@ -135,19 +136,20 @@ class Customer(models.Model):
         page = 1
         client_arr = []
         while(True):
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
+            res = freshbooks.get(
+                "https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
             #  print(res)
             max_pages = res.get('response')\
-                            .get('result')\
-                            .get('pages')
+                .get('result')\
+                .get('pages')
 
             curr_page = res.get('response')\
-                            .get('result')\
-                            .get('page')
+                .get('result')\
+                .get('page')
 
             clients = res.get('response')\
-                            .get('result')\
-                            .get('clients')
+                .get('result')\
+                .get('clients')
 
             for client in clients:
                 client_arr.append(client)
@@ -157,25 +159,25 @@ class Customer(models.Model):
                 page += 1
         return client_arr
 
-
     def update_freshbooks_clients(freshbooks_account_id, token):
         client_id = settings.FRESHBOOKS_CLIENT_ID
         freshbooks = OAuth2Session(client_id, token=token)
         page = 1
         client_arr = []
         while(True):
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
+            res = freshbooks.get(
+                "https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
             max_pages = res.get('response')\
-                            .get('result')\
-                            .get('pages')
+                .get('result')\
+                .get('pages')
 
             curr_page = res.get('response')\
-                            .get('result')\
-                            .get('page')
+                .get('result')\
+                .get('page')
 
             clients = res.get('response')\
-                            .get('result')\
-                            .get('clients')
+                .get('result')\
+                .get('clients')
 
             for client in clients:
                 client_arr.append(client)
@@ -209,7 +211,6 @@ class Customer(models.Model):
                     update_client.save()
 
 
-
 class CustomerGroup(models.Model):
     index = models.IntegerField(null=True)
     customer = models.ForeignKey(Customer, on_delete=models.DO_NOTHING, null=True)
@@ -224,7 +225,8 @@ class CustomerGroup(models.Model):
                     #  all customers are valid
                     CustomerGroup.objects.filter(group=group).delete()
                     for index in range(len(client_list)):
-                        new_grouping = CustomerGroup(customer=client_list[index], group=group, index=index)
+                        new_grouping = CustomerGroup(
+                            customer=client_list[index], group=group, index=index)
                         new_grouping.save()
             else:
                 #  empty the group
@@ -259,19 +261,20 @@ class Product(models.Model):
         item_arr = []
         while(True):
             print(page)
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
+            res = freshbooks.get(
+                "https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
             print(res)
             max_pages = res.get('response')\
-                            .get('result')\
-                            .get('pages')
+                .get('result')\
+                .get('pages')
 
             curr_page = res.get('response')\
-                            .get('result')\
-                            .get('page')
+                .get('result')\
+                .get('page')
 
             items = res.get('response')\
-                            .get('result')\
-                            .get('items')
+                .get('result')\
+                .get('items')
 
             for item in items:
                 item_arr.append(item)
@@ -281,21 +284,22 @@ class Product(models.Model):
                 page += 1
         return item_arr
 
-
     def freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token):
         client_id = settings.FRESHBOOKS_CLIENT_ID
         freshbooks = OAuth2Session(client_id, token=token)
-        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items/{1}".format(freshbooks_account_id, freshbooks_item_id)).json()
+        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items/{1}".format(
+            freshbooks_account_id, freshbooks_item_id)).json()
         print(res)
         return res
 
     def freshbooks_import_products(item_arr, freshbooks_account_id, token):
         for item in item_arr:
-             item_name = item.get('name')
-             item_id = item.get('itemid')
-             item_accounting_systemid = item.get('accounting_systemid')
-             new_item = Product(name=item_name, freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid)
-             new_item.save()
+            item_name = item.get('name')
+            item_id = item.get('itemid')
+            item_accounting_systemid = item.get('accounting_systemid')
+            new_item = Product(name=item_name, freshbooks_item_id=item_id,
+                               freshbooks_account_id=item_accounting_systemid)
+            new_item.save()
 
     def update_freshbooks_products(freshbooks_account_id, token):
         client_id = settings.FRESHBOOKS_CLIENT_ID
@@ -303,18 +307,19 @@ class Product(models.Model):
         page = 1
         item_arr = []
         while(True):
-            res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
+            res = freshbooks.get(
+                "https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
             max_pages = res.get('response')\
-                            .get('result')\
-                            .get('pages')
+                .get('result')\
+                .get('pages')
 
             curr_page = res.get('response')\
-                            .get('result')\
-                            .get('page')
+                .get('result')\
+                .get('page')
 
             items = res.get('response')\
-                            .get('result')\
-                            .get('items')
+                .get('result')\
+                .get('items')
 
             for item in items:
                 item_arr.append(item)
@@ -329,7 +334,8 @@ class Product(models.Model):
             item_id = item.get('id')
             item_accounting_systemid = item.get('accounting_systemid')
 
-            item_queryset = Product.objects.filter(freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid)
+            item_queryset = Product.objects.filter(
+                freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid)
             if len(item_queryset) > 0:
                 save_item = False
                 update_item = item_queryset.get()
@@ -349,7 +355,6 @@ class Product(models.Model):
                     freshbooks_account_id=item_accounting_systemid
                 )
                 new_item.save()
-
 
 
 class Invoice(models.Model):
@@ -373,7 +378,6 @@ class Invoice(models.Model):
     class Meta:
         unique_together = ('invoice_number', 'customer')
         ordering = ['invoice_number']
-
 
     def handle_invoice_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
@@ -403,9 +407,8 @@ class Invoice(models.Model):
                     pivot=pivot
                 )
                 new_invoice.save()
-                new_invoice.date_generated=date_generated
+                new_invoice.date_generated = date_generated
                 new_invoice.save()
-
 
 
 class Route(models.Model):
@@ -438,7 +441,6 @@ class CustomerProduct(models.Model):
         unique_together = ('customer', 'product', 'quote_price')
         ordering = ['sort_order']
 
-
     def handle_quote_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
@@ -457,6 +459,7 @@ class CustomerProduct(models.Model):
                 )
                 new_quote.save()
 
+
 class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField(default=0)
     driver_quantity = models.PositiveSmallIntegerField(default=0)
@@ -469,7 +472,6 @@ class OrderItem(models.Model):
 
     class Meta:
         ordering = ['route__date']
-
 
     def handle_orderitem_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
@@ -487,7 +489,8 @@ class OrderItem(models.Model):
             formatted_date = parsed_date.strftime('%Y-%m-%d')
             customer_obj = Customer.objects.filter(name=customer_name).first()
             product_obj = Product.objects.filter(name=product_name).first()
-            quote_obj = CustomerProduct.objects.filter(customer=customer_obj.pk, product=product_obj.pk).first()
+            quote_obj = CustomerProduct.objects.filter(
+                customer=customer_obj.pk, product=product_obj.pk).first()
             route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
             invoice_obj = Invoice.objects.filter(invoice_number=invoice_number).first()
 

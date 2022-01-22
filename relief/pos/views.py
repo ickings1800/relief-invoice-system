@@ -28,7 +28,8 @@ def redirect_to_freshbooks_auth(request):
     client_id = settings.FRESHBOOKS_CLIENT_ID
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
-    authorization_url, state = oauth.authorization_url('https://auth.freshbooks.com/service/auth/oauth/authorize')
+    authorization_url, state = oauth.authorization_url(
+        'https://auth.freshbooks.com/service/auth/oauth/authorize')
     return HttpResponseRedirect(authorization_url)
 
 
@@ -39,10 +40,10 @@ def get_token(request):
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
     token = oauth.fetch_token(
-            "https://api.freshbooks.com/auth/oauth/token",
-            authorization_response=callback_url,
-            client_secret=client_secret)
-    
+        "https://api.freshbooks.com/auth/oauth/token",
+        authorization_response=callback_url,
+        client_secret=client_secret)
+
     request.session['oauth_token'] = token
     return HttpResponseRedirect(reverse('pos:overview'))
 
@@ -53,6 +54,7 @@ def overview(request):
 
     if request.method == 'GET':
         return render(request, template_name)
+
 
 @login_required
 def express_order(request):
@@ -95,7 +97,7 @@ class NumberedPageCanvas(canvas.Canvas):
     def draw_page_number(self, page_count):
         self.setFont("Helvetica-Bold", 8)
         self.drawRightString(200*mm, 10*mm,
-            "Page %d of %d" % (self._pageNumber, page_count))
+                             "Page %d of %d" % (self._pageNumber, page_count))
 
 
 @login_required
@@ -124,7 +126,7 @@ def download_invoice(request, pk=None):
         else:
             print('freshbooks')
             return freshbooks_invoice_download(request, pk=invoice.pk, file_name=invoice_name)
-        
+
     return HttpResponseBadRequest()
 
 
@@ -133,10 +135,12 @@ def invoice_pdf_view(request, pk, file_name=''):
     invoice = Invoice.objects.select_related('customer').get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
-        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by('route__date')
+        query_oi = OrderItem.objects.filter(
+            customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by('route__date')
         unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
-        unique_quote_price_set = set(query_oi.values_list('customerproduct__product__name', 'unit_price'))
-        unique_quote_price_dict = {k:v for k,v in unique_quote_price_set}
+        unique_quote_price_set = set(query_oi.values_list(
+            'customerproduct__product__name', 'unit_price'))
+        unique_quote_price_dict = {k: v for k, v in unique_quote_price_set}
 
         pv_table = pivot(
             query_oi,
@@ -151,7 +155,8 @@ def invoice_pdf_view(request, pk, file_name=''):
             mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
             product_sum.update(mapped_row)
 
-        nett_amt = { name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names }
+        nett_amt = {name: unique_quote_price_dict[name] *
+                    product_sum[name] for name in unique_orderitem_names}
 
         subtotal = 0
         for k, v in nett_amt.items():
@@ -166,30 +171,33 @@ def invoice_pdf_view(request, pk, file_name=''):
         response['Content-Disposition'] = 'attachment; filename="{0}.pdf"'.format(file_name)
 
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=5*mm, bottomMargin=5*mm)
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm,
+                                leftMargin=1*cm, topMargin=5*mm, bottomMargin=5*mm)
 
         # container for the "Flowable" objects
         elements = []
-
 
         # Make heading for each column and start data list
 
         top_table_style = TableStyle(
             [
-                ('FONTSIZE',(0,0),(-1,-1),10),
-                ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
             ]
         )
-        taxStyle = getSampleStyleSheet()                       
+        taxStyle = getSampleStyleSheet()
         taxHeadingStyle = taxStyle["Normal"]
         taxHeadingStyle.fontName = 'Helvetica-Bold'
         taxHeadingStyle.fontSize = 14
 
         top_table_data = []
-        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)])
-        top_table_data.append(["TUAS BAY WALK #02-30 SINGAPORE 637780", "INVOICE NUMBER:", invoice.invoice_number])
+        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD",
+                               Paragraph("TAX INVOICE", taxHeadingStyle)])
+        top_table_data.append(["TUAS BAY WALK #02-30 SINGAPORE 637780",
+                               "INVOICE NUMBER:", invoice.invoice_number])
         if invoice.date_created:
-            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", invoice.date_created.strftime('%d/%m/%Y')])
+            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ",
+                                   invoice.date_created.strftime('%d/%m/%Y')])
         else:
             top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", ""])
         top_table_data.append(["REG NO: 200302589N"])
@@ -203,8 +211,6 @@ def invoice_pdf_view(request, pk, file_name=''):
         else:
             top_table_data.append([invoice_customer.country])
 
-
-
         top_table = Table(top_table_data, [12*cm, 4*cm, 3*cm])
         top_table.setStyle(top_table_style)
 
@@ -217,11 +223,11 @@ def invoice_pdf_view(request, pk, file_name=''):
 
         product_style = TableStyle(
             [
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('LINEBELOW', (0,0), (-1,0), 0.5, colors.black),
-                ('LINEBELOW', (0,-1), (-1,-1), 0.5, colors.black),
-                ('FONTSIZE', (0,0), (-1,-1), 10),
-                ('FONTNAME', (0,0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
+                ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ]
         )
         heading = []
@@ -250,10 +256,8 @@ def invoice_pdf_view(request, pk, file_name=''):
         product_table.hAlign = 'CENTER'
         product_table.setStyle(product_style)
 
-
-
-        quantity_style = TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                                        ('FONTSIZE', (0,0), (-1,-1), 9)])
+        quantity_style = TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                     ('FONTSIZE', (0, 0), (-1, -1), 9)])
         quantity_data = []
         #   -- quantity row --
         quantity_row = []
@@ -281,11 +285,11 @@ def invoice_pdf_view(request, pk, file_name=''):
         quantity_table.setStyle(quantity_style)
 
         # -- subtotal, gst, total amount --
-        total_data_style = TableStyle([('FONTSIZE', (0,0), (-1,-1), 9),
-                                        ('SPAN', (0,0), (0,0)),
-                                        ('SPAN', (0, 0), (0, -1)),
-                                        ('GRID', (1,0), (-1,-1), 0.5, colors.black),
-                                        ('FONTNAME', (0,0), (-1, -1), 'Helvetica-Bold')])
+        total_data_style = TableStyle([('FONTSIZE', (0, 0), (-1, -1), 9),
+                                       ('SPAN', (0, 0), (0, 0)),
+                                       ('SPAN', (0, 0), (0, -1)),
+                                       ('GRID', (1, 0), (-1, -1), 0.5, colors.black),
+                                       ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')])
 
         note_styles = getSampleStyleSheet()
         notes_style = note_styles["Normal"]
@@ -302,7 +306,7 @@ def invoice_pdf_view(request, pk, file_name=''):
 
         if invoice.minus > 0:
             if invoice.discount_description:
-                total_data.append(["" , invoice.discount_description, str(invoice.minus)])
+                total_data.append(["", invoice.discount_description, str(invoice.minus)])
             else:
                 total_data.append(["", "MINUS ($)", str(invoice.minus)])
             total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
@@ -323,11 +327,11 @@ def invoice_pdf_view(request, pk, file_name=''):
 
         doc.build(elements, canvasmaker=NumberedPageCanvas)
 
-
         response.write(buffer.getvalue())
         buffer.close()
         return response
     return HttpResponseBadRequest()
+
 
 @login_required
 @freshbooks_access
@@ -347,8 +351,8 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
         freshbooks_invoice = freshbooks.get(search_url).json()
 
         freshbooks_invoice_search = freshbooks_invoice.get('response')\
-                                                    .get('result')\
-                                                    .get('invoices')
+            .get('result')\
+            .get('invoices')
         if len(freshbooks_invoice_search) == 0:
             return HttpResponseBadRequest()
 
@@ -364,7 +368,8 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
         #  TODO: check if freshbooks customer id is in database for file name
         try:
             freshbooks_invoice_client_id = freshbooks_invoice_search[0].get('customerid')
-            invoice_customer = Customer.objects.get(freshbooks_client_id=freshbooks_invoice_client_id)
+            invoice_customer = Customer.objects.get(
+                freshbooks_client_id=freshbooks_invoice_client_id)
             file_name = invoice_customer.get_download_file_name(invoice_number)
         except ObjectDoesNotExist:
             #  customer not registered in database
@@ -388,9 +393,10 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
         except Exception:
             return HttpResponseBadRequest()
 
-        response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))  
+        response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))
         return response
     return HttpResponseBadRequest()
+
 
 @login_required
 def orderitem_summary(request):
@@ -402,8 +408,8 @@ def orderitem_summary(request):
 
     if request.method == 'GET':
         field_names = [
-            'date','customer','product','quantity',
-            'driver_quantity','do_number','unit_price',
+            'date', 'customer', 'product', 'quantity',
+            'driver_quantity', 'do_number', 'unit_price',
             'invoice_number'
         ]
         date_start_string = request.GET.get('start_date')
@@ -413,7 +419,7 @@ def orderitem_summary(request):
             date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
             date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
             orderitems = OrderItem.objects.select_related('route', 'invoice')\
-            .filter(route__date__gte=date_start, route__date__lte=date_end)
+                .filter(route__date__gte=date_start, route__date__lte=date_end)
 
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="summary.csv"'
@@ -435,6 +441,7 @@ def orderitem_summary(request):
         else:
             return HttpResponseBadRequest()
 
+
 @login_required
 def export_invoice(request):
     if request.method == 'GET':
@@ -452,12 +459,13 @@ def export_invoice(request):
             orderitems_with_invoices = OrderItem.objects.select_related(
                 'route', 'invoice'
             )\
-            .filter(
+                .filter(
                 route__date__gte=date_start,
                 route__date__lte=date_end,
                 invoice__invoice_number__isnull=False
             )
-            invoice_ids = set([orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
+            invoice_ids = set(
+                [orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
             export_invoices = Invoice.objects.filter(invoice_number__in=invoice_ids)
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="invoice_summary.csv"'
@@ -481,6 +489,7 @@ def export_invoice(request):
         else:
             return HttpResponseBadRequest()
 
+
 @login_required
 def export_quote(request):
     if request.method == 'GET':
@@ -503,6 +512,7 @@ def export_quote(request):
         return response
     else:
         return HttpResponseBadRequest()
+
 
 @login_required
 def import_items(request):
