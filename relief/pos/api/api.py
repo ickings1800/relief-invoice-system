@@ -1,8 +1,6 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import permission_classes, authentication_classes
 from .serializers import \
@@ -13,11 +11,10 @@ from .serializers import \
     InvoiceDetailSerializer, GroupListSerializer, GroupCreateSerializer, OrderItemSerializer
 
 from ..models import Route, Customer, CustomerProduct, OrderItem, Product, Invoice, CustomerGroup, Group
-from datetime import datetime, date
+from datetime import datetime
 from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
 from ..freshbooks import freshbooks_access
-import requests
 import json
 
 @api_view(['POST'])
@@ -183,7 +180,6 @@ def route_update(request, pk):
 
         #  upload_files = request.data.getlist('upload_files')
         body = request.data
-        upload_files = []
         route_pk = body.get('id')
         validated_note = body.get('note')
         validated_do_number = body.get('do_number')
@@ -379,7 +375,7 @@ def get_available_invoice_years_filter(request):
         available_years = Invoice.objects.dates('date_generated', 'year', order='DESC')
         years = [dt.year for dt in available_years]
         return Response(status=status.HTTP_200_OK, data=years)
-    return Response(status=HTTP_400_BAD_REQUEST, data={'error': 'Unable to get invoice years'})
+    return Response(status=status.HTTP_400_BAD_REQUEST, data={'error': 'Unable to get invoice years'})
 
 
 @api_view(['DELETE'])
@@ -451,7 +447,6 @@ def create_invoice(request):
 
         if len(invoice_orderitems) > 0:
             invoice_lines = []
-            routes_id_list = [orderitem.route.pk for orderitem in invoice_orderitems]
 
             for orderitem in invoice_orderitems:
                 tax_id = orderitem.customerproduct.freshbooks_tax_1
@@ -660,7 +655,6 @@ def bulk_import_orders(request):
             customer_exists = Customer.objects.get(id=customer_id)
             customerproduct_exists = CustomerProduct.objects.get(id=customerproduct_id)
             route_exists = Route.objects.filter(do_number=do_number, date=date)
-            parsedDateTime = datetime.strptime(date, '%Y-%m-%d')
 
             if (customer_exists and customerproduct_exists):
                 if (len(route_exists) > 0):
@@ -696,7 +690,6 @@ def get_filter_orderitem_rows(request):
     if (request.method == 'GET'):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
-        do_number = request.GET.get('do_number')
         customer_ids = request.GET.get('customer_ids')
 
         parsed_start_date = None
@@ -714,7 +707,7 @@ def get_filter_orderitem_rows(request):
                 parsed_customer_ids = [x for x in customer_ids.split(';') if x != '']
 
         except ValueError:
-            return Response(status=HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
         orderitem_qset = OrderItem.objects.select_related(
             'route',
@@ -773,7 +766,6 @@ def get_freshbooks_products(request):
 @api_view(['GET'])
 @freshbooks_access
 def get_freshbooks_import_clients(request):
-    client_id = request.session['client_id']
     freshbooks_account_id = request.session['freshbooks_account_id']
     token = request.session['oauth_token']
     existing_freshbooks_clients = Customer.objects.filter(freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False)
@@ -790,7 +782,6 @@ def get_freshbooks_import_clients(request):
 @freshbooks_access
 def import_freshbooks_clients(request):
     if request.method == 'POST':
-        client_id = request.session['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
         import_client_ids = request.data.get('freshbooks_id_list')
@@ -812,7 +803,6 @@ def import_freshbooks_clients(request):
 @freshbooks_access
 def get_freshbooks_import_products(request):
     if request.method == 'GET':
-        client_id = request.session['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
         token = request.session['oauth_token']
         existing_freshbooks_products = Product.objects.filter(freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False)
@@ -961,7 +951,7 @@ def customer_sync(request):
         freshbooks_account_id = request.session['freshbooks_account_id']
         try:
             Customer.update_freshbooks_clients(freshbooks_account_id, token)
-        except Exception as err:
+        except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         customers = Customer.objects.prefetch_related('customergroup_set', 'customergroup_set__group')
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
@@ -974,6 +964,7 @@ def customer_sync(request):
 def invoice_sync(request):
     if request.method == 'POST':
         token = request.session['oauth_token']
+        client_id = request.sesion['client_id']
         freshbooks_account_id = request.session['freshbooks_account_id']
         sync_invoices = Invoice.objects.all()
         for invoice in sync_invoices:
@@ -985,7 +976,7 @@ def invoice_sync(request):
             print(freshbooks_invoice)
             freshbooks_invoice_search = freshbooks_invoice.get('response')\
                                                         .get('result')\
-                                                        .get('invoices')
+                                                        .get('invoices')\
 
             if len(freshbooks_invoice_search) > 0:
                 freshbooks_invoice = freshbooks_invoice_search[0]
@@ -995,9 +986,9 @@ def invoice_sync(request):
                 invoice.freshbooks_invoice_id = freshbooks_invoice.get('invoiceid')
                 invoice.save()
 
-
         if not freshbooks_account_id or not token:
-            return HttpResponseBadRequest()
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         invoice_serializer = InvoiceListSerializer(sync_invoices, context={'request': request}, many=True)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)

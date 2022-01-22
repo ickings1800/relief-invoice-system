@@ -1,8 +1,6 @@
 from django.contrib import admin
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.urls import reverse
-from django.db import models
-from django.forms import forms, fields, ModelForm
 from .models import Customer, Product, Invoice, Route, CustomerProduct, OrderItem, CustomerGroup, Group
 # Register your models here.
 

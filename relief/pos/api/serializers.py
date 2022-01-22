@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
-from ..models import Customer, Product, Route, OrderItem, Invoice, CustomerProduct, CustomerGroup, Group
+from ..models import Customer, Product, Route, OrderItem, Invoice, CustomerProduct, Group
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):

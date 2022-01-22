@@ -1,18 +1,17 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Frame, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.units import cm, mm
-from reportlab.lib.pagesizes import A3, A4, landscape, portrait
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Paragraph
 from datetime import datetime
-from .models import Customer, Product, CustomerProduct, Route, OrderItem, Invoice, CustomerGroup, Group
+from .models import Customer, Product, CustomerProduct, OrderItem, Invoice
 from .forms import ImportFileForm, ExportOrderItemForm, ExportInvoiceForm
 from .freshbooks import freshbooks_access
 from requests_oauthlib import OAuth2Session
@@ -21,14 +20,11 @@ from collections import Counter
 from decimal import Decimal, ROUND_UP
 from django.conf import settings
 import csv
-import requests
-import json
 import io
 
 
 # Create your views here.
 def redirect_to_freshbooks_auth(request):
-    refresh_url = "https://api.freshbooks.com/auth/oauth/token"
     client_id = settings.FRESHBOOKS_CLIENT_ID
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
@@ -389,7 +385,7 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
 
         try:
             pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
-        except Exception as e:
+        except Exception:
             return HttpResponseBadRequest()
 
         response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))  

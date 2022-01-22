@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from django.db import models
-from django.db.models import Q, Max, IntegerField, JSONField
-from django.db.models.functions import Cast
-from django.shortcuts import get_object_or_404
+from django.db.models import JSONField
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from decimal import Decimal
-from rest_framework.exceptions import APIException
 from datetime import date, datetime
 from requests_oauthlib import OAuth2Session
 import csv
