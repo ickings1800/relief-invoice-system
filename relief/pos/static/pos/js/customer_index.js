@@ -1925,7 +1925,7 @@ function importProduct(data){
 }
 
 
-function getClientsImport() {
+function getFreshbooksClientsImport() {
   let url = origin + '/pos/api/customers/freshbooks/import/';
   let response = fetch(url, {
       method: 'GET', // or 'PUT'
