@@ -28,7 +28,9 @@ urlpatterns = [
     #  /pos/token/
     path('token/', views.get_token, name='get_freshbooks_token'),
     #  /pos/token/redirect
-    path('token/redirect/', views.redirect_to_freshbooks_auth, name='freshbooks_redirect')
+    path('token/redirect/', views.redirect_to_freshbooks_auth, name='freshbooks_redirect'),
+    #  /pos/receipt/<str:submission_id>/
+    path('receipt/<str:submission_id>/', views.download_receipt, name='download_receipt'),
 ]
 
 urlpatterns += urls.urlpatterns

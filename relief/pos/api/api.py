@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.decorators import permission_classes, authentication_classes
+from django.conf import settings
 from datetime import datetime
 from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
@@ -10,91 +11,33 @@ from ..freshbooks import freshbooks_access
 from ..models import *
 from .serializers import *
 import json
+import requests
+import os
 
 
 @api_view(['POST'])
 @permission_classes([])
 @authentication_classes([])
-def detrack_webhook(request):
-    if request.method == 'POST':
-        print(request.data)
-        do_number = request.data.get('do_number')
-        do_date = request.data.get('pod_at')
-        delivery_items = request.data.get('items')
-        parsed_do_date = datetime.fromisoformat(do_date)
-        do_type = request.data.get('type')
-
-        if do_type == 'Collection':
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={'error': 'Collection D/O not supported yet.'}
-            )
-
-        route_exists = Route.objects.filter(do_number=do_number).count()
-
-        if route_exists > 0:
-            #  existing route exists
-            route = Route.objects.get(do_number=do_number)
-            route.date = parsed_do_date.date()
-            route.save()
-            for item in delivery_items:
-                item_sku = item.get('sku')
-                quantity = item.get('quantity')
-                po_number = item.get('purchase_order_number')
-
-                if quantity is None or quantity < 0:
-                    continue
-
-                customerproduct = CustomerProduct.objects.get(pk=item_sku)
-                if customerproduct:
-                    try:
-                        orderitem = OrderItem.objects.get(
-                            customerproduct=customerproduct, route=route
-                        )
-                        orderitem.quantity = quantity
-                        orderitem.driver_quantity = quantity
-                        orderitem.note = po_number
-                        orderitem.save()
-                    except OrderItem.DoesNotExist:
-                        orderitem = OrderItem.objects.create(
-                            quantity=quantity,
-                            driver_quantity=quantity,
-                            unit_price=customerproduct.quote_price,
-                            note=po_number,
-                            customerproduct=customerproduct,
-                            route=route
-                        )
-                        orderitem.save()
-            rs = RouteSerializer(route)
-            return Response(status=status.HTTP_200_OK, data=rs.data)
-        else:
-            #  enter do date into route object create
-            route = Route.objects.create(
-                do_number=do_number,
-                date=parsed_do_date.date()
-            )
-            route.save()
-            for item in delivery_items:
-                item_sku = item.get('sku')
-                quantity = item.get('quantity')
-                po_number = item.get('purchase_order_number')
-
-                if quantity is None or quantity < 0:
-                    continue
-
-                customerproduct = CustomerProduct.objects.get(pk=item_sku)
-                if customerproduct:
-                    orderitem = OrderItem.objects.create(
-                        quantity=quantity,
-                        driver_quantity=quantity,
-                        unit_price=customerproduct.quote_price,
-                        note=po_number,
-                        customerproduct=customerproduct,
-                        route=route
-                    )
-                    orderitem.save()
-            rs = RouteSerializer(route)
-            return Response(status=status.HTTP_200_OK, data=rs.data)
+def update_do_number_webhook(request):
+    update_order_url = 'https://app.detrack.com/api/v2/dn/jobs/update'
+    #  condition for info received, in progress, partial complete and completed
+    data = request.data
+    tracking_status = data.get('tracking_status')
+    do_number = data.get('do_number')
+    order_type = data.get('type')
+    if order_type == 'Delivery':
+        if tracking_status in ['Info received', 'Out for delivery']:
+            #  to update order attachment url with the do_number
+            domain = os.environ['CSRF_TRUSTED_ORIGIN']
+            data['attachment_url'] = f'{domain}/pos/receipt/{do_number}'
+            headers = {
+                'Content-Type': 'application/json',
+                'X-API-KEY': settings.DETRACK_API_KEY
+            }
+            put_object = {'do_number': do_number, 'data': data}
+            put_object_json = json.dumps(put_object)
+            response = requests.put(update_order_url, data=put_object_json, headers=headers)
+            return Response(status=status.HTTP_200_OK, data=response.json())
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
