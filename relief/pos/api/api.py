@@ -22,6 +22,7 @@ def update_do_number_webhook(request):
     update_order_url = 'https://app.detrack.com/api/v2/dn/jobs/update'
     #  condition for info received, in progress, partial complete and completed
     data = request.data
+    put_data = {}
     tracking_status = data.get('tracking_status')
     do_number = data.get('do_number')
     order_type = data.get('type')
@@ -29,12 +30,12 @@ def update_do_number_webhook(request):
         if tracking_status in ['Info received', 'Out for delivery']:
             #  to update order attachment url with the do_number
             domain = os.environ['CSRF_TRUSTED_ORIGIN']
-            data['attachment_url'] = f'{domain}/pos/receipt/{do_number}'
+            put_data['attachment_url'] = f'{domain}/pos/receipt/{do_number}'
             headers = {
                 'Content-Type': 'application/json',
                 'X-API-KEY': settings.DETRACK_API_KEY
             }
-            put_object = {'do_number': do_number, 'data': data}
+            put_object = {'do_number': do_number, 'data': put_data}
             put_object_json = json.dumps(put_object)
             response = requests.put(update_order_url, data=put_object_json, headers=headers)
             return Response(status=status.HTTP_200_OK, data=response.json())
