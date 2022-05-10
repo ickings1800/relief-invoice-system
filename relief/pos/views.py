@@ -722,13 +722,18 @@ def build_product_table(orderitems):
         actual_quantity = str(oi.get('actual_quantity') or "")
         exp_date = oi.get('expiry_date') or ""
         po_number = oi.get('purchase_order_number') or ""
+
         eng_product_name = name[0]
+        product_data = [
+            [Paragraph(eng_product_name, bodyStyle), Paragraph(actual_quantity, quantityStyle)],
+        ]
+
         if len(name) > 1:
             cn_product_name = name[1]
-        product_data = [
-            [Paragraph(cn_product_name, cnStyle), Paragraph(actual_quantity, quantityStyle)],
-            [Paragraph(eng_product_name, bodyStyle), ],
-        ]
+            product_data = [
+                [Paragraph(cn_product_name, cnStyle), Paragraph(actual_quantity, quantityStyle)],
+                [Paragraph(eng_product_name, bodyStyle), ],
+            ]
 
         if exp_date or po_number:
             product_data.append([
