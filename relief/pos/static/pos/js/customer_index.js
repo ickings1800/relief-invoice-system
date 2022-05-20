@@ -1382,8 +1382,10 @@ var CustomerList = Vue.component('CustomerList', {
       <table class="table" v-for="group in groups" v-if="currentTab === 'clients'">
         <thead>
           <tr>
-            <th>{{ group.name }}</th>
-            <th><button class="btn btn-sm" v-on:click.prevent="$emit('show-edit-group-modal', group)">Edit Group</button></th>
+            <th>{{ group.name }}
+              <button class="btn btn-sm float-right" v-on:click.prevent="$emit('show-bulk-create-modal', group)">Bulk Create</button>
+              <button class="btn btn-sm float-right mx-2" v-on:click.prevent="$emit('show-edit-group-modal', group)">Edit Group</button>
+            </th>
           </tr>
         </thead>
         <tbody v-for="client in filterCustomersByGroup(group.name)" :key="client.id">
@@ -1391,12 +1393,10 @@ var CustomerList = Vue.component('CustomerList', {
             <td>
               <span class="label c-hand" v-on:click.prevent="show_customer_details(client)">{{ client.name }}</span>
               <span v-if="client.freshbooks_client_id" class="label label-secondary">FreshBooks</span>           
-            </td>
-            <td>
-                <button class="btn btn-primary btn-sm badge"
-                v-show="customerOrderitemCount[client.name]"
-                v-bind:data-badge="customerOrderitemCount[client.name]" 
-                v-on:click="showCreateInvoice(client)">Create Invoice</button>
+              <button class="btn btn-primary btn-sm badge float-right"
+              v-show="customerOrderitemCount[client.name]"
+              v-bind:data-badge="customerOrderitemCount[client.name]" 
+              v-on:click="showCreateInvoice(client)">Create Invoice</button>
             </td>
           </tr>
         </tbody>
@@ -1552,6 +1552,110 @@ var CustomerList = Vue.component('CustomerList', {
  }
 })
 
+var BulkCreateModal = Vue.component('BulkCreateModal', {
+  data: function () {
+      return {
+        invoice_success_created: [],
+        create_date: null,
+        validation: {
+          create_date: null
+        },
+      }
+  },
+
+  template:`
+    <!-- Bulk Create Invoice Modal -->
+    <div class="modal" id="bulk-create-modal" v-bind:class="{ 'active': opened }">
+      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click="close"></a>
+      <div class="modal-container customer-create-modal-window">
+        <div class="modal-header h6" v-if="group">Bulk Create for {{ group.name }} group</div>
+        <div class="modal-body">
+          <!-- form checkbox control -->
+          <div class="form-group">
+            <label class="form-label" for="create-date">Create Date</label>
+            <input 
+              class="form-input" :class="{'is-success': create_date}"
+              id="create-date" 
+              type="date"
+              v-model="create_date"
+              required
+            />
+            <p v-if="!create_date" class="form-input-hint is-error">{{ validation.create_date }}</p>
+          </div>
+          <li v-for="invoice in invoice_success_created" :key="invoice.id">
+            [{{ invoice.invoice_number }}] {{invoice.customer_name }}
+          </li>
+        </div>
+        <div class="modal-footer">
+            <div class="divider"></div>
+            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
+            <a href="#save" v-on:click="bulkCreate" class="btn btn-primary">Submit</a>
+        </div>
+      </div>
+    </div>
+   `,
+   props: ['opened', 'orderitems', 'clients', 'group'],
+   components: {},
+   computed: {
+   },
+   watch: {
+       opened: function(val){
+           if (val) {
+               console.log("opened is true");
+           }
+       },
+       create_date: function(val) {
+        if (val) return true;
+        this.validation.create_date = "Invoice create date is required"
+        return false;
+       }
+   },
+   methods: {
+       reset: function() {
+          this.create_date = null;
+       },
+       close: function(event){
+           this.reset();
+           this.$emit('show-bulk-create-modal')
+       },
+       bulkCreate: function() {
+        if (this.create_date === null) return;
+        this.validation.create_date = null;
+        let customerFilter = this.filterCustomersByGroup(this.group.name).map(customer => customer.id)
+        let mapping = this.orderitems.reduce((acc, orderitem) => {
+        if (customerFilter.indexOf(orderitem.customer_id) > -1) {
+          if (!acc[orderitem.customer_id]) {
+            acc[orderitem.customer_id] = []
+          }
+          acc[orderitem.customer_id].push(orderitem.id)
+        }
+          return acc
+        }, {})
+
+        Object.keys(mapping).forEach(async key => {
+          const data = {
+            'customer_id': key,
+            'create_date': this.create_date,
+            'orderitems_id': mapping[key],
+          }
+          console.log(data)
+          // try {
+          //   let response = await createInvoice(data)
+          //   if (response.ok) {
+          //     let success_invoice = await response.json()
+          //     this.invoice_success_created.push(success_invoice)
+          //   }
+          // } catch (err) {
+          //   console.error(err);
+          // }
+        })
+       },
+       filterCustomersByGroup: function(group_name){
+        return this.clients.filter(client => client.group.indexOf(this.group.name) >= 0)
+       },
+   }
+})
+
 
 
 var app = new Vue({
@@ -1571,7 +1675,9 @@ var app = new Vue({
           show_import_client_modal: false,
           show_download_range_modal: false,
           show_import_product_modal: false,
+          show_bulk_create_modal: false,
           edit_group: null,
+          bulk_create_group: null,
           edit_quote: null,
           detail_customer: null,
           detail_product: null,
@@ -1612,7 +1718,8 @@ var app = new Vue({
                   this.show_invoice_delete_modal ||
                   this.show_import_client_modal ||
                   this.show_download_range_modal ||
-                  this.show_import_product_modal
+                  this.show_import_product_modal ||
+                  this.show_bulk_create_modal
       return open
     }
   },
@@ -1640,6 +1747,7 @@ var app = new Vue({
       'import-client-modal': ImportClientModal,
       'import-product-modal': ImportProductModal,
       'download-range-modal': DownloadRangeModal,
+      'bulk-create-modal': BulkCreateModal,
       'customer-list': CustomerList,
   },
   methods: {
@@ -1777,6 +1885,18 @@ var app = new Vue({
       if (this.show_download_range_modal){
       }
       if (!this.show_download_range_modal){
+      }
+    },
+    show_bulk_create_modal_window: function(group){
+      console.log("show bulk create modal")
+      this.show_bulk_create_modal = !this.show_bulk_create_modal;
+      if (this.show_bulk_create_modal){
+        console.log(group)
+        this.bulk_create_group = group
+      }
+      if (!this.show_bulk_create_modal){
+        this.bulk_create_group = null;
+        getAllOrderitems().then(res => res.json()).then(res => this.orderitems = res)
       }
     },
     sync_clients: function(){

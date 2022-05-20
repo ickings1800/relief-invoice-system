@@ -508,7 +508,8 @@ def create_invoice(request):
                     orderitem.invoice = new_invoice
                     orderitem.save()
 
-                return Response(data=response.json(), status=status.HTTP_201_CREATED)
+                invoice_serializer = InvoiceDetailSerializer(new_invoice)
+                return Response(data=invoice_serializer.data, status=status.HTTP_201_CREATED)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 

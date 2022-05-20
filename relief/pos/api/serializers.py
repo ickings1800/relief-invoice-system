@@ -151,6 +151,8 @@ class RouteSerializer(serializers.ModelSerializer):
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
     orderitem_set = SerializerMethodField()
+    customer_pk = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -162,7 +164,8 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
                   'net_gst',
                   'total_incl_gst',
                   'remark',
-                  'customer',
+                  'customer_pk',
+                  'customer_name',
                   'po_number',
                   'discount_description',
                   'discount_percentage',
@@ -172,6 +175,12 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     def get_orderitem_set(self, obj):
         ordered_orderitem = obj.orderitem_set.order_by('route__date')
         return OrderItemSerializer(ordered_orderitem, many=True, context=self.context).data
+
+    def get_customer_name(self, obj):
+        return obj.customer.name
+
+    def get_customer_pk(self, obj):
+        return obj.customer.pk
 
 
 class RouteListSerializer(serializers.HyperlinkedModelSerializer):

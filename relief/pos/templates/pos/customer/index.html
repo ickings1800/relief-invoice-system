@@ -20,6 +20,7 @@
         v-on:show-import-client-modal="show_import_client_modal_window"
         v-on:show-download-range-modal="show_download_range_modal_window"
         v-on:show-import-product-modal="show_import_product_modal_window"
+        v-on:show-bulk-create-modal="show_bulk_create_modal_window"
         v-on:sync-clients="sync_clients"
         v-on:sync-invoices="sync_invoices"
         v-on:filter-invoice="filter_invoices"
@@ -94,6 +95,13 @@
         v-on:show-download-range-modal="show_download_range_modal_window"
         v-bind:opened="show_download_range_modal">
     </download-range-modal>
+    <bulk-create-modal
+        v-on:show-bulk-create-modal="show_bulk_create_modal_window"
+        v-bind:group="bulk_create_group"
+        v-bind:orderitems="orderitems"
+        v-bind:clients="clients"
+        v-bind:opened="show_bulk_create_modal">
+    </bulk-create-modal>
 </div>
 {% endverbatim %}
 {% endblock %}
