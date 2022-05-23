@@ -364,7 +364,9 @@ def create_invoice(request):
             invoice_customer = Customer.objects.get(pk=customer_id)
             invoice_orderitems = OrderItem.objects.filter(pk__in=orderitems_id)
             parsed_create_date = datetime.strptime(create_date, "%Y-%m-%d")
-            minus_decimal = Decimal(minus)
+            minus_decimal = Decimal(0)
+            if minus:
+                minus_decimal = Decimal(minus)
         except Exception as e:
             print(str(e))
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
