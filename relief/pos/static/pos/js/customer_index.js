@@ -1639,15 +1639,15 @@ var BulkCreateModal = Vue.component('BulkCreateModal', {
             'orderitems_id': mapping[key],
           }
           console.log(data)
-          // try {
-          //   let response = await createInvoice(data)
-          //   if (response.ok) {
-          //     let success_invoice = await response.json()
-          //     this.invoice_success_created.push(success_invoice)
-          //   }
-          // } catch (err) {
-          //   console.error(err);
-          // }
+          try {
+            let response = await createInvoice(data)
+            if (response.ok) {
+              let success_invoice = await response.json()
+              this.invoice_success_created.push(success_invoice)
+            }
+          } catch (err) {
+            console.error(err);
+          }
         })
        },
        filterCustomersByGroup: function(group_name){
