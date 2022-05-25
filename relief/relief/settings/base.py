@@ -35,7 +35,10 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_pivot',
     'storages',
+    'users',
 ]
+
+AUTH_USER_MODEL = 'users.User'
 
 ROOT_URLCONF = 'relief.urls'
 
