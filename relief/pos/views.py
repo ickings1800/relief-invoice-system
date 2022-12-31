@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
@@ -12,7 +13,7 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics, ttfonts
 from datetime import datetime
-from .models import Customer, Product, CustomerProduct, OrderItem, Invoice
+from .models import Customer, Product, CustomerProduct, OrderItem, Invoice, Company
 from .forms import ImportFileForm, ExportOrderItemForm, ExportInvoiceForm
 from .freshbooks import freshbooks_access
 from requests_oauthlib import OAuth2Session
@@ -47,8 +48,29 @@ def get_token(request):
         authorization_response=callback_url,
         client_secret=client_secret)
 
-    request.session['oauth_token'] = token
-    return HttpResponseRedirect(reverse('pos:overview'))
+    # Use the access token to authenticate the user with the OAuth service
+    # to check for the user's freshbooks account id
+    res = oauth.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
+
+    account_id = res.get('response')\
+                    .get('business_memberships')[0]\
+                    .get('business')\
+                    .get('account_id')
+
+    company = get_object_or_404(Company, freshbooks_account_id=account_id)
+
+    # If the user has a freshbooks account id, find the user object and log them in
+    if company is not None:
+        login(request, company.user)
+        request.session['freshbooks_account_id'] = account_id
+        request.session['oauth_token'] = token
+        return HttpResponseRedirect(reverse('pos:overview'))
+    # Handle the case where the login failed, where user has logged in by freshbooks,
+    # but does not have an account on the system.
+    # TODO: (register a new user, company object)
+    return HttpResponse(status=404)
+
+
 
 
 @login_required

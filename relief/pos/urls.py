@@ -22,13 +22,11 @@ urlpatterns = [
     #  /pos/import/
     path('import/', views.import_items, name='import_items'),
     #  /pos/login
-    path('login/', auth_views.LoginView.as_view(template_name='pos/login.html'), name='login'),
+    path('login/', views.redirect_to_freshbooks_auth, name='login'),
     #  /pos/logout
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     #  /pos/token/
     path('token/', views.get_token, name='get_freshbooks_token'),
-    #  /pos/token/redirect
-    path('token/redirect/', views.redirect_to_freshbooks_auth, name='freshbooks_redirect'),
     #  /pos/receipt/<str:submission_id>/
     path('receipt/<str:submission_id>/', views.download_receipt, name='download_receipt'),
 ]

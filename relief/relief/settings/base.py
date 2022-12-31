@@ -122,8 +122,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 LOGIN_URL = '/pos/login/'
-LOGIN_REDIRECT_URL = '/pos/token/redirect/'
-LOGOUT_REDIRECT_URL = '/pos/login'
+LOGOUT_REDIRECT_URL = 'https://my.freshbooks.com/'
+
 
 DEBUG = False
 

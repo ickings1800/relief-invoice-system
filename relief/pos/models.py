@@ -19,6 +19,8 @@ class Company(models.Model):
     tel_no = models.CharField(max_length=8)
     business_no = models.CharField(max_length=10)
     fax_no = models.CharField(max_length=8)
+    freshbooks_account_id = models.CharField(max_length=255, null=False, blank=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False)
 
 
 class Group(models.Model):
