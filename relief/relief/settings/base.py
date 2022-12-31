@@ -124,6 +124,7 @@ STATIC_URL = '/static/'
 LOGIN_URL = '/pos/login/'
 LOGOUT_REDIRECT_URL = 'https://my.freshbooks.com/'
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 DEBUG = False
 
