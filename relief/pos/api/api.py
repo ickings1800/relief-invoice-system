@@ -1081,7 +1081,7 @@ def invoice_update(request, pk):
                 .get('invoice')\
                 .get('create_date')
 
-            gst_decimal = Decimal(existing_invoice.customer.gst / 100)
+            gst_decimal = Decimal(existing_invoice.gst / 100)
             net_total -= minus_decimal
             net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
             total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
@@ -1089,7 +1089,7 @@ def invoice_update(request, pk):
             existing_invoice.create_date = date_created
             existing_invoice.po_number = po_number
             existing_invoice.net_total = net_total
-            existing_invoice.gst = existing_invoice.customer.gst
+            existing_invoice.gst = existing_invoice.gst
             existing_invoice.net_gst = net_gst
             existing_invoice.total_incl_gst = total_incl_gst
             existing_invoice.invoice_number = invoice_number

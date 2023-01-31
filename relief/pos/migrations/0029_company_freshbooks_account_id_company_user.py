@@ -4,6 +4,14 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def add_existing_user_row(apps, schema_editor):
+    Company = apps.get_model('pos', 'Company')
+    User = apps.get_model('users', 'User')
+    Company.objects.create(
+        freshbooks_account_id='wo1Oj',
+        user=User.objects.get(pk=1)
+    )
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -24,4 +32,5 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, to='users.user'),
             preserve_default=False,
         ),
+        migrations.RunPython(add_existing_user_row)
     ]

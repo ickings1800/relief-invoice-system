@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
 from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
@@ -188,7 +188,7 @@ def invoice_pdf_view(request, pk, file_name=''):
             subtotal += v
 
         total_nett_amt = subtotal - invoice.minus
-        gst_decimal = Decimal(invoice_customer.gst / 100)
+        gst_decimal = Decimal(invoice.gst / 100)
         gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
         total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
@@ -336,7 +336,7 @@ def invoice_pdf_view(request, pk, file_name=''):
                 total_data.append(["", "MINUS ($)", str(invoice.minus)])
             total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
 
-        total_data.append(["", "GST ({0}%)".format(invoice_customer.gst), str(gst)])
+        total_data.append(["", "GST ({0}%)".format(invoice.gst), str(gst)])
         total_data.append(["", "TOTAL (inc. GST) ($)", str(total_incl_gst)])
         total_data_table = Table(total_data, [12.8*cm, 4*cm, 2*cm])
         total_data_table.hAlign = 'RIGHT'
