@@ -607,7 +607,7 @@ def download_receipt(request, submission_id):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=(80*mm, 180*mm),
+        pagesize=(58*mm, 180*mm),
         rightMargin=3*mm,
         leftMargin=3*mm,
         topMargin=3*mm,
@@ -696,7 +696,7 @@ def download_receipt(request, submission_id):
     elements += product_table
     elements += empty_product_table
     extra_paper_height = num_expiry_dates * 5
-    doc.pagesize = (80*mm, (180 + extra_paper_height) * mm)
+    doc.pagesize = (58*mm, (180 + extra_paper_height) * mm)
     doc.build(elements)
     filename = str(uuid.uuid4())
     response = HttpResponse(content_type='application/pdf')
