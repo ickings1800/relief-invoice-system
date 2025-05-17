@@ -380,7 +380,7 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
         // and cause rate limiting for a large range of pdfs
         let timeout_ms = 0;
         this.download_promises.forEach((promise) => {
-          timeout_ms += 2000;
+          timeout_ms += 12000;
           setTimeout(function() {
             promise.then(async res => {
               const filename = res.headers.get("content-disposition").split('"')[1];
