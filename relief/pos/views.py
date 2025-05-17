@@ -549,6 +549,7 @@ def import_items(request):
             import_product_file = request.FILES.get('import_product_file', None)
             import_quote_file = request.FILES.get('import_quote_file', None)
             import_orderitem_file = request.FILES.get('import_orderitem_file', None)
+            import_detrack_file = request.FILES.get('import_detrack_file', None)
             import_invoice_file = request.FILES.get('import_invoice_file', None)
 
             if import_customer_file:
@@ -582,6 +583,12 @@ def import_items(request):
                         destination.write(chunk)
                 with open('/tmp/orderitem_import.csv') as csv_file:
                     OrderItem.handle_orderitem_import(csv_file)
+            if import_detrack_file:
+                with open('/tmp/detrack_import.csv', 'wb+') as destination:
+                    for chunk in import_detrack_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/detrack_import.csv') as csv_file:
+                    OrderItem.handle_detrack_import(csv_file)
             return HttpResponseRedirect(reverse('pos:import_items'))
     else:
         form = ImportFileForm()

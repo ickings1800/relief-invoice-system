@@ -519,3 +519,55 @@ class OrderItem(models.Model):
                     invoice=invoice_obj
                 )
                 new_orderitem.save()
+
+    def handle_detrack_import(csv_file):
+        csv_reader = csv.DictReader(csv_file, delimiter=',')
+
+        #  save csv into memory
+        for row in csv_reader:
+            date = row['Date']
+            sku = row['SKU']
+            orderitem_qty = row['Actual Quantity']
+            do_number = row['D.O. No.']
+            name = row['Deliver to']
+            po_number_start = name.index('(') if '(' in name else None
+            po_number_end = name.index(')') if ')' in name else None
+            po_number = ''
+
+            if not sku:
+                continue
+
+            if int(orderitem_qty) <= 0:
+                continue
+
+            if po_number_start and po_number_end:
+                po_number = name[po_number_start:po_number_end+1]
+
+            parsed_date = datetime.strptime(date, '%d/%m/%Y')
+            formatted_date = parsed_date.strftime('%Y-%m-%d')
+            quote_obj = CustomerProduct.objects.filter(pk=sku).first()
+            route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
+
+            if quote_obj and route_obj:
+                new_orderitem = OrderItem(
+                    note=po_number,
+                    quantity=orderitem_qty,
+                    driver_quantity=orderitem_qty,
+                    unit_price=quote_obj.quote_price,
+                    customerproduct=quote_obj,
+                    route=route_obj
+                )
+                new_orderitem.save()
+
+            if quote_obj and route_obj is None:
+                new_route = Route(do_number=do_number, date=formatted_date)
+                new_route.save()
+                new_orderitem = OrderItem(
+                    note=po_number,
+                    quantity=orderitem_qty,
+                    driver_quantity=orderitem_qty,
+                    unit_price=quote_obj.quote_price,
+                    customerproduct=quote_obj,
+                    route=new_route
+                )
+                new_orderitem.save()

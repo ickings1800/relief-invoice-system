@@ -11,6 +11,8 @@ class ImportFileForm(forms.Form):
         attrs={'class': 'form-input', 'type': 'file'}))
     import_orderitem_file = forms.FileField(required=False, widget=forms.TextInput(attrs={
                                             'class': 'form-input', 'type': 'file'}))
+    import_detrack_file = forms.FileField(required=False, widget=forms.TextInput(attrs={
+                                            'class': 'form-input', 'type': 'file'}))
     import_invoice_file = forms.FileField(required=False, widget=forms.TextInput(
         attrs={'class': 'form-input', 'type': 'file'}))
 
