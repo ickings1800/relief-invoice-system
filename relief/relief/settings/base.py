@@ -10,14 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import os
+from pathlib import Path
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # Remember to set SECRET_KEY env var!
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.realpath(os.path.dirname(__file__) + "/.."))
-print(BASE_DIR)
+BASE_DIR = Path(__file__).resolve().parent.parent
+print("BASE DIR::", BASE_DIR)
 
 # Application definition
 
@@ -46,7 +47,7 @@ ROOT_URLCONF = 'relief.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR + '/pos/static/'],
+        'DIRS': [BASE_DIR / '/staticfiles'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -116,6 +117,9 @@ USE_L10N = True
 
 USE_TZ = True
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS").split(" ")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
@@ -149,24 +153,24 @@ DETRACK_API_KEY = os.environ['DETRACK_API_KEY']
 
 #SESSION_COOKIE_SECURE = True
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'debug.log'),
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'file': {
+#             'level': 'DEBUG',
+#             'class': 'logging.FileHandler',
+#             'filename': os.path.join(BASE_DIR, 'debug.log'),
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['file'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     },
+# }
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -193,5 +197,5 @@ AWS_DEFAULT_ACL = 'private'
 if not os.environ.get('DJANGO_DEVELOPMENT'):
     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
-print(STATIC_ROOT)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+print("BASE STATIC ROOT:: ", STATIC_ROOT)
