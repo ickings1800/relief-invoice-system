@@ -57,6 +57,7 @@ fixtures/
 local_settings.py
 db.sqlite3
 relief.sqlite
+*.sqlite
 
 # Flask stuff:
 instance/

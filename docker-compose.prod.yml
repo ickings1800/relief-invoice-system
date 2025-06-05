@@ -10,6 +10,7 @@ services:
       - 8000
     volumes:
       - ./relief/:/home/app/
+      - ./relief.sqlite:/home/app/relief.sqlite:rw
       - static_volume:/home/app/relief/staticfiles
     env_file:
       - ./.env.prod

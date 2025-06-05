@@ -40,7 +40,7 @@ FROM python:3.8-slim-buster
 
 RUN mkdir -p /home/app
 
-RUN addgroup --system app && adduser --system --group app
+RUN adduser --uid 1000 --system --group app
 
 ENV HOME=/home/app
 ENV APP_HOME=/home/app
