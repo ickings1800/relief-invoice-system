@@ -11,6 +11,7 @@ jobs:
   if_merged:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: relief-env
     env:
       LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
       LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
