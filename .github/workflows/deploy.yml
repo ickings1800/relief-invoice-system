@@ -1,0 +1,32 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches:
+      - master  # or the branch you deploy from
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/gh_rsa
+        chmod 600 ~/.ssh/gh_rsa
+        ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy via SSH
+      run: |
+        ssh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} << 'EOF'
+          NOW=$( date '+%Y%m%d%H%M%S' )
+          cd /home/ubuntu/relief-invoice-system  # Adjust this
+          docker compose docker-compose.prod.yml down
+          cp /home/ubuntu/relief-invoice-system/relief.sqlite "../db-backup/relief-${NOW}.sqlite"
+          git pull origin master
+          docker-compose docker-compose.prod.yml up -d --build
+        EOF
