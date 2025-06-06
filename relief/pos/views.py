@@ -1,785 +1,787 @@
-from django.db.models import F, Q
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.shortcuts import render, get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.urls import reverse
-from django.http import HttpResponseRedirect
-from django.views.generic import ListView, CreateView, UpdateView, FormView, DeleteView, DetailView
-from .models import Customer, Product, Trip, CustomerProduct, Route, OrderItem, Invoice, Company
-from .forms import CustomerForm, ProductForm, TripForm, TripDetailForm, CustomerProductCreateForm, \
-    CustomerProductUpdateForm, OrderItemFormSet, RouteForm, \
-    InvoiceDateRangeForm, InvoiceOrderItemForm, InvoiceAddOrderForm, InvoiceForm, RouteArrangementFormSet
-from django.db.models import Max
-from datetime import datetime, date, timedelta
-from collections import defaultdict
-from decimal import Decimal
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest, FileResponse
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.units import cm, mm
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics, ttfonts
+from datetime import datetime
+from .models import Customer, Product, CustomerProduct, OrderItem, Invoice, Company
+from .forms import ImportFileForm, ExportOrderItemForm, ExportInvoiceForm
+from .freshbooks import freshbooks_access
+from requests_oauthlib import OAuth2Session
+from django_pivot.pivot import pivot
+from collections import Counter
+from decimal import Decimal, ROUND_UP
+from django.conf import settings
+import csv
+import io
+import requests
+import uuid
 
 
 # Create your views here.
+def redirect_to_freshbooks_auth(request):
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
+    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
+    authorization_url, state = oauth.authorization_url(
+        'https://auth.freshbooks.com/service/auth/oauth/authorize')
+    return HttpResponseRedirect(authorization_url)
 
-class CustomerIndexView(ListView):
+
+def get_token(request):
+    callback_url = request.get_full_path()
+    client_id = settings.FRESHBOOKS_CLIENT_ID
+    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
+    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
+    token = oauth.fetch_token(
+        "https://api.freshbooks.com/auth/oauth/token",
+        authorization_response=callback_url,
+        client_secret=client_secret)
+
+    # Use the access token to authenticate the user with the OAuth service
+    # to check for the user's freshbooks account id
+    res = oauth.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
+
+    account_id = res.get('response')\
+                    .get('business_memberships')[0]\
+                    .get('business')\
+                    .get('account_id')
+
+    company = get_object_or_404(Company, freshbooks_account_id=account_id)
+
+    # If the user has a freshbooks account id, find the user object and log them in
+    if company is not None:
+        login(request, company.user)
+        request.session['freshbooks_account_id'] = account_id
+        request.session['oauth_token'] = token
+        return HttpResponseRedirect(reverse('pos:overview'))
+    # Handle the case where the login failed, where user has logged in by freshbooks,
+    # but does not have an account on the system.
+    # TODO: (register a new user, company object)
+    return HttpResponse(status=404)
+
+
+
+
+@login_required
+def overview(request):
     template_name = 'pos/customer/index.html'
-    context_object_name = 'customer_list'
-
-    def get_queryset(self):
-        return Customer.objects.all()
-
-
-class CustomerDetailView(DetailView):
-    model = Customer
-    template_name = 'pos/customer/detail.html'
-
-
-class CustomerCreateView(CreateView):
-    model = Customer
-    template_name = 'pos/customer/create.html'
-    form_class = CustomerForm
-
-    def get_success_url(self):
-        return reverse('pos:customer_index')
-
-
-class CustomerEditView(UpdateView):
-    template_name = 'pos/customer/edit.html'
-    model = Customer
-    form_class = CustomerForm
-
-    def get_success_url(self):
-        return reverse('pos:customer_index')
-
-
-class ProductIndexView(ListView):
-    template_name = 'pos/product/index.html'
-    context_object_name = 'product_list'
-
-    def get_queryset(self):
-        return Product.objects.all()
-
-
-class ProductCreateView(CreateView):
-    model = Product
-    template_name = 'pos/product/create.html'
-    form_class = ProductForm
-
-    def get_success_url(self):
-        return reverse('pos:product_index')
-
-
-class ProductEditView(UpdateView):
-    model = Product
-    template_name = 'pos/product/edit.html'
-    form_class = ProductForm
-
-    def get_success_url(self):
-        return reverse('pos:product_index')
-
-
-class CustomerRouteView(ListView):
-    template_name = 'pos/route/customer_routes.html'
-    context_object_name = 'route_list'
-
-    def get_queryset(self):
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        route_list = Route.objects.filter(orderitem__customerproduct__customer_id=customer.pk)\
-                                .filter((Q(orderitem__quantity__gt=0) | Q(orderitem__driver_quantity__gt=0)))\
-            .distinct()
-        return route_list
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerRouteView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
-
-class TripIndexView(ListView):
-    template_name = 'pos/trip/index.html'
-    context_object_name = 'trip_list'
-
-    def get_queryset(self):
-        return Trip.objects.all().order_by('-date')
-
-
-class TripCreateView(FormView):
-    template_name = 'pos/trip/create.html'
-    form_class = TripForm
-
-    def form_valid(self, form):
-        trip = Trip.objects.create(
-            date=form.cleaned_data['date'],
-            notes=form.cleaned_data['notes'],
-            packaging_methods=form.cleaned_data['packaging']
-        )
-        trip.save()
-        return HttpResponseRedirect(reverse('pos:trip_index'))
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
-
-
-class TripCopyView(FormView):
-    template_name = 'pos/trip/copy.html'
-    form_class = TripForm
-
-    def get_context_data(self, **kwargs):
-        trip_pk = self.kwargs.get('pk')
-        trip = get_object_or_404(Trip, pk=trip_pk)
-        context = super(TripCopyView, self).get_context_data(**kwargs)
-        context['trip'] = trip
-        return context
-
-    def get_initial(self):
-        trip = Trip.objects.get(pk=self.kwargs['pk'])
-        initial = super(TripCopyView, self).get_initial()
-        initial['date'] = trip.date
-        initial['notes'] = trip.notes
-        initial['packaging'] = trip.packaging_methods
-        return initial
-
-    def form_valid(self, form):
-        new_trip = Trip.objects.create(
-            date=form.cleaned_data['date'],
-            notes=form.cleaned_data['notes'],
-            packaging_methods=form.cleaned_data['packaging']
-        )
-        new_trip.save()
-        trip_copy = self.kwargs.get('pk')
-        if trip_copy:
-            trip = get_object_or_404(Trip, pk=trip_copy)
-            for r in trip.route_set.all():
-                orderitems = [OrderItem(quantity=oi.quantity,
-                                        driver_quantity=0,
-                                        note=oi.note,
-                                        customerproduct=oi.customerproduct,
-                                        packing=oi.packing) for oi in r.orderitem_set.all()]
-                r.pk = None
-                r.do_number = ""
-                r.invoice = None
-                r.trip = new_trip
-                r.save()
-                for oi in orderitems:
-                    oi.route = r
-                    oi.pk = None
-                    oi.save()
-        return HttpResponseRedirect(reverse('pos:trip_index'))
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
-
-
-class TripDetailView(FormView):
-    model = Trip
-    template_name = 'pos/trip/detail.html'
-    form_class = TripDetailForm
-
-    def get_context_data(self, **kwargs):
-        trip = get_object_or_404(Trip, pk=self.kwargs['pk'])
-        routes = trip.route_set.all().order_by('index')
-        [r.orderitem_set.all() for r in routes]
-        packing = []
-        if trip.packaging_methods:
-            packing = [key for key in trip.packaging_methods.split(',')]
-        packing_sum_ddict = defaultdict(int)
-
-        for r in routes:
-            for oi in r.orderitem_set.all():
-                if oi.packing:
-                    for method, value in oi.packing.items():
-                        if oi.packing.get(method):
-                            packing_sum_ddict[method] += value
-
-        packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-
-        context = super(TripDetailView, self).get_context_data(**kwargs)
-        context['trip'] = trip
-        context['routes'] = routes
-        context['packing'] = packing
-        context['packing_sum'] = packing_sum
-        context['customers'] = Customer.objects.all()
-        return context
-
-    def form_valid(self, form):
-        if form.is_valid():
-            note = form.cleaned_data['note']
-            customer = form.cleaned_data['customer'].upper()
-            trip = Trip.objects.get(pk=self.kwargs['pk'])
-            route_list = Route.objects.filter(trip_id=self.kwargs['pk'])
-            route_indexes = [r.index for r in route_list]
-            route = Route(index=max(route_indexes, default=0) + 1, trip=trip, note=note)
-            route.save()
-
-            if customer:
-                customer = get_object_or_404(Customer, name=customer)
-                customer_id = customer.pk
-                customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
-
-                for cp in customerproducts:
-                    orderitem = OrderItem(customerproduct=cp, route=route)
-                    orderitem.save()
-
-        return super(TripDetailView, self).form_valid(form)
-
-    def get_success_url(self):
-        return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['pk']})
-
-
-def print_trip_detail(request, pk):
-    template_name = 'pos/trip/print_detail.html'
-    trip = get_object_or_404(Trip, pk=pk)
-    routes = trip.route_set.all().order_by('index')
-    [r.orderitem_set.all() for r in routes]
-    packing = []
-    if trip.packaging_methods:
-        packing = [key for key in trip.packaging_methods.split(',')]
-    packing_sum_ddict = defaultdict(int)
-
-    for r in routes:
-        for oi in r.orderitem_set.all():
-            if oi.packing:
-                for method, value in oi.packing.items():
-                    if oi.packing.get(method):
-                        packing_sum_ddict[method] += value
-
-    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-
-    context = {}
-    context['trip'] = trip
-    context['routes'] = routes
-    context['packing'] = packing
-    context['packing_sum'] = packing_sum
-    return render(request, template_name, context)
-
-
-class TripEditView(FormView):
-    template_name = 'pos/trip/edit.html'
-    form_class = TripForm
-
-    def get_context_data(self, **kwargs):
-        trip = Trip.objects.get(pk=self.kwargs['pk'])
-        context = super(TripEditView, self).get_context_data(**kwargs)
-        context['trip'] = trip
-        return context
-
-    def get_initial(self):
-        trip = Trip.objects.get(pk=self.kwargs['pk'])
-        initial = super(TripEditView, self).get_initial()
-        initial['date'] = trip.date
-        initial['notes'] = trip.notes
-        initial['packaging'] = trip.packaging_methods
-        return initial
-
-    def form_valid(self, form):
-        trip_date = form.cleaned_data['date']
-        trip_notes = form.cleaned_data['notes']
-        trip_packaging = form.cleaned_data['packaging']
-        trip_pk = self.kwargs['pk']
-
-        trip = get_object_or_404(Trip, pk=trip_pk)
-        trip.date = trip_date
-        trip.notes = trip_notes
-        trip.packaging_methods = trip_packaging
-        trip.save()
-
-        return super(TripEditView, self).form_valid(form)
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
-
-
-class TripDeleteView(DeleteView):
-    template_name = 'pos/trip/trip_confirm_delete.html'
-    model = Trip
-
-    def get_object(self, queryset=None):
-        return Trip.objects.get(pk=self.kwargs['pk'])
-
-
-    def get_success_url(self):
-        return reverse('pos:trip_index')
-
-
-def TripArrangementView(request, pk):
-    trip = get_object_or_404(Trip, pk=pk)
-    template_name = 'pos/trip/arrange.html'
-    packing = []
-    if trip.packaging_methods:
-        packing = [key for key in trip.packaging_methods.split(',')]
-    packing_sum_ddict = defaultdict(int)
-    route_arrange = trip.route_set.all().order_by('index')
-
-    for r in route_arrange:
-        for oi in r.orderitem_set.all():
-            if oi.packing:
-                for method, value in oi.packing.items():
-                    if oi.packing.get(method):
-                        packing_sum_ddict[method] += value
-
-    packing_sum = {k: v for k, v in packing_sum_ddict.items()}
-
-    context = {'trip': trip,
-               'packing': packing,
-               'packing_sum': packing_sum,
-               'errors': []}
-
-    if request.method == 'POST':
-        arrange_formset = RouteArrangementFormSet(request.POST)
-        context['arrange_formset'] = arrange_formset
-        if arrange_formset.is_valid():
-            order_index = [r.cleaned_data['index'] for r in arrange_formset.forms]
-            index_range = [i+1 for i in range(len(arrange_formset))]
-            valid_range = all(elem in order_index for elem in index_range)
-            if not valid_range:
-                context['errors'].append("Numbering not in sequence.")
-                return render(request, template_name, context)
-
-            arrange_formset.save()
-            return HttpResponseRedirect(reverse('pos:trip_detail', kwargs={'pk': pk}))
-
-        return render(request, template_name, context)
-
-    arrange_formset = RouteArrangementFormSet(queryset=route_arrange)
-    context['arrange_formset'] = arrange_formset
-    return render(request, template_name, context)
-
-
-class RouteEditView(UpdateView):
-    model = Route
-    template_name = 'pos/route/edit.html'
-    form_class = RouteForm
-
-    def get_context_data(self, **kwargs):
-        route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        packing = []
-        if route.trip.packaging_methods:
-            packing = [key for key in route.trip.packaging_methods.split(',')]
-        oi_formset = OrderItemFormSet(instance=route, form_kwargs={'packing': packing})
-        #  Read JSON and output to packing table.
-        context = super().get_context_data(**kwargs)
-        context['route'] = route
-        context['orderitems'] = oi_formset
-        context['packing'] = packing
-        return context
-
-    def form_valid(self, form):
-        route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        packing = []
-        if route.trip.packaging_methods:
-            packing = [key for key in route.trip.packaging_methods.split(',')]
-        oi_formset = OrderItemFormSet(self.request.POST, instance=route, form_kwargs={'packing': packing})
-        if oi_formset.is_valid() and form.is_valid():
-            for oi_form in oi_formset:
-                oi_form.save(packing)
-            form.save()
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        route = get_object_or_404(Route, pk=self.kwargs['pk'])
-        return reverse('pos:trip_detail', kwargs={'pk':route.trip.id})
-
-
-class RouteDeleteView(DeleteView):
-    model = Route
-    template_name = 'pos/route/route_confirm_delete.html'
-
-    def get_object(self, queryset=None):
-        route = get_object_or_404(Route, pk=self.kwargs['route_pk'])
-        return route
-
-    def delete(self, request, *args, **kwargs):
-        super(RouteDeleteView, self).delete(request, args, kwargs)
-        route_list = Route.objects.filter(trip_id=self.kwargs['trip_pk'])
-        for i in range(len(route_list)):
-            route_list[i].index = i+1
-            route_list[i].save()
-        return HttpResponseRedirect(self.get_success_url())
-
-    def get_success_url(self):
-        return reverse('pos:trip_detail', kwargs={'pk':self.kwargs['trip_pk']})
-
-
-class CustomerProductListView(ListView):
-    template_name = 'pos/customerproduct/index.html'
-    context_object_name = 'customerproduct_list'
-
-    def get_queryset(self):
-        customer = self.kwargs['pk']
-        return CustomerProduct.objects.filter(customer_id=customer)
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerProductListView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, pk=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
-
-class CustomerProductCreateView(FormView):
-    template_name = 'pos/customerproduct/create.html'
-    form_class = CustomerProductCreateForm
-
-    def get_context_data(self, **kwargs):
-        context = super(CustomerProductCreateView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
-
-    def get_initial(self):
-        initial = super(CustomerProductCreateView, self).get_initial()
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        initial['customer'] = customer.id
-        return initial
-
-    def form_valid(self, form):
-        customer_data = int(form.cleaned_data['customer'])
-        product_data = int(form.cleaned_data['product'])
-        quote = form.cleaned_data['quote_price']
-
-        customerproduct_exists = CustomerProduct.objects.filter(customer_id=customer_data, product_id=product_data)
-        if len(customerproduct_exists) > 0:
-            form.add_error('product', "CustomerProduct already exists.")
-            return self.render_to_response(self.get_context_data(form=form))
-        else:
-            customer = get_object_or_404(Customer, pk=customer_data)
-            product = get_object_or_404(Product, pk=product_data)
-            CustomerProduct.objects.create(customer_id=customer_data, product_id=product_data, quote_price=quote)
-            return HttpResponseRedirect(reverse('pos:customerproduct_index', kwargs={'pk':customer_data}))
-
-
-class CustomerProductUpdateView(FormView):
-    template_name = 'pos/customerproduct/edit.html'
-    form_class = CustomerProductUpdateForm
-
-    def get_context_data(self, **kwargs):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        context = super(CustomerProductUpdateView, self).get_context_data(**kwargs)
-        context['customerproduct'] = customerproduct
-        return context
-
-    def get_initial(self):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        initial = super(CustomerProductUpdateView, self).get_initial()
-        initial['customer'] = customerproduct.customer.name
-        initial['product'] = customerproduct.product.name
-        initial['quote_price'] = customerproduct.quote_price
-        return initial
-
-    def form_valid(self, form):
-        customerproduct_id = self.kwargs['pk']
-        quote_price = float(form.cleaned_data['quote_price'])
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        customerproduct.quote_price = quote_price
-        customerproduct.save()
-        return super(CustomerProductUpdateView, self).form_valid(form)
-
-    def get_success_url(self):
-        customerproduct_id = self.kwargs['pk']
-        customerproduct = get_object_or_404(CustomerProduct, id=customerproduct_id)
-        customer_id = customerproduct.customer.id
-        return reverse('pos:customerproduct_index', kwargs={'pk':customer_id})
-
-
-def InvoiceDateRangeView(request, pk):
-    template_name = 'pos/invoice/invoice_select_order.html'
 
     if request.method == 'GET':
-        customer = get_object_or_404(Customer, id=pk)
-        date_start_string = request.GET.get('date_start', '')
-        date_end_string = request.GET.get('date_end', '')
+        return render(request, template_name)
+
+
+@login_required
+def express_order(request):
+    template_name = 'pos/route/express_order.html'
+    if request.method == 'GET':
+        return render(request, template_name)
+
+
+class NumberedPageCanvas(canvas.Canvas):
+    """
+    http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
+    http://code.activestate.com/recipes/576832/
+    http://www.blog.pythonlibrary.org/2013/08/12/reportlab-how-to-add-page-numbers/
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Constructor"""
+        super().__init__(*args, **kwargs)
+        self.pages = []
+
+    def showPage(self):
+        """
+        On a page break, add information to the list
+        """
+        self.pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        """
+        Add the page number to each page (page x of y)
+        """
+        page_count = len(self.pages)
+
+        for page in self.pages:
+            self.__dict__.update(page)
+            self.draw_page_number(page_count)
+            super().showPage()
+        canvas.Canvas.save(self)
+
+    def draw_page_number(self, page_count):
+        self.setFont("Helvetica-Bold", 8)
+        self.drawRightString(200*mm, 10*mm,
+                             "Page %d of %d" % (self._pageNumber, page_count))
+
+
+@login_required
+def download_invoice(request, pk=None):
+    invoice_number = request.GET.get('invoice_number', None)
+    print(invoice_number)
+    try:
+        if pk:
+            print('use pk')
+            invoice = Invoice.objects.get(pk=pk)
+        if invoice_number:
+            print('use invoice number')
+            invoice = Invoice.objects.filter(invoice_number=invoice_number).get()
+    except ObjectDoesNotExist:
+        #  invoice is not in the db
+        print('not in db')
+        return freshbooks_invoice_download(request, invoice_number=invoice_number)
+
+    if invoice:
+        #  invoice is in the db
+        print('in db')
+        invoice_name = invoice.customer.get_download_file_name(invoice.invoice_number)
+        if invoice.pivot:
+            print('pivot')
+            return invoice_pdf_view(request, invoice.pk, file_name=invoice_name)
+        else:
+            print('freshbooks')
+            return freshbooks_invoice_download(request, pk=invoice.pk, file_name=invoice_name)
+
+    return HttpResponseBadRequest()
+
+
+@login_required
+def invoice_pdf_view(request, pk, file_name=''):
+    invoice = Invoice.objects.select_related('customer').get(pk=pk)
+    if invoice:
+        invoice_customer = invoice.customer
+        query_oi = OrderItem.objects.filter(
+            customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by('route__date')
+        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
+        unique_quote_price_set = set(query_oi.values_list(
+            'customerproduct__product__name', 'unit_price'))
+        unique_quote_price_dict = {k: v for k, v in unique_quote_price_set}
+
+        pv_table = pivot(
+            query_oi,
+            ['route__do_number', 'route__date'],
+            'customerproduct__product__name', 'driver_quantity',
+            default=0
+        )
+
+        product_sum = Counter()
+
+        for row in pv_table:
+            mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
+            product_sum.update(mapped_row)
+
+        nett_amt = {name: unique_quote_price_dict[name] *
+                    product_sum[name] for name in unique_orderitem_names}
+
+        subtotal = 0
+        for k, v in nett_amt.items():
+            subtotal += v
+
+        total_nett_amt = subtotal - invoice.minus
+        gst_decimal = Decimal(invoice.gst / 100)
+        gst = (total_nett_amt * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (total_nett_amt + gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="{0}.pdf"'.format(file_name)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=1*cm,
+                                leftMargin=1*cm, topMargin=5*mm, bottomMargin=5*mm)
+
+        # container for the "Flowable" objects
+        elements = []
+
+        # Make heading for each column and start data list
+
+        top_table_style = TableStyle(
+            [
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+            ]
+        )
+        taxStyle = getSampleStyleSheet()
+        taxHeadingStyle = taxStyle["Normal"]
+        taxHeadingStyle.fontName = 'Helvetica-Bold'
+        taxHeadingStyle.fontSize = 14
+
+        top_table_data = []
+        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD",
+                               Paragraph("TAX INVOICE", taxHeadingStyle)])
+        top_table_data.append(["TUAS BAY WALK #02-30 SINGAPORE 637780",
+                               "INVOICE NUMBER:", invoice.invoice_number])
+        if invoice.date_created:
+            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ",
+                                   invoice.date_created.strftime('%d/%m/%Y')])
+        else:
+            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", ""])
+        top_table_data.append(["REG NO: 200302589N"])
+        top_table_data.append(["BILL TO"])
+        top_table_data.append([invoice_customer.name])
+
+        if invoice_customer.address:
+            top_table_data.append([invoice_customer.address])
+        if invoice_customer.postal_code and invoice_customer.country:
+            top_table_data.append([invoice_customer.country + ' ' + invoice_customer.postal_code])
+        else:
+            top_table_data.append([invoice_customer.country])
+
+        top_table = Table(top_table_data, [12*cm, 4*cm, 3*cm])
+        top_table.setStyle(top_table_style)
+
+        # Assemble data for each column using simple loop to append it into data list
+
+        styles = getSampleStyleSheet()
+        styleBH = styles["Normal"]
+        styleBH.alignment = TA_CENTER
+        styleBH.fontName = 'Helvetica-Bold'
+
+        product_style = TableStyle(
+            [
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
+                ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ]
+        )
+        heading = []
+        heading.append(Paragraph("DATE", styleBH))
+        for name in unique_orderitem_names:
+            heading.append(Paragraph(name, styleBH))
+        heading.append(Paragraph("D/O", styleBH))
+        datalist = [heading]
+
+        for row in pv_table:
+            data_row = []
+            data_row.append(row.get('route__date').strftime('%d/%m/%Y'))
+            for name in unique_orderitem_names:
+                if row.get(name) is None:
+                    data_row.append('')
+                else:
+                    qty = row.get(name)
+                    if qty == 0:
+                        data_row.append('')
+                    else:
+                        data_row.append(str(row.get(name)))
+            data_row.append(row.get('route__do_number', styleBH))
+            datalist.append(data_row)
+        table_width = (19/len(heading)) * cm
+        product_table = Table(datalist, [table_width for i in range(len(heading))], 5.25*mm)
+        product_table.hAlign = 'CENTER'
+        product_table.setStyle(product_style)
+
+        quantity_style = TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                     ('FONTSIZE', (0, 0), (-1, -1), 9)])
+        quantity_data = []
+        #   -- quantity row --
+        quantity_row = []
+        quantity_row.append(Paragraph("QUANTITY", styleBH))
+        for name in unique_orderitem_names:
+            quantity_row.append(Paragraph(str(product_sum.get(name, 0)), styleBH))
+        quantity_row.append("")
+        quantity_data.append(quantity_row)
+        #  -- unit price row --
+        unit_price_row = []
+        unit_price_row.append(Paragraph("UNIT PRICE", styleBH))
+        for name in unique_orderitem_names:
+            unit_price_row.append(Paragraph(str(unique_quote_price_dict.get(name)), styleBH))
+        unit_price_row.append("")
+        quantity_data.append(unit_price_row)
+        #  -- nett amount row --
+        nett_amt_row = []
+        nett_amt_row.append(Paragraph("NETT AMOUNT", styleBH))
+        for name in unique_orderitem_names:
+            nett_amt_row.append(Paragraph(str(nett_amt.get(name)), styleBH))
+        nett_amt_row.append("")
+        quantity_data.append(nett_amt_row)
+        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))], 5*mm)
+        quantity_table.hAlign = 'CENTER'
+        quantity_table.setStyle(quantity_style)
+
+        # -- subtotal, gst, total amount --
+        total_data_style = TableStyle([('FONTSIZE', (0, 0), (-1, -1), 9),
+                                       ('SPAN', (0, 0), (0, 0)),
+                                       ('SPAN', (0, 0), (0, -1)),
+                                       ('GRID', (1, 0), (-1, -1), 0.5, colors.black),
+                                       ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')])
+
+        note_styles = getSampleStyleSheet()
+        notes_style = note_styles["Normal"]
+        notes_style.alignment = TA_LEFT
+        notes_style.fontName = 'Helvetica-Bold'
+
+        total_data = []
+        if invoice.remark:
+            notes_paragraph = Paragraph(invoice.remark, notes_style)
+        else:
+            notes_paragraph = Paragraph("", notes_style)
+
+        total_data.append([notes_paragraph, "SUB-TOTAL ($)", str(subtotal)])
+
+        if invoice.minus > 0:
+            if invoice.discount_description:
+                total_data.append(["", invoice.discount_description, str(invoice.minus)])
+            else:
+                total_data.append(["", "MINUS ($)", str(invoice.minus)])
+            total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
+
+        total_data.append(["", "GST ({0}%)".format(invoice.gst), str(gst)])
+        total_data.append(["", "TOTAL (inc. GST) ($)", str(total_incl_gst)])
+        total_data_table = Table(total_data, [12.8*cm, 4*cm, 2*cm])
+        total_data_table.hAlign = 'RIGHT'
+        total_data_table.setStyle(total_data_style)
+
+        elements.append(top_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(product_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(quantity_table)
+        elements.append(Spacer(0, 5*mm))
+        elements.append(total_data_table)
+
+        doc.build(elements, canvasmaker=NumberedPageCanvas)
+
+        response.write(buffer.getvalue())
+        buffer.close()
+        return response
+    return HttpResponseBadRequest()
+
+
+@login_required
+@freshbooks_access
+def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name=''):
+    if pk:
+        invoice = Invoice.objects.get(pk=pk)
+        invoice_number = invoice.invoice_number
+    if invoice_number:
+        #  find the invoice id from freshbooks
+        client_id = request.session['client_id']
+        token = request.session['oauth_token']
+        freshbooks_account_id = request.session['freshbooks_account_id']
+        freshbooks = OAuth2Session(client_id, token=token)
+        search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
+            freshbooks_account_id, invoice_number
+        )
+        freshbooks_invoice = freshbooks.get(search_url).json()
+
+        freshbooks_invoice_search = freshbooks_invoice.get('response')\
+            .get('result')\
+            .get('invoices')
+        if len(freshbooks_invoice_search) == 0:
+            return HttpResponseBadRequest()
+
+        if not freshbooks_account_id or not token:
+            return HttpResponseBadRequest()
+
+        freshbooks_invoice_id = freshbooks_invoice_search[0].get('invoiceid')
+
+        download_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}/pdf'.format(
+            freshbooks_account_id, freshbooks_invoice_id
+        )
+
+        #  TODO: check if freshbooks customer id is in database for file name
+        try:
+            freshbooks_invoice_client_id = freshbooks_invoice_search[0].get('customerid')
+            invoice_customer = Customer.objects.get(
+                freshbooks_client_id=freshbooks_invoice_client_id)
+            file_name = invoice_customer.get_download_file_name(invoice_number)
+        except ObjectDoesNotExist:
+            #  customer not registered in database
+            #  different file name format for customers not registered in database
+            file_name = str(invoice_number)
+            freshbooks_first_name = freshbooks_invoice_search[0].get('fname', '')
+            freshbooks_last_name = freshbooks_invoice_search[0].get('lname', '')
+            freshbooks_organization = freshbooks_invoice_search[0].get('organization', '')
+            if freshbooks_first_name:
+                file_name += ('_' + freshbooks_first_name)
+            if freshbooks_last_name:
+                file_name += ('_' + freshbooks_last_name)
+            if freshbooks_organization:
+                file_name += ('_' + freshbooks_organization)
+        except MultipleObjectsReturned:
+            #  more than one customer with the same freshbooks client id
+            return HttpResponseBadRequest()
+
+        try:
+            pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
+        except Exception:
+            return HttpResponseBadRequest()
+
+        response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))
+        return response
+    return HttpResponseBadRequest()
+
+
+@login_required
+def orderitem_summary(request):
+    def get_invoice_number(orderitem):
+        if orderitem.invoice:
+            print(orderitem.invoice)
+            return orderitem.invoice.invoice_number
+        return ''
+
+    if request.method == 'GET':
+        field_names = [
+            'date', 'customer', 'product', 'quantity',
+            'driver_quantity', 'do_number', 'unit_price',
+            'invoice_number'
+        ]
+        date_start_string = request.GET.get('start_date')
+        date_end_string = request.GET.get('end_date')
 
         if date_start_string and date_end_string:
-            date_form = InvoiceDateRangeForm(request.GET)
-            date_start = datetime.strptime(date_start_string, "%d/%m/%Y")
-            date_end = datetime.strptime(date_end_string, "%d/%m/%Y")
-            #  date_start will start from exactly midnight by default
-            #  date_end will have to add timedelta because it will also end at exactly at midnight,
-            #  causing the last route order to not be included.
-            date_end += timedelta(hours=23, minutes=59, seconds=59)
-            date_end_formatted = datetime.strftime(date_end,'%Y-%m-%d %H:%M:%S')
-            date_start_formatted = datetime.strftime(date_start, '%Y-%m-%d %H:%M:%S')
-            request.session['date_start'] = date_start_formatted
-            request.session['date_end'] = date_end_formatted
+            date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
+            date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
+            orderitems = OrderItem.objects.select_related('route', 'invoice')\
+                .filter(route__date__gte=date_start, route__date__lte=date_end)
 
-            route_list = Route.objects.filter(trip__date__lte=date_end_formatted,
-                                              trip__date__gte=date_start_formatted,
-                                              invoice__exact=None,
-                                              orderitem__customerproduct__customer_id=customer.id)\
-                                              .distinct()
-            customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="summary.csv"'
 
-            routes_display = []
-            for route in route_list:
-                row = {}
-                row['date'] = route.trip.date
-                row['id'] = route.id
-                for oi in route.orderitem_set.all():
-                    row[oi.customerproduct.id] = oi.quantity
-                routes_display.append(row)
-            return render(request, template_name, {'date_form': date_form,
-                                                   'customer': customer,
-                                                   'routes': routes_display,
-                                                   'customerproducts': customerproducts })
+            writer = csv.DictWriter(response, fieldnames=field_names)
+            writer.writeheader()
+            for oi in orderitems:
+                writer.writerow({
+                    'date': oi.route.date.strftime('%d/%m/%Y'),
+                    'customer': oi.customerproduct.customer.name,
+                    'product': oi.customerproduct.product.name,
+                    'quantity': oi.quantity,
+                    'driver_quantity': oi.driver_quantity,
+                    'do_number': oi.route.do_number,
+                    'unit_price': oi.unit_price,
+                    'invoice_number': get_invoice_number(oi)
+                })
+            return response
         else:
-            date_form = InvoiceDateRangeForm()
-            return render(request, template_name, {'date_form': date_form,
-                                                   'customer': customer })
+            return HttpResponseBadRequest()
 
 
-
-    if request.method == 'POST':
-        selected = request.POST.getlist('routes')
-        request.session['route_select'] = selected
-        return HttpResponseRedirect(reverse('pos:invoice_orderassign', kwargs={'pk':pk}))
-
-
-def InvoiceOrderAssignView(request, pk):
-    template_name = 'pos/invoice/invoice_assign.html'
-    req_post = request.POST.copy()
-    customer = get_object_or_404(Customer, id=pk)
-    customerproducts = CustomerProduct.objects.filter(customer_id=pk)
-    trip_start = request.session['date_start']
-    trip_end = request.session['date_end']
-    parse_trip_start = datetime.strptime(trip_start, '%Y-%m-%d %H:%M:%S')
-    parse_trip_end = datetime.strptime(trip_end, '%Y-%m-%d %H:%M:%S')
-    trip_start_formatted = datetime.strftime(parse_trip_start, '%d/%m/%Y')
-    trip_end_formatted = datetime.strftime(parse_trip_end, '%d/%m/%Y')
-
-    trips = Trip.objects.filter(date__lte=parse_trip_end, date__gte=parse_trip_start).order_by('date')
-    rows_list = []
-    all_valid = True
-    if request.method == 'POST':
-        add_form = InvoiceAddOrderForm(req_post,
-                                       trips=trips,
-                                       customerproducts=customerproducts)
-
-        if req_post.get('add_btn'):
-            all_valid = False
-            if add_form.is_valid():
-                do_number = add_form.cleaned_data['do_number']
-                trip_id = add_form.cleaned_data['date']
-                trip = get_object_or_404(Trip, id=trip_id)
-                route_index_max = trip.route_set.all().aggregate(Max('index'))
-                if route_index_max.get('index__max') is None:
-                    route_index_max['index__max'] = 0
-                route = Route(index=route_index_max.get('index__max') + 1, do_number=do_number, trip_id=trip.pk)
-                route.save()
-                request.session['route_select'].append(route.pk)
-                # Append operations does not get saved to the object if this modified flag is not set.
-                # https://code.djangoproject.com/wiki/NewbieMistakes#Appendingtoalistinsessiondoesntwork
-                # See "Appending to a list in session doesn't work section
-                request.session.modified = True
-                additional_order_fields = {}
-                for cp in customerproducts:
-                    orderitem_quantity = add_form.cleaned_data[cp.product.name]
-                    if orderitem_quantity is None:
-                        orderitem_quantity = 0
-                    orderitem = OrderItem(quantity=orderitem_quantity,
-                                          customerproduct=cp,
-                                          route=route)
-                    orderitem.save()
-                    additional_order_fields[cp.product.name] = orderitem_quantity
-
-
-                additional_order = InvoiceOrderItemForm(prefix=str(route.pk),
-                                                        orderitems=route.orderitem_set.all(),
-                                                        do_number=route.do_number)
-                for k,v in additional_order_fields.items():
-                    additional_order.fields[k] = v
-                additional_order.fields['do_number'] = route.do_number
-                for k,v in additional_order.fields.items():
-                    req_post[additional_order.prefix + '-' + k] = v
-                add_form = InvoiceAddOrderForm(trips=trips, customerproducts=customerproducts)
-
-        routes = request.session['route_select']
-
-
-        for r in routes:
-            row = {}
-            route = get_object_or_404(Route, id=r)
-            route_orderitems = list(route.orderitem_set.all())
-            form = InvoiceOrderItemForm(req_post,
-                                        prefix=str(route.id),
-                                        orderitems=route_orderitems,
-                                        do_number=route.do_number)
-            row['date'] = route.trip.date
-            row['form'] = form
-            rows_list.append(row)
-            if form.is_valid():
-                route.do_number = form.cleaned_data['do_number']
-                for oi in route_orderitems:
-                    oi_driver_quantity = form.cleaned_data[oi.customerproduct.product.name]
-                    oi.driver_quantity = oi_driver_quantity
-                    oi.save()
-                route.save()
-            else:
-                all_valid = False
-
-        if all_valid:
-            invoice = Invoice(gst=customer.gst, start_date=parse_trip_start, end_date=parse_trip_end)
-            invoice.save()
-            original_total = 0
-            for r in routes:
-                route = get_object_or_404(Route, id=r)
-                route.invoice = invoice
-                orderitems = route.orderitem_set.all()
-                for oi in orderitems:
-                    quote = oi.customerproduct.quote_price
-                    oi.unit_price = quote
-                    oi.save()
-                    original_total += (oi.driver_quantity * oi.unit_price)
-                route.save()
-
-            net_total = original_total
-            # GST value is a whole number in model
-            gst = original_total * (invoice.gst/100)
-            invoice.net_total = net_total
-            invoice.original_total = original_total
-            invoice.net_gst = gst
-            invoice.total_incl_gst = net_total + gst
-            if invoice.gst > 0:
-                invoice.invoice_year = int(date.strftime(date.today(), '%Y'))
-                invoice_num_max = Invoice.objects.all().aggregate(Max('invoice_number'))
-                # this condition only occurs on the first invoice (with gst) created.
-                if invoice_num_max.get('invoice_number__max') is None:
-                    invoice.invoice_number = 0
-                else:
-                    invoice.invoice_number = invoice_num_max.get('invoice_number__max') + 1
-            invoice.save()
-            return HttpResponseRedirect(reverse('pos:invoice_view', kwargs={'pk':invoice.pk}))
-        else:
-            return render(request, template_name, {'rows_list': rows_list,
-                                                   'customer': customer,
-                                                   'customerproducts': customerproducts,
-                                                   'add_order':add_form })
-
-
+@login_required
+def export_invoice(request):
     if request.method == 'GET':
-        routes = request.session['route_select']
-        add_order_form = InvoiceAddOrderForm(trips=trips, customerproducts=customerproducts)
-        assign_routes = Route.objects.filter(id__in=routes)
-        for r in assign_routes:
-            row = {}
-            form = InvoiceOrderItemForm(prefix=str(r.id),
-                                        orderitems=list(r.orderitem_set.all()),
-                                        do_number=r.do_number)
-            row['date'] = r.trip.date
-            row['form'] = form
-            rows_list.append(row)
-        return render(request, template_name, {'rows_list': rows_list,
-                                               'customer': customer,
-                                               'customerproducts': customerproducts,
-                                               'add_order':add_order_form })
+        field_names = [
+            'date_generated', 'remark', 'minus', 'net_total',
+            'gst', 'net_gst', 'total_incl_gst',
+            'invoice_number', 'customer', 'pivot'
+        ]
+        date_start_string = request.GET.get('start_date')
+        date_end_string = request.GET.get('end_date')
+
+        if date_start_string and date_end_string:
+            date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
+            date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
+            orderitems_with_invoices = OrderItem.objects.select_related(
+                'route', 'invoice'
+            )\
+                .filter(
+                route__date__gte=date_start,
+                route__date__lte=date_end,
+                invoice__invoice_number__isnull=False
+            )
+            invoice_ids = set(
+                [orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
+            export_invoices = Invoice.objects.filter(invoice_number__in=invoice_ids)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="invoice_summary.csv"'
+
+            writer = csv.DictWriter(response, fieldnames=field_names)
+            writer.writeheader()
+            for invoice in export_invoices:
+                writer.writerow({
+                    'date_generated': invoice.date_generated,
+                    'remark': invoice.remark,
+                    'minus': invoice.minus,
+                    'net_total': invoice.net_total,
+                    'gst': invoice.gst,
+                    'net_gst': invoice.net_gst,
+                    'total_incl_gst': invoice.total_incl_gst,
+                    'invoice_number': invoice.invoice_number,
+                    'customer': invoice.customer.name,
+                    'pivot': invoice.pivot
+                })
+            return response
+        else:
+            return HttpResponseBadRequest()
 
 
-class InvoiceHistoryView(ListView):
-    template_name = 'pos/invoice/invoice_history.html'
-    context_object_name = 'invoice_list'
+@login_required
+def export_quote(request):
+    if request.method == 'GET':
+        field_names = ['sku', 'customer', 'product', 'quote_price', 'freshbooks_tax_1']
+        quotes = CustomerProduct.objects.all()
 
-    def get_queryset(self):
-        return Invoice.objects.all()
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="quotes.csv"'
+
+        writer = csv.DictWriter(response, fieldnames=field_names)
+        writer.writeheader()
+        for cp in quotes:
+            writer.writerow({
+                'sku': cp.pk,
+                'customer': cp.customer.name,
+                'product': cp.product.name,
+                'quote_price': cp.quote_price,
+                'freshbooks_tax_1': cp.freshbooks_tax_1
+            })
+        return response
+    else:
+        return HttpResponseBadRequest()
 
 
-def InvoiceSingleView(request, pk):
-    template_name = 'pos/invoice/invoice_single_view.html'
-    if request.GET.get('print'):
-        template_name = 'pos/invoice/invoice_single_view_print.html'
-
-    invoice_id = pk
-    invoice = get_object_or_404(Invoice, id=invoice_id)
-    invoice_form = InvoiceForm(instance=invoice)
-
+@login_required
+def import_items(request):
+    template_name = 'pos/master/import_items.html'
     if request.method == 'POST':
-        invoice_form = InvoiceForm(request.POST, instance=invoice)
-        if invoice_form.is_valid():
-            minus = invoice_form.cleaned_data.get('minus')
-            remark = invoice_form.cleaned_data.get('remark')
-            invoice_year = invoice_form.cleaned_data.get('invoice_year')
-            invoice_number = invoice_form.cleaned_data.get('invoice_number')
+        form = ImportFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            import_customer_file = request.FILES.get('import_customer_file', None)
+            import_product_file = request.FILES.get('import_product_file', None)
+            import_quote_file = request.FILES.get('import_quote_file', None)
+            import_orderitem_file = request.FILES.get('import_orderitem_file', None)
+            import_detrack_file = request.FILES.get('import_detrack_file', None)
+            import_invoice_file = request.FILES.get('import_invoice_file', None)
 
-            gst = Decimal(invoice_form.instance.gst/100)
-            original_total = Decimal(invoice.original_total)
-            net_total = Decimal(original_total - minus)
-            net_gst = Decimal(gst * net_total)
-            total_incl_gst = Decimal(net_total + net_gst)
-
-            invoice.remark = remark
-            invoice.original_total = original_total
-            invoice.net_total = net_total
-            invoice.net_gst = net_gst
-            invoice.total_incl_gst = total_incl_gst
-            invoice.invoice_year = invoice_year
-            invoice.invoice_number = invoice_number
-            invoice.save()
-            return HttpResponseRedirect(request.path_info)
-
-    company_info = get_object_or_404(Company, id=1)
-    routes = invoice.route_set.all().order_by('trip__date')
-    customer = routes[0].orderitem_set.all()[0].customerproduct.customer
-    customerproducts = CustomerProduct.objects.filter(customer_id=customer.id)
-    rows_list = []
-
-    quantity = {cp.product.name:0 for cp in customerproducts}
-    unit_price = {cp.product.name:0 for cp in customerproducts}
-    nett_amt = {cp.product.name:0 for cp in customerproducts}
-
-    for r in routes:
-        row = {}
-        route = get_object_or_404(Route, id=r.pk)
-        row['date'] = route.trip.date
-        row['do_number'] = route.do_number
-        route_orderitems = list(route.orderitem_set.all())
-        for oi in route_orderitems:
-            quantity[oi.customerproduct.product.name] += oi.driver_quantity
-            #  use orderitem's existing unit_price, customerproduct price may not be what it was before.
-            #  if unit price row updates every iteration, may calculate total wrongly
-            #  e.g. if an orderitem's price is different for a single row.
-            #  but usually an invoice's customerproduct quote is consistent.
-            unit_price[oi.customerproduct.product.name] = oi.unit_price
-
-            if oi.quantity != oi.driver_quantity:
-                row[oi.customerproduct.product.name] = str(oi.quantity) + " \u2794 " + str(oi.driver_quantity)
-            else:
-                row[oi.customerproduct.product.name] = oi.driver_quantity
-
-        rows_list.append(row)
-
-    for cp in nett_amt.keys():
-        nett_amt[cp] = quantity[cp] * unit_price[cp]
-
-    return render(request, template_name, {'company':company_info,
-                                           'customer':customer,
-                                           'customerproducts':customerproducts,
-                                           'invoice':invoice,
-                                           'rows_list':rows_list,
-                                           'quantity':quantity,
-                                           'unit_price':unit_price,
-                                           'nett_amt':nett_amt,
-                                           'invoice_form':invoice_form})
+            if import_customer_file:
+                with open('/tmp/customer_import.csv', 'wb+') as destination:
+                    for chunk in import_customer_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/customer_import.csv') as csv_file:
+                    Customer.handle_customer_import(csv_file)
+            if import_product_file:
+                with open('/tmp/product_import.csv', 'wb+') as destination:
+                    for chunk in import_product_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/product_import.csv') as csv_file:
+                    Product.handle_product_import(csv_file)
+            if import_quote_file:
+                with open('/tmp/quote_import.csv', 'wb+') as destination:
+                    for chunk in import_quote_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/quote_import.csv') as csv_file:
+                    CustomerProduct.handle_quote_import(csv_file)
+            #  import invoice file
+            if import_invoice_file:
+                with open('/tmp/invoice_import.csv', 'wb+') as destination:
+                    for chunk in import_invoice_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/invoice_import.csv') as csv_file:
+                    Invoice.handle_invoice_import(csv_file)
+            if import_orderitem_file:
+                with open('/tmp/orderitem_import.csv', 'wb+') as destination:
+                    for chunk in import_orderitem_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/orderitem_import.csv') as csv_file:
+                    OrderItem.handle_orderitem_import(csv_file)
+            if import_detrack_file:
+                with open('/tmp/detrack_import.csv', 'wb+') as destination:
+                    for chunk in import_detrack_file.chunks():
+                        destination.write(chunk)
+                with open('/tmp/detrack_import.csv') as csv_file:
+                    OrderItem.handle_detrack_import(csv_file)
+            return HttpResponseRedirect(reverse('pos:import_items'))
+    else:
+        form = ImportFileForm()
+        export_form = ExportOrderItemForm()
+        export_invoice = ExportInvoiceForm()
+    return render(request, template_name, {'form': form, 'export_form': export_form, 'export_invoice': export_invoice})
 
 
-class InvoiceDeleteView(DeleteView):
-    template_name = 'pos/invoice/invoice_confirm_delete.html'
-    model = Invoice
+def download_receipt(request, submission_id):
+    headers = {
+        'Content-Type': 'application/json',
+        'X-API-KEY': settings.DETRACK_API_KEY
+    }
+    read_order_url = f'https://app.detrack.com/api/v2/dn/jobs/show/?do_number={submission_id}'
+    response = requests.get(read_order_url, headers=headers).json()
+    data = response.get('data')
+    delivery_date = datetime.strptime(data.get('date'), '%Y-%m-%d')
+    fmt_delivery_date = delivery_date.strftime('%d/%m/%Y')
+    do_number = data.get('do_number')
+    customer_name = data.get('deliver_to_collect_from')
+    orderitems = data.get('items')
 
-    def get_object(self, queryset=None):
-        return Invoice.objects.get(pk=self.kwargs['pk'])
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=(58*mm, 180*mm),
+        rightMargin=3*mm,
+        leftMargin=3*mm,
+        topMargin=3*mm,
+        bottomMargin=3*mm
+    )
+
+    style = getSampleStyleSheet()
+    headingStyle = style["Normal"]
+    headingStyle.fontName = 'Helvetica-Bold'
+    headingStyle.alignment = TA_CENTER
+    headingStyle.fontSize = 7
+
+    detail = getSampleStyleSheet()
+    detailStyle = detail["Normal"]
+    detailStyle.fontName = 'Helvetica-Bold'
+    detailStyle.alignment = TA_LEFT
+    detailStyle.fontSize = 7
+
+    detail_right = getSampleStyleSheet()
+    detailRightStyle = detail_right["Normal"]
+    detailRightStyle.fontName = 'Helvetica-Bold'
+    detailRightStyle.alignment = TA_RIGHT
+    detailRightStyle.fontSize = 7
+
+    # container for the "Flowable" objects
+    heading_data = [
+        [Paragraph("Delivery Date:", detailStyle), Paragraph(fmt_delivery_date, detailRightStyle)],
+        [Paragraph("Delivery Order No.:", detailStyle), Paragraph(do_number, detailRightStyle)],
+        [Paragraph("Messrs: ", detailStyle), ],
+        [Paragraph(customer_name, detailStyle), ],
+    ]
+    heading_table_style = TableStyle([
+        #  ('GRID',(0,0),(-1,-1),0.5,colors.gray),
+        #  ('LINEABOVE', (0,0), (2,0), 0.25, colors.black),
+        #  ('LINEBELOW', (-2,-1), (-1,-1), 0.25, colors.black),
+        ('SPAN', (0, 3), (1, 3)),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ])
+    heading_table = Table(heading_data)
+    heading_table.setStyle(heading_table_style)
+
+    elements = [
+        Paragraph("SUN-UP BEAN FOOD MFG PTE LTD", headingStyle),
+        Paragraph("No. 10 Tuas Bay Walk #02-30", headingStyle),
+        Paragraph("Singapore 637780", headingStyle),
+        Paragraph("Tel: 6863 9035 Fax: 6863 3738", headingStyle),
+        Paragraph("GST & Co. Reg. No.: 200302589N", headingStyle),
+        heading_table,
+    ]
+
+    all_product_desc = [
+        'Plate Tofu\n板豆腐 (盘)',
+        'Press Tofu\n板豆腐 (白)',
+        'Japanese Silken Packaging\n日本豆腐',
+        'Deep Fried Packaging Tofu\n盒装煎炸 (青)',
+        'Silken Tofu With Egg (Square)\n菜香豆腐 (方)',
+        'Egg Tofu (Tube)\n蛋豆腐 (条)',
+        'Pail Tofu\n豆腐 (桶)',
+        'Tofu Without Packaging\n豆腐 (条)',
+        'Bean Curd\n豆干',
+        'Ready Fried Tofu (20 pcs)\n预备炸豆腐 (20 条)',
+        'Ready Fried Tofu (3 pcs)\n预备炸豆腐 (3 条)',
+        'Blank Japanese Silken Packaging\n无印日本',
+        'Blank Press Tofu Packaging\n无印四方',
+    ]
+
+    num_expiry_dates = len([oi for oi in orderitems if oi.get('expiry_date') or oi.get('purchase_order_number')])
+    non_empty_products = [oi.get('description') for oi in orderitems]
+    empty_product_description = [d for d in all_product_desc if d not in non_empty_products]
+    empty_products = [
+        {
+            'description': description,
+            'actual_quantity': '',
+            'exp_date': '',
+            'purchase_order_number': '',
+        }
+        for description in empty_product_description
+    ]
+
+    product_table = build_product_table(orderitems)
+    empty_product_table = build_product_table(empty_products)
+
+    elements += product_table
+    elements += empty_product_table
+    extra_paper_height = num_expiry_dates * 5
+    doc.pagesize = (58*mm, (180 + extra_paper_height) * mm)
+    doc.build(elements)
+    filename = str(uuid.uuid4())
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="{0}.pdf"'.format(filename)
+    buffer.seek(0)
+    response.write(buffer.getvalue())
+    buffer.close()
+    return response
 
 
-    def get_success_url(self):
-        return reverse('pos:invoice_history')
+def build_product_table(orderitems):
+    body = getSampleStyleSheet()
+    bodyStyle = body["Normal"]
+    bodyStyle.alignment = TA_LEFT
+    bodyStyle.fontSize = 7
 
+    po = getSampleStyleSheet()
+    poStyle = po["Normal"]
+    poStyle.alignment = TA_RIGHT
+    poStyle.fontSize = 7
 
-class InvoiceCustomerView(ListView):
-    template_name = 'pos/invoice/customer_invoice.html'
-    context_object_name = 'invoice_list'
+    quantity = getSampleStyleSheet()
+    quantityStyle = quantity["Normal"]
+    quantityStyle.alignment = TA_RIGHT
+    quantityStyle.fontSize = 10
 
-    def get_queryset(self):
-        customer_pk = self.kwargs['pk']
-        customer = get_object_or_404(Customer, id=customer_pk)
-        invoices = Invoice.objects.filter(route__orderitem__customerproduct__customer_id=customer.pk)\
-            .distinct('pk')
-        return invoices
+    unit = getSampleStyleSheet()
+    unitStyle = unit["Normal"]
+    unitStyle.alignment = TA_RIGHT
+    unitStyle.fontSize = 7
 
-    def get_context_data(self, **kwargs):
-        context = super(InvoiceCustomerView, self).get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, id=self.kwargs['pk'])
-        context['customer'] = customer
-        return context
+    pdfmetrics.registerFont(ttfonts.TTFont("ukai", "ukai.ttc"))
+
+    cn = getSampleStyleSheet()
+    cnStyle = cn["Normal"]
+    cnStyle.alignment = TA_LEFT
+    cnStyle.fontSize = 10
+    cnStyle.fontName = 'ukai'
+
+    product_table_list = []
+
+    for oi in orderitems:
+        name = oi.get('description').split('\n')
+        #  quantity = oi.get('actual_quantity') or ""
+        actual_quantity = str(oi.get('actual_quantity') or "")
+        exp_date = oi.get('expiry_date') or ""
+        po_number = oi.get('purchase_order_number') or ""
+
+        eng_product_name = name[0]
+        product_data = [
+            [Paragraph(eng_product_name, bodyStyle), Paragraph(actual_quantity, quantityStyle)],
+        ]
+
+        if len(name) > 1:
+            cn_product_name = name[1]
+            product_data = [
+                [Paragraph(cn_product_name, cnStyle), Paragraph(actual_quantity, quantityStyle)],
+                [Paragraph(eng_product_name, bodyStyle), ],
+            ]
+
+        if exp_date or po_number:
+            product_data.append([
+                Paragraph(f"EXP DATE: {exp_date}", bodyStyle), Paragraph(po_number, poStyle)
+            ])
+
+        product_table = Table(product_data)
+        product_table_style = TableStyle([
+            #  ('GRID',(0,0),(-1,-1),0.5,colors.gray),
+            ('SPAN', (0, 1), (-1, 1)),
+            ('LINEABOVE', (0, 0), (2, 0), 0.25, colors.black),
+            ('LINEBELOW', (-2, -1), (-1, -1), 0.25, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]
+        )
+        product_table.setStyle(product_table_style)
+        product_table_list.append(product_table)
+
+    return product_table_list

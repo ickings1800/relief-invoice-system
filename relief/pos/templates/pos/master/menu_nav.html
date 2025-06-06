@@ -4,46 +4,30 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta charset="UTF-8">
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre.min.css' %}" />
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre-icons.min.css' %}" />
-    <link rel="stylesheet" type="text/css" href="{% static 'pos/spectre-exp.min.css' %}" />
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <!-- use the latest vue-select release -->
+    <script src="https://unpkg.com/vue-select@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vue-select@latest/dist/vue-select.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
     <link rel="stylesheet" type="text/css" href="{% static 'pos/main.css' %}" />
 </head>
 <body>
-<!-- off-screen toggle button -->
-<a href="#sidebar-id" class="show-lg off-canvas-toggle" id="hamburger">
-    <i class="icon icon-menu"></i>
-</a>
-
-
-<div class="off-canvas off-canvas-sidebar-show">
-      <div id="sidebar-id" class="off-canvas-sidebar">
-        <!-- off-screen sidebar -->
-          <ul class="nav" id="mainmenu">
-              <li class="nav-item">
-                  <a href="{% url 'pos:customer_index' %}">Customer</a>
-              </li>
-              <li class="nav-item">
-                  <a href="{% url 'pos:trip_index' %}">Trips</a>
-              </li>
-              <li class="nav-item">
-                <a href="{% url 'pos:product_index' %}">Products</a>
-              </li>
-              <li class="nav-item">
-                <a href="{% url 'pos:invoice_history' %}">Invoices</a>
-              </li>
-          </ul>
-      </div>
-
-    <!-- Grey Area -->
-      <a class="off-canvas-overlay" href="#close"></a>
-
-      <div class="off-canvas-content">
-            <div id="content-block">
-                {% block content %}
-                {% endblock %}
-            </div>
-      </div>
-</div>
+<header class="navbar">
+    <div class="container">
+      <section class="navbar-section">
+        <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">relief.systems ALPHA</a>
+        {% if user.is_authenticated %}
+            <a class="nav-link" href="{% url 'pos:express_order' %}" tabindex="-1" aria-disabled="true">Orders</a>
+            <a class="nav-link" href="{% url 'pos:import_items' %}" tabindex="-1" aria-disabled="true">Import</a>
+            <a class="nav-link" href="{% url 'pos:logout' %}" tabindex="-1" aria-disabled="true">Logout</a>
+        {% endif %}
+      </section>
+    </div>
+</header>
+{% block content %}
+{% endblock %}
 </body>
-</html>
+</html

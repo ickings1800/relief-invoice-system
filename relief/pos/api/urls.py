@@ -1,0 +1,44 @@
+from django.urls import path
+from rest_framework.urlpatterns import format_suffix_patterns
+from . import api
+
+urlpatterns = [
+    path('api/webhook/', api.update_do_number_webhook, name='detrack_webhook'),
+    path('api/customers/', api.customer_list, name='customer_list'),
+    path('api/customers/sync/', api.customer_sync, name='customer_sync'),
+    path('api/products/', api.product_list, name='product_list'),
+    path('api/customers/freshbooks/', api.get_freshbooks_clients, name='freshbooks_client_list'),
+    path('api/customers/freshbooks/import/', api.get_freshbooks_import_clients, name='freshbooks_import_client_list'),
+    path('api/customers/freshbooks/import/create/', api.import_freshbooks_clients, name='freshbooks_import_client'),
+    path('api/products/freshbooks/', api.get_freshbooks_products, name='freshbooks_product_list'),
+    path('api/products/freshbooks/import/', api.get_freshbooks_import_products, name='freshbooks_import_product_list'),
+    path('api/products/freshbooks/import/create/', api.import_freshbooks_products, name='freshbooks_import_product'),    
+    path('api/products/<int:pk>/', api.product_detail, name='product_detail'),
+    path('api/quote/', api.customerproduct_create, name='customerproduct_create'),
+    path('api/quotes/', api.get_all_quotes, name='all_quotes'),
+    path('api/express/import/', api.bulk_import_orders, name='bulk_import_orders'),
+    path('api/orderitems/', api.get_filter_orderitem_rows, name='orderitems_filter'),
+    path('api/taxes/', api.get_all_taxes, name='taxes_list'),
+    path('api/invoice/create/', api.create_invoice, name='invoice_create'),
+    path('api/groups/all/', api.group_list, name='list_all_groups'),
+    path('api/group/create/', api.group_create, name='group_create'),
+    path('api/group/update/', api.update_grouping, name='group_update'),
+    path('api/customer/link/', api.link_customer, name='link_customers'),
+    path('api/product/link/', api.link_product, name='link_products'),
+    path('api/orderitem/<int:pk>/delete/', api.orderitem_delete, name='orderitem_delete'),
+    path('api/invoices/', api.invoice_list, name='invoice_list'),
+    path('api/invoices/years/', api.get_available_invoice_years_filter, name='get_invoice_years'),
+    path('api/invoices/delete/<int:pk>/', api.hard_delete_invoice, name='invoice_delete'),
+    path('api/invoices/<int:pk>/', api.invoice_detail, name='api_invoice_detail'),
+    path('api/invoices/<int:pk>/update/', api.invoice_update, name='invoice_update'),
+    path('api/invoices/sync/', api.invoice_sync, name='invoice_sync'),
+    path('api/orderitem/<int:pk>/update/', api.orderitem_update, name='orderitem_update'),
+    path('api/quote/<int:pk>/update/', api.customerproduct_update, name='customerproduct_update'),
+    path('api/customers/<int:pk>/products/', api.customerproduct_list, name='customerproduct_list'),
+    path('api/customerproduct/<int:pk>/', api.customerproduct_detail, name='customerproduct_detail'),
+    path('api/customerproduct/<int:pk>/delete/', api.customerproduct_delete, name='customerproduct_delete'),
+    path('api/routes/<int:pk>/update/', api.route_update, name='route_update'),
+    path('api/routes/<int:pk>/', api.route_detail, name='route_detail'),
+]
+
+urlpatterns = format_suffix_patterns(urlpatterns)

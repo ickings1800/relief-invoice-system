@@ -1,0 +1,33 @@
+@page {
+    size: A4;
+    margin: 8mm 8mm 8mm 8mm;
+}
+body {
+    zoom: .7;
+}
+.route, .packing-sum{
+    page-break-inside: avoid;
+}
+li {
+    font-weight: bold;
+}
+span {
+    font-size: large;
+    font-weight: bold;
+}
+.display-no-print {
+    display:none !important;
+}
+* {
+    color: #000 !important;
+}
+.text-primary, .text-secondary, .text-dark, .text-light, .text-success, .text-warning, .text-error {
+    color: #000 !important;
+}
+#trip-notes {
+    font-size: 24px;
+}
+
+.h5 {
+    font-weight: bold;
+}

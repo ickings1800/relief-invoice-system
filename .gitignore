@@ -56,6 +56,8 @@ fixtures/
 *.log
 local_settings.py
 db.sqlite3
+relief.sqlite
+*.sqlite
 
 # Flask stuff:
 instance/
@@ -83,7 +85,9 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
+.dev_env
+.prod_env
+.env*
 .venv
 env/
 venv/
@@ -104,3 +108,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# seed sql
+seed.sql
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

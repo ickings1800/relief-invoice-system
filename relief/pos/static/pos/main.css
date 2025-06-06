@@ -5,20 +5,62 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-#mainmenu li a {
-    font-weight:600;
-    text-transform:uppercase;
-    font-size:.65rem;
+body.modal-open {
+  overflow: hidden;
 }
 
-.nav-item {
-    margin-top:1rem;
-    margin-left:1rem;
+.navbar {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.navbar-brand {
+    padding-left:1rem;
+}
+
+.navbar-section {
+    background-color:#f7f8f9;
+    border-radius: .4rem;
+    padding-top:.2rem;
+    padding-bottom: .2rem;
+}
+
+.btn.btn-link {
+    color: #455060;
+}
+.navbar-section a {
+    font-size: .65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+a {
+   outline: 0;
+}
+
+h4 {
+    margin:0;
+}
+
+.container {
+    padding:1rem;
+    align-items: center;
 }
 
 
 th {
     text-align:left;
+    vertical-align: unset !important;
+    white-space: nowrap;
+}
+
+td {
+    vertical-align: unset !important;
+    white-space: nowrap;
+}
+
+td, td {
+    padding: .4rem .4rem !important;
 }
 
 .button-action {
@@ -28,25 +70,6 @@ th {
 .form-button-action {
     margin-top:1rem;
     margin-bottom:1rem;
-}
-
-.off-canvas .off-canvas-content {
-    padding-top: 4rem;
-    padding-right: 1rem;
-    padding-bottom: 0;
-    padding-left: 1rem;
-}
-
-#hamburger {
-    position: fixed;
-    padding-top: 1.3rem;
-    padding-left: 1.5rem;
-    /* z-index above zero for hamburger to be clicked with absolute position. */
-    z-index:10;
-}
-
-.off-canvas {
-    height:100vh;
 }
 
 .panel {
@@ -104,36 +127,321 @@ background-color:#ffffcc;
 
 ul {
     list-style-type:none;
+    margin:0;
+}
+
+
+.invoice-table td, .invoice-table th {
+    border-bottom: .05rem solid #dadee4;
+    padding: 0rem .4rem;
+}
+
+
+.col {
+    flex: 1;
+    text-align:center;
+}
+
+
+.route {
+    border: .05rem solid #e7e9ed;
+}
+
+.packing-sum, .route {
+    border-radius: .4rem;
+}
+
+
+.route-delete {
+    color:#e7e9ed;
+}
+
+.row-header {
+    font-size:12px;
+    font-weight: 600;
+}
+
+
+.modal.active .do-modal-window {
+    max-width:960px;
+}
+
+#do-modal > div {
+    max-width:320px;
+    padding:.5rem;
+}
+
+.heading-label {
+font-size: 1vw;
+}
+
+.orderitem-container, .packing-container {
+    display:grid;
+}
+
+.packing-empty-space {
+    grid-column-start: 1;
+    grid-column-end: 3;
+    grid-row-start: 1;
+    grid-row-end: 1;
+}
+
+.packing-sum-empty-space {
+    grid-column-start: 1;
+    grid-column-end: 3;
+    grid-row-start: 1;
+    grid-row-end: 3;
+}
+
+.packing-container li {
+    font-weight:bold;
+    margin-top:0;
+}
+
+.border {
+	text-align: center;
+    border: 1px solid #50596c;
+}
+
+#date-range {
+    display:flex;
+}
+
+.index.form-input.input-lg {
+    display:inline;
+    width:3.5em;
+    opacity:1;
+}
+
+
+.accordion input:checked~.accordion-body, .accordion[open] .accordion-body {
+    max-height: initial;
+}
+
+#group-change-modal {
+    max-width:320px;
+}
+
+#customer {
+    font-size:1.6rem;
+    font-weight:500;
+}
+
+#arrange-modal {
+    cursor: pointer;
+}
+
+#arrange-menu {
+    box-shadow: none;
+}
+
+
+#customer-create-modal-window {
+    max-width:none;
+}
+
+.add {
+    height:2rem;
+    background-color:rgba(128, 127, 226, 0.1);
+    text-align:center;
+    opacity:0.8;
+    font-size: .65rem;
+    font-weight: 600;
+}
+
+.expand-enter-active, .expand-leave-active {
+    transition: height 0.50s;
+}
+
+
+.expand-enter, .expand-leave-to {
+  height:0;
+}
+
+#app {
+    margin:1rem;
+}
+
+.clickable:hover {
+    background-color:rgba(128, 127, 226, 0.3);
+    border-radius: .2rem;
+}
+
+.note:hover {
+    background-color:rgba(128, 127, 226, 0.1);
+    border-radius: .2rem;
+}
+
+.light-caps {
+    opacity:0.8;
+    font-size: .65rem;
+    font-weight: 600;
+}
+
+#add-route-modal-body {
+    max-height: none;
+    overflow-y: unset;
+}
+
+#add-customer-menu {
+    overflow-y: scroll;
+    max-height: 12rem;
+}
+
+#trip-notes {
+    font-size: 18px;
+}
+
+
+.order-row > .form-group {
+    flex: 1;
+}
+
+.order-row {
+    width: 100%;
+}
+
+
+#invoice-create-modal-window, #invoice-update-modal-window, .orderitem-edit-modal-window {
+    max-width: 75% !important;
+}
+
+.invoice-form {
+    display: flex;
+}
+
+.invoice-form .form-group {
+    flex: 1;
+    margin: .2rem;
+}
+
+.del-row-btn {
+    align-self: flex-end;
+}
+
+.delete-container {
+    flex: 1;
+}
+
+.action-container {
+    flex: 1;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.flex-2 {
+    flex: 2;
+}
+
+.action-bar {
+    width: 100%;
+}
+
+.invoice-table {
+    text-align: center;
 }
 
 .invoice-table th {
-    border:none;
+    text-align: center;
+    border-bottom: unset !important;
 }
 
-.packing {
-    font-size:12px;
-    font-weight:600;
-    table-layout:fixed;
+.borderless {
+    border-top: unset !important;
+    border-bottom: unset !important;
 }
 
-.packing td {
-    padding: 0rem 0.1rem;
-    border-bottom:0;
-    text-align:center;
+.b-left {
+    border-left: 1px solid #dee2e6 !important;
 }
 
-.packing th {
-    padding: 0rem 0.1rem;
-    border-bottom:0;
-    text-align:center;
+.b-top {
+    border-top: 1px solid #dee2e6 !important;
 }
 
-.orderitem-row {
-    margin:0
+.b-right {
+    border-right: 1px solid #dee2e6 !important;
 }
 
-.route {
-    margin-top:0.3rem;
-    margin-left:0;
-    margin-right:0;
+.b-bottom {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.border {
+    border-left: 1px solid #dee2e6 !important;
+
+    border-top: 1px solid #dee2e6 !important;
+
+    border-right: 1px solid #dee2e6 !important;
+
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.align-left {
+    text-align: left;
+}
+
+.invoice-header {
+    width: 100%;
+}
+
+#login-form {
+    background-color:#f7f8f9;
+    padding: 2rem;
+    border-radius: 1rem;
+}
+
+
+.do-image-container {
+    justify-content: center;
+    display: flex;
+}
+
+.do-image {
+    height: 480px;
+}
+
+.create-update-invoice-modal-body {
+    overflow-y: unset;
+}
+
+
+.modal.active {
+    body: ;
+}
+
+.orderitem-form {
+    width: 100%;
+}
+
+.orderitem-form-group {
+    flex: 1;
+}
+
+#invoice-btn-group {
+    width: 100%;
+}
+
+
+#invoice-filter {
+    flex: 3;
+}
+
+#invoice-sync-download {
+    flex: 1;
+    justify-content: end;
+}
+
+#update-invoice-modal-footer {
+    display: inline-flex;
+}
+
+#footer-download-left {
+    flex: 1;
+}
+
+#footer-download-right {
+    flex: 3;
 }

@@ -1,46 +1,107 @@
 {% extends 'pos/master/menu_nav.html' %}
-
+{% load static %}
+{% load widget_tweaks %}
 {% block content %}
-<div class="container">
-    <div class="columns">
-        <div class="column col-3">
-            <h2>Customers</h2>
-        </div>
-        <div class="column col-mr-auto"></div>
-        <div class="column col-3">
-            <a href="{% url 'pos:customer_create' %}" class="btn btn-primary btn-sm float-right button-action">
-                <i class="icon icon-plus"></i>&nbsp;Create
-            </a>
-        </div>
-    </div>
-    <div class="columns">
-        <div class="column col-12">
-            {% if customer_list|length > 0 %}
-                <table class="table">
-                    {% for c in customer_list %}
-                    <tr>
-                        <td>
-                            <a href="{% url 'pos:customer_detail' pk=c.id %}">{{ c.name }}</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            {% else %}
-                <div class="empty">
-                      <p class="empty-title h5">You have no customers.</p>
-                        <p class="empty-subtitle">Click the button to create one.</p>
-                      <div class="empty-action">
-                            <a href="{% url 'pos:customer_create' %}" class="btn btn-primary btn-sm button-action">
-                                <i class="icon icon-plus"></i>&nbsp;Create
-                            </a>
-                      </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+<script type="module" src="{% static 'pos/js/customer_index.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<div id="app">
+    {% verbatim %}
+    <customer-list 
+	    v-on:show-quote="show_quote_modal_window"
+        v-on:show-quote-edit-modal="show_quote_edit_modal_window"
+	    v-on:show-create-invoice="show_create_invoice_modal_window"
+        v-on:show-update-invoice="show_update_invoice_modal_window"
+	    v-on:show-create-group-modal="show_create_group_modal_window"
+	    v-on:show-edit-group-modal="show_edit_group_modal_window"
+        v-on:show-customer-detail-modal="show_customer_detail_modal_window"
+        v-on:show-product-detail-modal="show_product_detail_modal_window"
+        v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
+        v-on:show-invoice-delete-modal="show_invoice_delete_modal_window"
+        v-on:show-import-client-modal="show_import_client_modal_window"
+        v-on:show-download-range-modal="show_download_range_modal_window"
+        v-on:show-import-product-modal="show_import_product_modal_window"
+        v-on:show-bulk-create-modal="show_bulk_create_modal_window"
+        v-on:sync-clients="sync_clients"
+        v-on:sync-invoices="sync_invoices"
+        v-on:filter-invoice="filter_invoices"
+	    v-bind:products="products"
+	    v-bind:clients="clients"
+	    v-bind:quotes="quotes"
+	    v-bind:taxes="taxes"
+	    v-bind:groups="groups"
+	    v-bind:orderitems="orderitems"
+        v-bind:invoices="invoices">
+    </customer-list>
+    <create-quote-modal
+        v-on:show-quote="show_quote_modal_window"
+        v-bind:opened="show_quote_modal">
+    </create-quote-modal>
+    <create-invoice-modal
+        v-on:show-create-invoice="show_create_invoice_modal_window"
+        v-bind:orderitems="orderitems"
+        v-bind:selected_customer="create_invoice_customer"
+        v-bind:opened="show_create_invoice_modal">
+    </create-invoice-modal>
+    <create-group-modal
+    	v-on:show-create-group-modal="show_create_group_modal_window"
+    	v-bind:opened="show_create_group_modal">
+    </create-group-modal>
+    <edit-group-modal
+    	v-on:show-edit-group-modal="show_edit_group_modal_window"
+    	v-bind:group="edit_group"
+    	v-bind:opened="show_edit_group_modal"
+    	v-bind:clients="clients">
+    </edit-group-modal>
+    <detail-customer-modal
+        v-on:show-customer-detail-modal="show_customer_detail_modal_window"
+        v-bind:customer="detail_customer"
+        v-bind:opened="show_customer_detail_modal">
+    </detail-customer-modal>
+    <detail-product-modal
+        v-on:show-product-detail-modal="show_product_detail_modal_window"
+        v-bind:product="detail_product"
+        v-bind:opened="show_product_detail_modal">
+    </detail-product-modal>
+    <update-invoice-modal
+        v-on:show-update-invoice="show_update_invoice_modal_window"
+        v-bind:selected_invoice="update_invoice"
+        v-bind:opened="show_update_invoice_modal">
+    </update-invoice-modal>
+    <edit-orderitem-modal
+        v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
+        v-bind:orderitems="orderitems"
+        v-bind:edit_orderitem_index="edit_orderitem_index"
+        v-bind:opened="show_orderitem_edit_modal">
+    </edit-orderitem-modal>
+    <edit-quote-modal
+        v-on:show-quote-edit-modal="show_quote_edit_modal_window"
+        v-bind:quote="edit_quote"
+        v-bind:opened="show_quote_edit_modal">
+    </edit-quote-modal>
+    <delete-invoice-modal
+        v-on:show-invoice-delete-modal="show_invoice_delete_modal_window"
+        v-bind:invoice="delete_invoice"
+        v-bind:opened="show_invoice_delete_modal">
+    </delete-invoice-modal>
+    <import-client-modal
+        v-on:show-import-client-modal="show_import_client_modal_window"
+        v-bind:opened="show_import_client_modal">
+    </import-client-modal>
+    <import-product-modal
+        v-on:show-import-product-modal="show_import_product_modal_window"
+        v-bind:opened="show_import_product_modal">
+    </import-product-modal>
+    <download-range-modal
+        v-on:show-download-range-modal="show_download_range_modal_window"
+        v-bind:opened="show_download_range_modal">
+    </download-range-modal>
+    <bulk-create-modal
+        v-on:show-bulk-create-modal="show_bulk_create_modal_window"
+        v-bind:group="bulk_create_group"
+        v-bind:orderitems="orderitems"
+        v-bind:clients="clients"
+        v-bind:opened="show_bulk_create_modal">
+    </bulk-create-modal>
 </div>
+{% endverbatim %}
 {% endblock %}
-
-
-
-
