@@ -33,9 +33,10 @@ jobs:
     - name: Set up SSH
       run: |
         mkdir -p ~/.ssh
-        echo $LIGHTSAIL_SSH_KEY > ~/.ssh/gh_rsa
+        echo -e "$LIGHTSAIL_SSH_KEY" > ~/.ssh/gh_rsa
         chmod 600 ~/.ssh/gh_rsa
         ssh-keyscan -H $LIGHTSAIL_HOST >> ~/.ssh/known_hosts
+        ssh-keygen -l -f ~/.ssh/gh_rsa
 
     - name: Deploy via SSH
       run: |
