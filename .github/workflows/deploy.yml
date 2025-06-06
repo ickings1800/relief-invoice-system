@@ -39,7 +39,7 @@ jobs:
 
     - name: Deploy via SSH
       run: |
-        ssh $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'EOF'
+        ssh -i ~/.ssh/gh_rsa $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'EOF'
           NOW=$( date '+%Y%m%d%H%M%S' )
           cd /home/ubuntu/relief-invoice-system  # Adjust this
           docker compose -f docker-compose.prod.yml down -v
