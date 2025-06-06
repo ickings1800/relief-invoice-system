@@ -1,12 +1,15 @@
 name: Deploy to Lightsail
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - master  # or the branch you deploy from
 
 jobs:
-  deploy:
+  if_merged:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
