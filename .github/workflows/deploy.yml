@@ -43,7 +43,7 @@ jobs:
         ssh -i ~/.ssh/gh_rsa $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'EOF'
           NOW=$( date '+%Y%m%d%H%M%S' )
           cd /home/ubuntu/relief-invoice-system  # Adjust this
-          docker compose -f docker-compose.prod.yml down -v
+          docker compose -f docker-compose.prod.yml down
           cp /home/ubuntu/relief-invoice-system/relief.sqlite "../db-backup/relief-${NOW}.sqlite"
           git pull origin master
           docker compose -f docker-compose.prod.yml up -d --build --wait
