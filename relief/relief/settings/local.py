@@ -22,6 +22,17 @@ INSTALLED_APPS += [
     'debug_toolbar',
 ]
 
+# Database
+# https://docs.djangoproject.com/en/2.0/ref/settings/#databases
+# Set DB_USER and DB_PASSWORD env var to load user and password
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': '/usr/src/app/relief.sqlite'
+    }
+}
+
+
 MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'corsheaders.middleware.CorsMiddleware',

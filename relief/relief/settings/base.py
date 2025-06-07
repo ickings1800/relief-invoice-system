@@ -132,16 +132,6 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 DEBUG = False
 
-# Database
-# https://docs.djangoproject.com/en/2.0/ref/settings/#databases
-# Set DB_USER and DB_PASSWORD env var to load user and password
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': '/home/app/relief.sqlite'
-    }
-}
-
 FRESHBOOKS_CLIENT_ID = os.environ['FRESHBOOKS_CLIENT_ID']
 FRESHBOOKS_CLIENT_SECRET = os.environ['FRESHBOOKS_CLIENT_SECRET']
 FRESHBOOKS_REDIRECT_URI = os.environ['REDIRECT_URI']
