@@ -42,7 +42,7 @@ class Customer(models.Model):
     address = models.CharField(max_length=255, null=True, blank=False)
     postal_code = models.CharField(max_length=255, null=True, blank=False)
     country = models.CharField(max_length=128, null=True, blank=False)
-    gst = models.DecimalField(default=7, max_digits=1, decimal_places=0)
+    gst = models.DecimalField(default=9, max_digits=1, decimal_places=0)
     freshbooks_account_id = models.CharField(max_length=8, null=True, blank=False)
     freshbooks_client_id = models.CharField(max_length=8, null=True, blank=False)
     pivot_invoice = models.BooleanField(default=False)
