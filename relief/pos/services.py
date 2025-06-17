@@ -31,9 +31,9 @@ class FreshbooksService(object):
 
     def create_freshbooks_invoice(self, invoice_data):
         invoice_create_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices'.format(
-            freshbooks_account_id)
+            self.freshbooks_account_id)
         headers = {'Api-Version': 'alpha', 'Content-Type': 'application/json'}
-        response = self.freshbooks_session.post(invoice_create_url, data=json.dumps(body), headers=headers)
+        response = self.freshbooks_session.post(invoice_create_url, data=json.dumps(invoice_data), headers=headers)
 
         if response.status_code != 200:
             raise Exception("Failed to create invoice: {}".format(response.text))
@@ -44,7 +44,7 @@ class FreshbooksService(object):
         invoice_update_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}'.format(
             self.freshbooks_account_id, freshbooks_invoice_id
         )
-        response = freshbooks.put(invoice_update_url, data=json.dumps(body), headers=headers)
+        response = freshbooks.put(invoice_update_url, data=json.dumps(invoice_data), headers=headers)
         if response.status_code != 200:
             raise Exception("Failed to update invoice: {}".format(response.text))
         return response.json().get('response').get('result').get('invoice')
