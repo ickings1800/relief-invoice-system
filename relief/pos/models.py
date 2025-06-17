@@ -42,7 +42,7 @@ class Customer(models.Model):
     address = models.CharField(max_length=255, null=True, blank=False)
     postal_code = models.CharField(max_length=255, null=True, blank=False)
     country = models.CharField(max_length=128, null=True, blank=False)
-    gst = models.DecimalField(default=7, max_digits=1, decimal_places=0)
+    gst = models.DecimalField(default=9, max_digits=1, decimal_places=0)
     freshbooks_account_id = models.CharField(max_length=8, null=True, blank=False)
     freshbooks_client_id = models.CharField(max_length=8, null=True, blank=False)
     pivot_invoice = models.BooleanField(default=False)
@@ -124,94 +124,6 @@ class Customer(models.Model):
             customer_group = CustomerGroup(group=default_group, customer=new_client)
             customer_group.save()
 
-    def get_freshbooks_client(freshbooks_account_id, freshbooks_client_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/users/clients/{1}".format(
-            freshbooks_account_id, freshbooks_client_id)).json()
-        #  print(res)
-        return res
-
-    def get_freshbooks_clients(freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        page = 1
-        client_arr = []
-        while(True):
-            res = freshbooks.get(
-                "https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
-            #  print(res)
-            max_pages = res.get('response')\
-                .get('result')\
-                .get('pages')
-
-            curr_page = res.get('response')\
-                .get('result')\
-                .get('page')
-
-            clients = res.get('response')\
-                .get('result')\
-                .get('clients')
-
-            for client in clients:
-                client_arr.append(client)
-            if curr_page == max_pages:
-                break
-            else:
-                page += 1
-        return client_arr
-
-    def update_freshbooks_clients(freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        page = 1
-        client_arr = []
-        while(True):
-            res = freshbooks.get(
-                "https://api.freshbooks.com/accounting/account/{0}/users/clients?page={1}".format(freshbooks_account_id, page)).json()
-            max_pages = res.get('response')\
-                .get('result')\
-                .get('pages')
-
-            curr_page = res.get('response')\
-                .get('result')\
-                .get('page')
-
-            clients = res.get('response')\
-                .get('result')\
-                .get('clients')
-
-            for client in clients:
-                client_arr.append(client)
-            if curr_page == max_pages:
-                break
-            else:
-                page += 1
-
-        for client in client_arr:
-            client_id = str(client.get('id'))
-            if client.get('organization', ''):
-                client_name = client.get('organization', '')
-            else:
-                client_name = client.get('fname', '') + client.get('lname', '')
-            client_address = client.get('p_street')
-            client_postal_code = client.get('p_code')
-            client_country = client.get('p_country')
-            client_accounting_systemid = client.get('accounting_systemid')
-
-            client_queryset = Customer.objects.filter(
-                freshbooks_client_id=client_id, freshbooks_account_id=client_accounting_systemid
-            )
-            if client_queryset.count() > 0:
-                update_client = client_queryset.get()
-                if update_client.freshbooks_client_id == client_id:
-                    print(client_name, client_address, client_postal_code, client_country)
-                    update_client.name = client_name
-                    update_client.address = client_address
-                    update_client.postal_code = client_postal_code
-                    update_client.country = client_country
-                    update_client.save()
-
 
 class CustomerGroup(models.Model):
     index = models.IntegerField(null=True)
@@ -256,44 +168,6 @@ class Product(models.Model):
             row_product = Product(name=row["name"])
             row_product.save()
 
-    def get_freshbooks_products(freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        page = 1
-        item_arr = []
-        while(True):
-            print(page)
-            res = freshbooks.get(
-                "https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
-            print(res)
-            max_pages = res.get('response')\
-                .get('result')\
-                .get('pages')
-
-            curr_page = res.get('response')\
-                .get('result')\
-                .get('page')
-
-            items = res.get('response')\
-                .get('result')\
-                .get('items')
-
-            for item in items:
-                item_arr.append(item)
-            if curr_page == max_pages:
-                break
-            else:
-                page += 1
-        return item_arr
-
-    def freshbooks_product_detail(freshbooks_item_id, freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        res = freshbooks.get("https://api.freshbooks.com/accounting/account/{0}/items/items/{1}".format(
-            freshbooks_account_id, freshbooks_item_id)).json()
-        print(res)
-        return res
-
     def freshbooks_import_products(item_arr, freshbooks_account_id, token):
         for item in item_arr:
             item_name = item.get('name')
@@ -302,61 +176,6 @@ class Product(models.Model):
             new_item = Product(name=item_name, freshbooks_item_id=item_id,
                                freshbooks_account_id=item_accounting_systemid)
             new_item.save()
-
-    def update_freshbooks_products(freshbooks_account_id, token):
-        client_id = settings.FRESHBOOKS_CLIENT_ID
-        freshbooks = OAuth2Session(client_id, token=token)
-        page = 1
-        item_arr = []
-        while(True):
-            res = freshbooks.get(
-                "https://api.freshbooks.com/accounting/account/{0}/items/items?page={1}".format(freshbooks_account_id, page)).json()
-            max_pages = res.get('response')\
-                .get('result')\
-                .get('pages')
-
-            curr_page = res.get('response')\
-                .get('result')\
-                .get('page')
-
-            items = res.get('response')\
-                .get('result')\
-                .get('items')
-
-            for item in items:
-                item_arr.append(item)
-            if curr_page == max_pages:
-                break
-            else:
-                page += 1
-
-        for item in item_arr:
-            item_name = item.get('name')
-            item_unit_price = item.get('unit_cost').get('amount')
-            item_id = item.get('id')
-            item_accounting_systemid = item.get('accounting_systemid')
-
-            item_queryset = Product.objects.filter(
-                freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid)
-            if len(item_queryset) > 0:
-                save_item = False
-                update_item = item_queryset.get()
-                if update_item.name != item_name:
-                    update_item.name = item_name
-                    save_item = True
-                if update_item.unit_price != item_unit_price:
-                    update_item.unit_price = item_unit_price
-                    save_item = True
-                if save_item:
-                    update_item.save()
-            else:
-                new_item = Product(
-                    name=item_name,
-                    unit_price=item_unit_price,
-                    freshbooks_item_id=item_id,
-                    freshbooks_account_id=item_accounting_systemid
-                )
-                new_item.save()
 
 
 class Invoice(models.Model):
