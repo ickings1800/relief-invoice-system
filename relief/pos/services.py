@@ -1,4 +1,6 @@
 
+import json
+
 class FreshbooksService(object):
     def __init__(self, freshbooks_account_id, freshbooks_session):
         """
