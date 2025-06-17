@@ -198,6 +198,7 @@ class FreshbooksService(object):
         return item_arr
 
     def freshbooks_product_detail(self, freshbooks_item_id):
+        print("frehsbooks_product_detail::", self.freshbooks_session)
         res = self.freshbooks_session.get("https://api.freshbooks.com/accounting/account/{0}/items/items/{1}".format(
             self.freshbooks_account_id, freshbooks_item_id)).json()
         print(res)
