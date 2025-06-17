@@ -25,6 +25,7 @@ import csv
 import io
 import requests
 import uuid
+import time
 
 
 # Create your views here.
@@ -34,6 +35,7 @@ def redirect_to_freshbooks_auth(request):
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
     authorization_url, state = oauth.authorization_url(
         'https://auth.freshbooks.com/service/auth/oauth/authorize')
+    request.session['oauth_state'] = state
     return HttpResponseRedirect(authorization_url)
 
 
@@ -42,15 +44,41 @@ def get_token(request):
     client_id = settings.FRESHBOOKS_CLIENT_ID
     client_secret = settings.FRESHBOOKS_CLIENT_SECRET
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
-    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
-    token = oauth.fetch_token(
-        "https://api.freshbooks.com/auth/oauth/token",
-        authorization_response=callback_url,
-        client_secret=client_secret)
+
+    freshbooks = OAuth2Session(
+        client_id,
+        token=request.session['oauth_state'], 
+        redirect_uri=redirect_uri
+    )
+
+    freshbooks.headers.update({
+        'User-Agent': 'FreshBooks API (python) 1.0.0',
+        'Content-Type': 'application/json'
+    })
+
+    try:
+        token = freshbooks.fetch_token(
+            "https://api.freshbooks.com/auth/oauth/token",
+            authorization_response=callback_url,
+            client_secret=client_secret)
+    except Exception as e:
+        print(f"Error fetching token: {e}")
+        return HttpResponseRedirect(reverse('pos:login'))
+    
+    current_unix_time = int(time.time())
+
+    request.session['client_id'] = client_id
+    request.session['oauth_token'] = token.get('access_token')
+    request.session['refresh_token'] = token.get('refresh_token')
+    request.session['unix_token_expires'] = current_unix_time + token.get('expires_in')
+
+    print(f"get_token:: OAuth Token: {request.session['oauth_token']}")
+    print(f"get_token:: Refresh Token: {request.session['refresh_token']}")
+    print(f"get_token:: Expires In: {request.session['unix_token_expires']}")
 
     # Use the access token to authenticate the user with the OAuth service
     # to check for the user's freshbooks account id
-    res = oauth.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
+    res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
     account_id = res.get('response')\
                     .get('business_memberships')[0]\
@@ -63,14 +91,16 @@ def get_token(request):
     if company is not None:
         login(request, company.user)
         request.session['freshbooks_account_id'] = account_id
-        request.session['oauth_token'] = token
+        request.user.freshbooks_access_token = token.get('access_token')
+        request.user.freshbooks_refresh_token = token.get('refresh_token')
+        request.user.freshbooks_token_expires = current_unix_time + token.get('expires_in')
+        request.user.save()
         return HttpResponseRedirect(reverse('pos:overview'))
+
     # Handle the case where the login failed, where user has logged in by freshbooks,
     # but does not have an account on the system.
     # TODO: (register a new user, company object)
     return HttpResponse(status=404)
-
-
 
 
 @login_required
@@ -360,35 +390,19 @@ def invoice_pdf_view(request, pk, file_name=''):
 
 @login_required
 @freshbooks_access
-def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name=''):
+def freshbooks_invoice_download(request, freshbooks_svc, pk=None, invoice_number=None, file_name=''):
     if pk:
         invoice = Invoice.objects.get(pk=pk)
         invoice_number = invoice.invoice_number
     if invoice_number:
         #  find the invoice id from freshbooks
-        client_id = request.session['client_id']
-        token = request.session['oauth_token']
         freshbooks_account_id = request.session['freshbooks_account_id']
-        freshbooks = OAuth2Session(client_id, token=token)
-        search_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}'.format(
-            freshbooks_account_id, invoice_number
-        )
-        freshbooks_invoice = freshbooks.get(search_url).json()
+        freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
 
-        freshbooks_invoice_search = freshbooks_invoice.get('response')\
-            .get('result')\
-            .get('invoices')
         if len(freshbooks_invoice_search) == 0:
             return HttpResponseBadRequest()
 
-        if not freshbooks_account_id or not token:
-            return HttpResponseBadRequest()
-
         freshbooks_invoice_id = freshbooks_invoice_search[0].get('invoiceid')
-
-        download_url = 'https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}/pdf'.format(
-            freshbooks_account_id, freshbooks_invoice_id
-        )
 
         #  TODO: check if freshbooks customer id is in database for file name
         try:
@@ -414,7 +428,7 @@ def freshbooks_invoice_download(request, pk=None, invoice_number=None, file_name
             return HttpResponseBadRequest()
 
         try:
-            pdf = freshbooks.get(download_url, stream=True, headers={'Accept': 'application/pdf'})
+            pdf = freshbooks_svc.download_freshbooks_invoice(freshbooks_invoice_id)
         except Exception:
             return HttpResponseBadRequest()
 
