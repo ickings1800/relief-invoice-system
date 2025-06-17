@@ -83,9 +83,7 @@ def product_list(request):
 def product_detail(request, freshbooks_svc, pk):
     if request.method == 'GET':
         product = get_object_or_404(Product, pk=pk)
-        token = request.session['oauth_token']
-        freshbooks = FreshbooksService(product.freshbooks_account_id, token)
-        product_detail = freshbooks.freshbooks_product_detail(product.freshbooks_item_id)
+        product_detail = freshbooks_svc.freshbooks_product_detail(product.freshbooks_item_id)
         return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
