@@ -84,7 +84,13 @@ def huey_create_freshbooks_invoice(user, freshbooks_create_invoice_body, task=No
     update_freshbooks_invoice.invoice_number = invoice_number
     update_freshbooks_invoice.date_created = created_date
     update_freshbooks_invoice.huey_task_id = None
-    update_freshbooks_invoice.save()
+    update_freshbooks_invoice.save(update_fields=[
+        'freshbooks_invoice_id',
+        'freshbooks_account_id',
+        'invoice_number',
+        'date_created',
+        'huey_task_id'
+    ])
 
 
 @db_task(retries=10, retry_delay=10, context=True)
@@ -107,7 +113,13 @@ def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_inv
     existing_invoice.invoice_number = invoice_number
     existing_invoice.date_created = date_created
     existing_invoice.huey_task_id = None
-    existing_invoice.save()
+    existing_invoice.save(update_fields=[
+        'freshbooks_invoice_id',
+        'freshbooks_account_id',
+        'invoice_number',
+        'date_created',
+        'huey_task_id'
+    ])
     
 @periodic_task(crontab(minute='*/5'))
 def every_five_mins():
