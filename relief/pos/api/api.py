@@ -909,7 +909,7 @@ def invoice_update(request, freshbooks_svc, pk):
         total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
         update_invoice_task = huey_update_freshbooks_invoice(
-            request.user, existing_invoice.huey_task_id, body
+            request.user, existing_invoice, body
         )
 
         existing_invoice.date_created = None
