@@ -82,7 +82,7 @@ def huey_create_freshbooks_invoice(user, freshbooks_create_invoice_body, task=No
     update_freshbooks_invoice.freshbooks_invoice_id = freshbooks_invoice_id
     update_freshbooks_invoice.freshbooks_account_id = freshbooks_account_id
     update_freshbooks_invoice.invoice_number = invoice_number
-    update_freshbooks_invoice.created_date = created_date
+    update_freshbooks_invoice.date_created = created_date
     update_freshbooks_invoice.huey_task_id = None
     update_freshbooks_invoice.save()
 
@@ -94,7 +94,7 @@ def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_inv
     print(json.dumps(freshbooks_update_invoice_body))
 
     freshbooks_updated_invoice = freshbooks_svc.update_freshbooks_invoice(
-        freshbooks_svc.freshbooks_account_id, freshbooks_update_invoice_body
+        existing_invoice.freshbooks_invoice_id, freshbooks_update_invoice_body
     )
 
     invoice_number = freshbooks_updated_invoice.get('invoice_number')
