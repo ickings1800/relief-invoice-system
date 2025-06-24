@@ -1,46 +1,17 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
+from rest_framework.reverse import reverse
 from rest_framework.response import Response
-from rest_framework.decorators import permission_classes, authentication_classes
 from django.conf import settings
 from datetime import datetime
-from requests_oauthlib import OAuth2Session
 from decimal import Decimal, ROUND_UP
 from ..freshbooks import freshbooks_access
-from ..services import FreshbooksService
+from ..tasks import huey_create_freshbooks_invoice
 from ..models import *
 from .serializers import *
+from ..tasks import *
 import json
-import requests
-import os
-
-
-@api_view(['POST'])
-@permission_classes([])
-@authentication_classes([])
-def update_do_number_webhook(request):
-    update_order_url = 'https://app.detrack.com/api/v2/dn/jobs/update'
-    #  condition for info received, in progress, partial complete and completed
-    data = request.data
-    put_data = {}
-    tracking_status = data.get('tracking_status')
-    do_number = data.get('do_number')
-    order_type = data.get('type')
-    if order_type == 'Delivery':
-        if tracking_status in ['Info received', 'Out for delivery']:
-            #  to update order attachment url with the do_number
-            domain = os.environ['CSRF_TRUSTED_ORIGIN']
-            put_data['attachment_url'] = f'{domain}/pos/receipt/{do_number}'
-            headers = {
-                'Content-Type': 'application/json',
-                'X-API-KEY': settings.DETRACK_API_KEY
-            }
-            put_object = {'do_number': do_number, 'data': put_data}
-            put_object_json = json.dumps(put_object)
-            response = requests.put(update_order_url, data=put_object_json, headers=headers)
-            return Response(status=status.HTTP_200_OK, data=response.json())
-    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -424,13 +395,9 @@ def create_invoice(request, freshbooks_svc):
                     "lines": [line for line in invoice_lines]
                 }
             }
-            #  create invoice
-            print(json.dumps(body))
-            invoice = freshbooks_svc.create_freshbooks_invoice(body)
-            invoice_number = invoice.get('invoice_number')
-            freshbooks_account_id = invoice.get('accounting_systemid')
-            freshbooks_invoice_id = invoice.get('id')
-            created_date = invoice.get('create_date')
+
+            #. create the ask on huey, get the task id
+            create_invoice_task = huey_create_freshbooks_invoice(request.user, body)
 
             gst_decimal = Decimal(invoice_customer.gst / 100)
             net_total -= minus_decimal
@@ -438,7 +405,7 @@ def create_invoice(request, freshbooks_svc):
             total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
 
             new_invoice = Invoice(
-                date_created=created_date,
+                date_created=None,
                 po_number=po_number,
                 net_total=net_total,
                 gst=invoice_customer.gst,
@@ -446,11 +413,12 @@ def create_invoice(request, freshbooks_svc):
                 minus=minus_decimal,
                 discount_description=minus_description,
                 total_incl_gst=total_incl_gst,
-                invoice_number=invoice_number,
+                invoice_number=None,
                 customer=invoice_customer,
                 pivot=invoice_customer.pivot_invoice,
-                freshbooks_account_id=freshbooks_account_id,
-                freshbooks_invoice_id=freshbooks_invoice_id,
+                freshbooks_account_id=None,
+                freshbooks_invoice_id=None,
+                huey_task_id=create_invoice_task.id
             )
             new_invoice.save()
 
@@ -658,7 +626,7 @@ def import_freshbooks_clients(request, freshbooks_svc):
                 valid_import_client_ids.append(res)
             else:
                 return Response(status=status.HTTP_404_NOT_FOUND, data=import_client_ids)
-        Customer.import_freshbooks_clients(valid_import_client_ids, freshbooks_account_id, token)
+        Customer.import_freshbooks_clients(valid_import_client_ids)
         return Response(status=status.HTTP_201_CREATED, data=import_client_ids)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -696,7 +664,7 @@ def import_freshbooks_products(request, freshbooks_svc):
             else:
                 return Response(status=status.HTTP_404_NOT_FOUND, data=import_product_ids)
         print(valid_import_product_list)
-        Product.freshbooks_import_products(valid_import_product_list, freshbooks_account_id, token)
+        Product.freshbooks_import_products(valid_import_product_list)
         return Response(status=status.HTTP_201_CREATED, data=valid_import_product_list)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -827,10 +795,6 @@ def invoice_sync(request, freshbooks_svc):
                 invoice.freshbooks_account_id = freshbooks_invoice.get('accounting_systemid')
                 invoice.freshbooks_invoice_id = freshbooks_invoice.get('invoiceid')
                 invoice.save()
-
-        if not freshbooks_account_id or not token:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
         invoice_serializer = InvoiceListSerializer(
             sync_invoices, context={'request': request}, many=True)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
@@ -939,29 +903,115 @@ def invoice_update(request, freshbooks_svc, pk):
             }
         }
 
-        #  update invoice
-        print(json.dumps(body))
-        freshbooks_updated_invoice = freshbooks_svc.update_freshbooks_invoice(
-            existing_invoice.freshbooks_account_id, body
+        gst_decimal = Decimal(existing_invoice.gst / 100)
+        net_total -= minus_decimal
+        net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+        update_invoice_task = huey_update_freshbooks_invoice(
+            request.user, existing_invoice.huey_task_id, body
         )
-        if response.status_code == 200:
-            invoice_number = freshbooks_updated_invoice.get('invoice_number')
-            date_created = freshbooks_updated_invoice.get('create_date')
 
-            gst_decimal = Decimal(existing_invoice.gst / 100)
-            net_total -= minus_decimal
-            net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-            total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
-
-            existing_invoice.create_date = date_created
-            existing_invoice.po_number = po_number
-            existing_invoice.net_total = net_total
-            existing_invoice.gst = existing_invoice.gst
-            existing_invoice.net_gst = net_gst
-            existing_invoice.total_incl_gst = total_incl_gst
-            existing_invoice.invoice_number = invoice_number
-            existing_invoice.minus = minus_decimal
-            existing_invoice.discount_description = minus_description
-            existing_invoice.save()
-            return Response(data=response.json(), status=status.HTTP_200_OK)
+        existing_invoice.date_created = None
+        existing_invoice.po_number = po_number
+        existing_invoice.net_total = net_total
+        existing_invoice.gst = existing_invoice.gst
+        existing_invoice.net_gst = net_gst
+        existing_invoice.total_incl_gst = total_incl_gst
+        existing_invoice.invoice_number = invoice_number
+        existing_invoice.minus = minus_decimal
+        existing_invoice.discount_description = minus_description
+        existing_invoice.huey_task_id = update_invoice_task.id
+        existing_invoice.save()
+        return Response(data=InvoiceDetailSerializer(existing_invoice).data, status=status.HTTP_200_OK)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
+
+
+@api_view(['GET'])
+@freshbooks_access
+def invoice_start_download(request, freshbooks_svc):
+    """
+    Start the download of a invoice by invoice number or pk.
+    Huey task will be created to prepare to download the invoice.
+    Huey task id will be returned to the client.
+    """
+    invoice_number = request.GET.get('invoice_number', None)
+    pk = request.GET.get('pk', None)
+
+    if not invoice_number and not pk:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Invoice number or pk must be provided"})
+    
+    invoice = None
+    filename = ''
+    try:
+        if pk:
+            invoice = Invoice.objects.get(pk=pk)
+        if invoice_number:
+            invoice = Invoice.objects.get(invoice_number=invoice_number)
+
+    except Invoice.DoesNotExist:
+        #  invoice is not created from the platform, search, and download from freshbooks
+        if not invoice_number:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Invoice number not provided for freshbooks search"})
+
+    except Invoice.MultipleObjectsReturned:
+        #  multiple invoices found (shouldn't happen), but let's just use the first one
+        invoice = Invoice.objects.filter(invoice_number=invoice_number).first()
+
+    if invoice:
+        filename = invoice.customer.get_download_file_name(invoice.invoice_number)
+        if invoice.pivot:
+            status_url = reverse('pos:invoice_download_status') + f'?pk={invoice.pk}'
+            status_url = request.build_absolute_uri(status_url)
+            return Response({"status_url": status_url}, status=status.HTTP_200_OK)
+
+    
+    freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
+
+    if len(freshbooks_invoice_search) == 0:
+        return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Invoice not found in FreshBooks"})
+
+    if len(freshbooks_invoice_search) > 0:
+        freshbooks_invoice = freshbooks_invoice_search[0]
+        freshbooks_invoice_id = freshbooks_invoice.get('id')
+        huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, request.user)
+        print("Huey task created: ", huey_pdf_task.id)
+        status_url = reverse('pos:invoice_download_status') + f'?task_id={huey_pdf_task.id}&filename={filename}'
+        status_url = request.build_absolute_uri(status_url)
+        return Response({"status_url": status_url}, status=status.HTTP_200_OK)
+
+    return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Unable to start invoice download"})
+
+
+@api_view(['GET'])
+def invoice_download_status(request):
+    """
+    Check the status of the invoice download task.
+    """
+    task_id = request.GET.get('task_id', None)
+    pk = request.GET.get('pk', None)
+    filename = request.GET.get('filename', task_id or pk)
+    
+    if pk:
+        url = reverse('pos:invoice_download')
+        return Response({
+            "status": "completed",
+            "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}&filename={filename}")
+        }, status=status.HTTP_200_OK)
+    
+    if task_id:
+        huey = settings.HUEY
+        task_result = huey.get(task_id, peek=True)
+        try:
+            if task_result:
+                url = reverse('pos:invoice_download')
+                return Response({
+                    "status": "completed",
+                    "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}&filename={filename}")
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({"status": "pending", "pdf_url": None}, status=status.HTTP_202_ACCEPTED)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({"status": "error", "message": "Task ID or PK must be provided"}, status=status.HTTP_400_BAD_REQUEST)

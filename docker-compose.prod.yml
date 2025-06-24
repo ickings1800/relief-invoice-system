@@ -5,7 +5,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile.prod
-    command: gunicorn relief.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn relief.wsgi:application --bind 0.0.0.0:8000 & python manage.py run_huey
     expose:
       - 8000
     volumes:
@@ -41,6 +41,12 @@ services:
       - acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
+  redis:
+    image: redis:alpine
+    restart: "no"
+    hostname: redis
+    ports:
+      - 6379:6379
 
 volumes:
   static_volume:

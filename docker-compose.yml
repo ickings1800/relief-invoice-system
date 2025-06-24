@@ -5,7 +5,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8000 & python manage.py run_huey
     ports:
       - 8000:8000
     volumes:
@@ -13,3 +13,11 @@ services:
       - ./relief.sqlite:/usr/src/app/relief.sqlite:rw
     env_file:
       - ./.env.dev
+    depends_on:
+      - redis
+  redis:
+    image: redis:alpine
+    restart: "no"
+    hostname: redis
+    ports:
+      - 6379:6379

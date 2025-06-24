@@ -11,6 +11,12 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import os
 from pathlib import Path
+from huey import RedisHuey
+from redis import ConnectionPool
+# configure huey for task queue
+
+pool = ConnectionPool(host='redis', port=6379, max_connections=20)
+HUEY = RedisHuey('my-app', connection_pool=pool)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # Remember to set SECRET_KEY env var!
@@ -37,6 +43,7 @@ INSTALLED_APPS = [
     'django_pivot',
     'storages',
     'users',
+    'huey.contrib.djhuey',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -138,30 +145,6 @@ FRESHBOOKS_REDIRECT_URI = os.environ['REDIRECT_URI']
 # OAUTHLIB_INSECURE_TRANSPORT = os.environ['OAUTHLIB_INSECURE_TRANSPORT']
 DETRACK_API_KEY = os.environ['DETRACK_API_KEY']
 
-
-#CSRF_COOKIE_SECURE = True
-
-#SESSION_COOKIE_SECURE = True
-
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'handlers': {
-#         'file': {
-#             'level': 'DEBUG',
-#             'class': 'logging.FileHandler',
-#             'filename': os.path.join(BASE_DIR, 'debug.log'),
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['file'],
-#             'level': 'DEBUG',
-#             'propagate': True,
-#         },
-#     },
-# }
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -182,7 +165,6 @@ AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 AWS_DEFAULT_ACL = 'private'
-
 
 if not os.environ.get('DJANGO_DEVELOPMENT'):
     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')

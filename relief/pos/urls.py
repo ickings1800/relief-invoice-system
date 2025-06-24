@@ -8,9 +8,7 @@ urlpatterns = [
     #  /pos/customers/detail/<pk>/
     path('quotes/', views.overview, name='overview'),
     #  /pos/invoice/pdf/
-    path('invoice/pdf/', views.download_invoice, name='invoice_download_range'),
-    #  /pos/invoice/<int:pk>/pdf/
-    path('invoice/<int:pk>/pdf/', views.download_invoice, name='invoice_download'),
+    path('invoice/pdf/', views.download_invoice, name='invoice_download'),
     #  /pos/orderitem/summary/
     path('orderitem/summary/', views.orderitem_summary, name='orderitem_summary'),
     #  /pos/invoice/export/
@@ -27,8 +25,6 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     #  /pos/token/
     path('token/', views.get_token, name='get_freshbooks_token'),
-    #  /pos/receipt/<str:submission_id>/
-    path('receipt/<str:submission_id>/', views.download_receipt, name='download_receipt'),
 ]
 
 urlpatterns += urls.urlpatterns
