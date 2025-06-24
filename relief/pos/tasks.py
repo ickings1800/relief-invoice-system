@@ -99,7 +99,11 @@ def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_inv
 
     invoice_number = freshbooks_updated_invoice.get('invoice_number')
     date_created = freshbooks_updated_invoice.get('create_date')
+    freshbooks_account_id = freshbooks_updated_invoice.get('accounting_systemid')
+    freshbooks_invoice_id = freshbooks_updated_invoice.get('id')
 
+    existing_invoice.freshbooks_invoice_id = freshbooks_invoice_id
+    existing_invoice.freshbooks_account_id = freshbooks_account_id
     existing_invoice.invoice_number = invoice_number
     existing_invoice.date_created = date_created
     existing_invoice.huey_task_id = None
