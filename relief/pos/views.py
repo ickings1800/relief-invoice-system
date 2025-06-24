@@ -27,7 +27,6 @@ import requests
 import uuid
 import time
 
-
 # Create your views here.
 def redirect_to_freshbooks_auth(request):
     client_id = settings.FRESHBOOKS_CLIENT_ID
@@ -155,34 +154,6 @@ class NumberedPageCanvas(canvas.Canvas):
                              "Page %d of %d" % (self._pageNumber, page_count))
 
 
-@login_required
-def download_invoice(request, pk=None):
-    invoice_number = request.GET.get('invoice_number', None)
-    print(invoice_number)
-    try:
-        if pk:
-            print('use pk')
-            invoice = Invoice.objects.get(pk=pk)
-        if invoice_number:
-            print('use invoice number')
-            invoice = Invoice.objects.filter(invoice_number=invoice_number).get()
-    except ObjectDoesNotExist:
-        #  invoice is not in the db
-        print('not in db')
-        return freshbooks_invoice_download(request, invoice_number=invoice_number)
-
-    if invoice:
-        #  invoice is in the db
-        print('in db')
-        invoice_name = invoice.customer.get_download_file_name(invoice.invoice_number)
-        if invoice.pivot:
-            print('pivot')
-            return invoice_pdf_view(request, invoice.pk, file_name=invoice_name)
-        else:
-            print('freshbooks')
-            return freshbooks_invoice_download(request, pk=invoice.pk, file_name=invoice_name)
-
-    return HttpResponseBadRequest()
 
 
 @login_required
@@ -389,53 +360,33 @@ def invoice_pdf_view(request, pk, file_name=''):
 
 
 @login_required
-@freshbooks_access
-def freshbooks_invoice_download(request, freshbooks_svc, pk=None, invoice_number=None, file_name=''):
-    if pk:
-        invoice = Invoice.objects.get(pk=pk)
-        invoice_number = invoice.invoice_number
-    if invoice_number:
-        #  find the invoice id from freshbooks
-        freshbooks_account_id = request.session['freshbooks_account_id']
-        freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
-
-        if len(freshbooks_invoice_search) == 0:
-            return HttpResponseBadRequest()
-
-        freshbooks_invoice_id = freshbooks_invoice_search[0].get('invoiceid')
-
-        #  TODO: check if freshbooks customer id is in database for file name
-        try:
-            freshbooks_invoice_client_id = freshbooks_invoice_search[0].get('customerid')
-            invoice_customer = Customer.objects.get(
-                freshbooks_client_id=freshbooks_invoice_client_id)
-            file_name = invoice_customer.get_download_file_name(invoice_number)
-        except ObjectDoesNotExist:
-            #  customer not registered in database
-            #  different file name format for customers not registered in database
-            file_name = str(invoice_number)
-            freshbooks_first_name = freshbooks_invoice_search[0].get('fname', '')
-            freshbooks_last_name = freshbooks_invoice_search[0].get('lname', '')
-            freshbooks_organization = freshbooks_invoice_search[0].get('organization', '')
-            if freshbooks_first_name:
-                file_name += ('_' + freshbooks_first_name)
-            if freshbooks_last_name:
-                file_name += ('_' + freshbooks_last_name)
-            if freshbooks_organization:
-                file_name += ('_' + freshbooks_organization)
-        except MultipleObjectsReturned:
-            #  more than one customer with the same freshbooks client id
-            return HttpResponseBadRequest()
-
-        try:
-            pdf = freshbooks_svc.download_freshbooks_invoice(freshbooks_invoice_id)
-        except Exception:
-            return HttpResponseBadRequest()
-
-        response = FileResponse(pdf.raw, as_attachment=True, filename='{0}.pdf'.format(file_name))
-        return response
-    return HttpResponseBadRequest()
-
+def download_invoice(request):
+    #  TODO: check if freshbooks customer id is in database for file name
+    if request.method == 'GET':
+        pk = request.GET.get('pk', None)
+        huey_task_id = request.GET.get('huey_task_id', None)
+        filename = request.GET.get('filename', huey_task_id or str(pk))
+        if pk:
+            invoice = get_object_or_404(Invoice, pk=pk)
+            return invoice_pdf_view(request, pk, file_name=f"{filename}.pdf")
+        if huey_task_id:
+            huey = settings.HUEY
+            task_result = huey.get(huey_task_id, peek=True)
+            try:
+                if task_result:
+                    pdf = huey.get(huey_task_id)
+                    return FileResponse(
+                        io.BytesIO(pdf),
+                        as_attachment=True,
+                        filename=f"{filename}.pdf"
+                    )
+                else:
+                    return HttpResponseBadRequest({"status": "error", "message": "Task not found or not completed."})
+            except Exception as e:
+                return HttpResponseBadRequest({"status": "error", "message": str(e)})
+        return HttpResponseBadRequest("No invoice id or huey task id provided.")
+    return HttpResponseBadRequest("Invalid request method.")
+    
 
 @login_required
 def orderitem_summary(request):
@@ -609,193 +560,3 @@ def import_items(request):
         export_form = ExportOrderItemForm()
         export_invoice = ExportInvoiceForm()
     return render(request, template_name, {'form': form, 'export_form': export_form, 'export_invoice': export_invoice})
-
-
-def download_receipt(request, submission_id):
-    headers = {
-        'Content-Type': 'application/json',
-        'X-API-KEY': settings.DETRACK_API_KEY
-    }
-    read_order_url = f'https://app.detrack.com/api/v2/dn/jobs/show/?do_number={submission_id}'
-    response = requests.get(read_order_url, headers=headers).json()
-    data = response.get('data')
-    delivery_date = datetime.strptime(data.get('date'), '%Y-%m-%d')
-    fmt_delivery_date = delivery_date.strftime('%d/%m/%Y')
-    do_number = data.get('do_number')
-    customer_name = data.get('deliver_to_collect_from')
-    orderitems = data.get('items')
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=(58*mm, 180*mm),
-        rightMargin=3*mm,
-        leftMargin=3*mm,
-        topMargin=3*mm,
-        bottomMargin=3*mm
-    )
-
-    style = getSampleStyleSheet()
-    headingStyle = style["Normal"]
-    headingStyle.fontName = 'Helvetica-Bold'
-    headingStyle.alignment = TA_CENTER
-    headingStyle.fontSize = 7
-
-    detail = getSampleStyleSheet()
-    detailStyle = detail["Normal"]
-    detailStyle.fontName = 'Helvetica-Bold'
-    detailStyle.alignment = TA_LEFT
-    detailStyle.fontSize = 7
-
-    detail_right = getSampleStyleSheet()
-    detailRightStyle = detail_right["Normal"]
-    detailRightStyle.fontName = 'Helvetica-Bold'
-    detailRightStyle.alignment = TA_RIGHT
-    detailRightStyle.fontSize = 7
-
-    # container for the "Flowable" objects
-    heading_data = [
-        [Paragraph("Delivery Date:", detailStyle), Paragraph(fmt_delivery_date, detailRightStyle)],
-        [Paragraph("Delivery Order No.:", detailStyle), Paragraph(do_number, detailRightStyle)],
-        [Paragraph("Messrs: ", detailStyle), ],
-        [Paragraph(customer_name, detailStyle), ],
-    ]
-    heading_table_style = TableStyle([
-        #  ('GRID',(0,0),(-1,-1),0.5,colors.gray),
-        #  ('LINEABOVE', (0,0), (2,0), 0.25, colors.black),
-        #  ('LINEBELOW', (-2,-1), (-1,-1), 0.25, colors.black),
-        ('SPAN', (0, 3), (1, 3)),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ])
-    heading_table = Table(heading_data)
-    heading_table.setStyle(heading_table_style)
-
-    elements = [
-        Paragraph("SUN-UP BEAN FOOD MFG PTE LTD", headingStyle),
-        Paragraph("No. 10 Tuas Bay Walk #02-30", headingStyle),
-        Paragraph("Singapore 637780", headingStyle),
-        Paragraph("Tel: 6863 9035 Fax: 6863 3738", headingStyle),
-        Paragraph("GST & Co. Reg. No.: 200302589N", headingStyle),
-        heading_table,
-    ]
-
-    all_product_desc = [
-        'Plate Tofu\n板豆腐 (盘)',
-        'Press Tofu\n板豆腐 (白)',
-        'Japanese Silken Packaging\n日本豆腐',
-        'Deep Fried Packaging Tofu\n盒装煎炸 (青)',
-        'Silken Tofu With Egg (Square)\n菜香豆腐 (方)',
-        'Egg Tofu (Tube)\n蛋豆腐 (条)',
-        'Pail Tofu\n豆腐 (桶)',
-        'Tofu Without Packaging\n豆腐 (条)',
-        'Bean Curd\n豆干',
-        'Ready Fried Tofu (20 pcs)\n预备炸豆腐 (20 条)',
-        'Ready Fried Tofu (3 pcs)\n预备炸豆腐 (3 条)',
-        'Blank Japanese Silken Packaging\n无印日本',
-        'Blank Press Tofu Packaging\n无印四方',
-    ]
-
-    num_expiry_dates = len([oi for oi in orderitems if oi.get('expiry_date') or oi.get('purchase_order_number')])
-    non_empty_products = [oi.get('description') for oi in orderitems]
-    empty_product_description = [d for d in all_product_desc if d not in non_empty_products]
-    empty_products = [
-        {
-            'description': description,
-            'actual_quantity': '',
-            'exp_date': '',
-            'purchase_order_number': '',
-        }
-        for description in empty_product_description
-    ]
-
-    product_table = build_product_table(orderitems)
-    empty_product_table = build_product_table(empty_products)
-
-    elements += product_table
-    elements += empty_product_table
-    extra_paper_height = num_expiry_dates * 5
-    doc.pagesize = (58*mm, (180 + extra_paper_height) * mm)
-    doc.build(elements)
-    filename = str(uuid.uuid4())
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="{0}.pdf"'.format(filename)
-    buffer.seek(0)
-    response.write(buffer.getvalue())
-    buffer.close()
-    return response
-
-
-def build_product_table(orderitems):
-    body = getSampleStyleSheet()
-    bodyStyle = body["Normal"]
-    bodyStyle.alignment = TA_LEFT
-    bodyStyle.fontSize = 7
-
-    po = getSampleStyleSheet()
-    poStyle = po["Normal"]
-    poStyle.alignment = TA_RIGHT
-    poStyle.fontSize = 7
-
-    quantity = getSampleStyleSheet()
-    quantityStyle = quantity["Normal"]
-    quantityStyle.alignment = TA_RIGHT
-    quantityStyle.fontSize = 10
-
-    unit = getSampleStyleSheet()
-    unitStyle = unit["Normal"]
-    unitStyle.alignment = TA_RIGHT
-    unitStyle.fontSize = 7
-
-    pdfmetrics.registerFont(ttfonts.TTFont("ukai", "ukai.ttc"))
-
-    cn = getSampleStyleSheet()
-    cnStyle = cn["Normal"]
-    cnStyle.alignment = TA_LEFT
-    cnStyle.fontSize = 10
-    cnStyle.fontName = 'ukai'
-
-    product_table_list = []
-
-    for oi in orderitems:
-        name = oi.get('description').split('\n')
-        #  quantity = oi.get('actual_quantity') or ""
-        actual_quantity = str(oi.get('actual_quantity') or "")
-        exp_date = oi.get('expiry_date') or ""
-        po_number = oi.get('purchase_order_number') or ""
-
-        eng_product_name = name[0]
-        product_data = [
-            [Paragraph(eng_product_name, bodyStyle), Paragraph(actual_quantity, quantityStyle)],
-        ]
-
-        if len(name) > 1:
-            cn_product_name = name[1]
-            product_data = [
-                [Paragraph(cn_product_name, cnStyle), Paragraph(actual_quantity, quantityStyle)],
-                [Paragraph(eng_product_name, bodyStyle), ],
-            ]
-
-        if exp_date or po_number:
-            product_data.append([
-                Paragraph(f"EXP DATE: {exp_date}", bodyStyle), Paragraph(po_number, poStyle)
-            ])
-
-        product_table = Table(product_data)
-        product_table_style = TableStyle([
-            #  ('GRID',(0,0),(-1,-1),0.5,colors.gray),
-            ('SPAN', (0, 1), (-1, 1)),
-            ('LINEABOVE', (0, 0), (2, 0), 0.25, colors.black),
-            ('LINEBELOW', (-2, -1), (-1, -1), 0.25, colors.black),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]
-        )
-        product_table.setStyle(product_table_style)
-        product_table_list.append(product_table)
-
-    return product_table_list

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
+from rest_framework.reverse import reverse
 from ..models import Customer, Product, Route, OrderItem, Invoice, CustomerProduct, Group
 
 
@@ -68,9 +69,7 @@ class CustomerProductCreateSerializer(serializers.ModelSerializer):
 class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
     customer_name = serializers.SerializerMethodField()
     customer_pk = serializers.SerializerMethodField()
-    download_url = serializers.HyperlinkedIdentityField(
-        view_name="pos:invoice_download", lookup_field="pk", lookup_url_kwarg="pk"
-    )
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -87,6 +86,7 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
             'discount_description',
             'discount_percentage',
             'download_url',
+            'huey_task_id',
             'customer_pk'
         )
 
@@ -96,6 +96,9 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
     def get_customer_pk(self, obj):
         return obj.customer.pk
 
+    def get_download_url(self, obj):
+        url = reverse('pos:invoice_download_trigger')
+        return f"{url}?pk={obj.pk}"
 
 class OrderItemSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
@@ -170,6 +173,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
                   'discount_description',
                   'discount_percentage',
                   'date_generated',
+                  'huey_task_id',
                   'orderitem_set')
 
     def get_orderitem_set(self, obj):

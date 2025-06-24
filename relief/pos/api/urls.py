@@ -3,7 +3,6 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from . import api
 
 urlpatterns = [
-    path('api/webhook/', api.update_do_number_webhook, name='detrack_webhook'),
     path('api/customers/', api.customer_list, name='customer_list'),
     path('api/customers/sync/', api.customer_sync, name='customer_sync'),
     path('api/products/', api.product_list, name='product_list'),
@@ -32,6 +31,8 @@ urlpatterns = [
     path('api/invoices/<int:pk>/', api.invoice_detail, name='api_invoice_detail'),
     path('api/invoices/<int:pk>/update/', api.invoice_update, name='invoice_update'),
     path('api/invoices/sync/', api.invoice_sync, name='invoice_sync'),
+    path('api/invoice/download/', api.invoice_start_download, name='invoice_download_trigger'),
+    path('api/invoice/download/status/', api.invoice_download_status, name='invoice_download_status'),
     path('api/orderitem/<int:pk>/update/', api.orderitem_update, name='orderitem_update'),
     path('api/quote/<int:pk>/update/', api.customerproduct_update, name='customerproduct_update'),
     path('api/customers/<int:pk>/products/', api.customerproduct_list, name='customerproduct_list'),

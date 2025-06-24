@@ -314,8 +314,6 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
       return {
         from: null,
         to: null,
-        download_promises: [],
-        downloaded_pdfs: [],
       }
   },
 
@@ -340,9 +338,11 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
               <label class="form-label" for="to-range">To</label>
               <input class="form-input" type="number" id="to-range" v-model="to">
             </div>
-            <div class="form-group" v-for="download in downloaded_pdfs">
-              <label class="form-label"><i class="icon icon-check mx-2"></i>{{ download }}</label>
+            <!--
+            <div class="form-group">
+              <label class="form-label"><i class="icon icon-check mx-2"></i></label>
             </div>
+            -->
           </div>
         </div>
         <div class="modal-footer">
@@ -358,56 +358,28 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
    props: ['opened'],
    components: {},
    watch: {
-       opened: function(val){
-           if (val) {
-           }
-       },
    },
    methods: {
       close: function(event){
         this.$emit('show-download-range-modal');
         this.resetFields();
-       },
-       download: function(event){
+      },
+      download: async function(event){
         console.log('download invoice range')
         for (let i = this.from; i <= this.to ; i++){
-          let pdf_promise = downloadInvoicePDF(i)
-          this.download_promises.push(pdf_promise)
-        }
-
-        // set a delay before executing each download to prevent being rate limited.
-        // Promise.all / Promise.allSettled will execute all promises at once
-        // and cause rate limiting for a large range of pdfs
-        let timeout_ms = 0;
-        this.download_promises.forEach((promise) => {
-          timeout_ms += 12000;
-          setTimeout(function() {
-            promise.then(async res => {
-              const filename = res.headers.get("content-disposition").split('"')[1];
-              const blob = await res.blob()
-              return { blob, filename }
-            }).then(res => {
-                // to add to zip file next time
-                var a = document.createElement("a");
-                a.style = "display: none";
-                a.download = res.filename;
-                var url = window.URL.createObjectURL(res.blob);
-                a.href = url;
-                document.body.appendChild(a);
-                a.click();
-                return res.filename;
-            }).then(filename => {
-              this.downloaded_pdfs.push(filename);
+          let url = origin + '/pos/api/invoice/download/?invoice_number=' + i.toString();
+          getInvoiceDownloadStatusUrl(url)
+            .then(res => res.json())
+            .then(res => { 
+              this.$emit('push-invoice-status-url-to-queue', res.status_url)
             })
-          }.bind(this), timeout_ms)
-        })
-       },
-       resetFields: function(event) {
+            .catch(e => console.log(e))
+        }
+      },
+      resetFields: function(event) {
         this.from = null;
         this.to = null;
-        this.download_promises = [];
-        this.downloaded_pdfs = [];
-       }
+      }
    }
 })
 
@@ -1313,7 +1285,7 @@ var CustomerList = Vue.component('CustomerList', {
         show_client_orderitem_data: [],
         filter_invoice_customer_id: null,
         filter_invoice_year: null,
-        available_filter_invoices_years: []
+        available_filter_invoices_years: [],
       }
   },
   created: function() {
@@ -1491,7 +1463,7 @@ var CustomerList = Vue.component('CustomerList', {
               {{ invoice.date_created }}
             </td>
             <td>{{ invoice.total_incl_gst }}</td>
-            <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>
+            <td><a class="btn btn-sm" v-on:click.prevent="trigger_download_invoice" :href="invoice.download_url">Download</a></td>
           </tr>
         </tbody>
       </table>
@@ -1537,6 +1509,15 @@ var CustomerList = Vue.component('CustomerList', {
        show_invoice_update: function(invoice){
         console.log('invoice update event')
         this.$emit('show-update-invoice', invoice);
+       },
+       trigger_download_invoice: function(event) {
+        console.log('trigger download invoice')
+        let invoice_status_url = event.target.href;
+        getInvoiceDownloadStatusUrl(invoice_status_url)
+          .then(res => res.json())
+          .then(res => res.status_url)
+          .then(res => this.$emit('push-invoice-status-url-to-queue', res))
+          .catch(err => console.error(err));
        }
    },
    watch: {
@@ -1693,6 +1674,7 @@ var app = new Vue({
           groups: [],
           orderitems: [],
           invoices: [],
+          invoice_download_q: [],
       }
   },
   created: function() {
@@ -1703,6 +1685,7 @@ var app = new Vue({
     getAllTaxes().then(res => res.json()).then(res => this.taxes = res).catch((err) => window.location.href=origin)
     getAllGroups().then(res => res.json()).then(res => this.groups = res)
     getAllInvoices().then(res => res.json()).then(res => this.invoices = res)
+    setInterval(function () { this.process_invoice_download_q(); }.bind(this), 1000);
   },
   computed: {
     modal_opened: function() {
@@ -1899,6 +1882,36 @@ var app = new Vue({
         getAllOrderitems().then(res => res.json()).then(res => this.orderitems = res)
       }
     },
+    push_invoice_status_url_to_queue: function(status_url){
+      console.log('push invoice status url to queue', status_url)
+      this.invoice_download_q.push(status_url);
+    },
+    process_invoice_download_q: function(){
+      if (this.invoice_download_q.length === 0) {
+         return; 
+      }
+      let status_url = this.invoice_download_q.shift();
+      getInvoiceDownloadUrl(status_url)
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'completed') {
+            console.log('invoice download success')
+            let a = document.createElement('a');
+            a.href = res.pdf_url;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          } 
+          if (res.status == 'pending') {
+            console.log('invoice download pending')
+            this.invoice_download_q.push(status_url);
+          }
+          if (res.status == 'error') {
+            console.error('error downloading invoice ', status_url);
+          }
+        })
+        .catch(err => console.error(err));
+    },
     sync_clients: function(){
       console.log('sync clients')
       syncClients().then(res => res.json()).then(res => this.clients = res)
@@ -1930,6 +1943,19 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function getInvoiceDownloadUrl(invoice_start_url) {
+  let response = fetch(invoice_start_url, {
+      method: 'GET', // or 'PUT'
+  });
+  return response;
+}
+
+function getInvoiceDownloadStatusUrl(invoice_start_url) {
+  let response = fetch(invoice_start_url, {
+      method: 'GET', // or 'PUT'
+  });
+  return response;
+}
 function getAllCustomers() {
       let url = origin + '/pos/api/customers/';
       let response = fetch(url, {
@@ -2000,18 +2026,6 @@ function getFreshbooksProducts() {
       method: 'GET', // or 'PUT'
   });
   return response;  
-}
-
-function downloadInvoicePDF(invoice_number){
-  let url = origin + '/pos/invoice/pdf/?invoice_number=' + invoice_number;
-  let response = fetch(url, {
-      method: 'GET', // or 'PUT'
-      encoding: "binary",
-      headers: {
-        'Content-Type': 'application/pdf'
-      }
-  });
-  return response;
 }
 
 function importClient(data){

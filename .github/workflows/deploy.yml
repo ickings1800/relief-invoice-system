@@ -46,7 +46,5 @@ jobs:
           docker compose -f docker-compose.prod.yml down
           cp /home/ubuntu/relief-invoice-system/relief.sqlite "../db-backup/relief-${NOW}.sqlite"
           git pull origin master
-          docker compose -f docker-compose.prod.yml up -d --build --wait
-          docker compose -f docker-compose.prod.yml exec web python manage.py migrate --noinput --settings=relief.settings.production
-          docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --no-input --clear --settings=relief.settings.production
+          docker compose -f docker-compose.prod.yml up -d --build
         EOF

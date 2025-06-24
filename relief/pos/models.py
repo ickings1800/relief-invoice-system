@@ -98,7 +98,7 @@ class Customer(models.Model):
                 customer_group = CustomerGroup(group=default_group, customer=row_client)
                 customer_group.save()
 
-    def import_freshbooks_clients(import_clients, freshbooks_account_id, token):
+    def import_freshbooks_clients(import_clients):
         default_group = Group.objects.filter(name='Default').first()
         if not default_group:
             new_group = Group(name='Default')
@@ -168,7 +168,7 @@ class Product(models.Model):
             row_product = Product(name=row["name"])
             row_product.save()
 
-    def freshbooks_import_products(item_arr, freshbooks_account_id, token):
+    def freshbooks_import_products(item_arr):
         for item in item_arr:
             item_name = item.get('name')
             item_id = item.get('itemid')
@@ -190,11 +190,12 @@ class Invoice(models.Model):
     gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
     net_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     total_incl_gst = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
-    invoice_number = models.TextField(null=False, blank=False, unique=True)
+    invoice_number = models.TextField(null=True, blank=False, unique=False)
     customer = models.ForeignKey(Customer, null=False, on_delete=models.DO_NOTHING)
     pivot = models.BooleanField(default=False)
     freshbooks_account_id = models.TextField(null=True, blank=False)
     freshbooks_invoice_id = models.TextField(null=True, blank=False)
+    huey_task_id = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         unique_together = ('invoice_number', 'customer')
