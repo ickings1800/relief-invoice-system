@@ -7,6 +7,8 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 from datetime import date, datetime
 from requests_oauthlib import OAuth2Session
+from decimal import Decimal, ROUND_UP
+from .tasks import huey_create_invoice
 import csv
 
 # Create your models here.
@@ -201,6 +203,58 @@ class Invoice(models.Model):
         unique_together = ('invoice_number', 'customer')
         ordering = ['invoice_number']
 
+    def create_local_invoice(invoice_orderitems, invoice_customer, parsed_create_date,
+                                freshbooks_account_id, freshbooks_invoice_id,
+                                invoice_number=None, po_number=None, minus_decimal=Decimal(0),
+                                minus_description=None, huey_task_id=None):
+        net_total = 0
+        for orderitem in invoice_orderitems:
+            net_total += (orderitem.driver_quantity * orderitem.unit_price)
+
+        gst_decimal = Decimal(invoice_customer.gst / 100)
+        net_total -= minus_decimal
+        net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+
+        new_invoice = Invoice(
+            date_created=parsed_create_date,
+            po_number=po_number,
+            net_total=net_total,
+            gst=invoice_customer.gst,
+            net_gst=net_gst,
+            minus=minus_decimal,
+            discount_description=minus_description,
+            total_incl_gst=total_incl_gst,
+            invoice_number=invoice_number,
+            customer=invoice_customer,
+            pivot=invoice_customer.pivot_invoice,
+            freshbooks_account_id=freshbooks_account_id,
+            freshbooks_invoice_id=freshbooks_invoice_id,
+            huey_task_id=huey_task_id
+        )
+        new_invoice.save()
+
+        for orderitem in invoice_orderitems:
+            orderitem.invoice = new_invoice
+            orderitem.save()
+
+        return new_invoice
+
+    def create_invoice(user, freshbooks_tax_lookup, invoice_orderitems, invoice_customer, parsed_create_date,
+            invoice_number=None, po_number=None, minus_decimal=Decimal(0), minus_description=None
+        ):
+        create_invoice_kwargs = {
+            'invoice_number': invoice_number,
+            'po_number': po_number,
+            'minus': minus_decimal,
+            'minus_description': minus_description
+        }
+        create_invoice_task = huey_create_invoice(
+            user, freshbooks_tax_lookup,  invoice_orderitems, invoice_customer,
+            parsed_create_date, **create_invoice_kwargs
+        )
+        return create_invoice_task
+
     def handle_invoice_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
@@ -294,6 +348,61 @@ class OrderItem(models.Model):
 
     class Meta:
         ordering = ['route__date']
+
+
+    def check_orderitem_consistent_pricing(invoice_orderitems):
+        price_map = {}
+        for oi in invoice_orderitems:
+            product_name = oi.customerproduct.product.name
+            if not price_map.get(product_name):
+                price_map[product_name] = oi.unit_price
+            if price_map[product_name] != oi.unit_price:
+                return False
+        return True
+    
+    def build_freshbooks_invoice_body(
+            invoice_orderitems, freshbooks_client_id,
+            invoice_number, po_number, parsed_create_date,
+            freshbooks_tax_lookup_dict
+        ):
+            invoice_lines = []
+
+            for orderitem in invoice_orderitems:
+                orderitem_date_str = datetime.strftime(orderitem.route.date, '%d-%m-%Y')
+                description = f"DATE: {orderitem_date_str} D/O: {orderitem.route.do_number}"
+
+                if orderitem.note:
+                    description += "P/O: {0}".format(orderitem.note)
+
+                invoice_line = {
+                    "type": 0,
+                    "description": description,
+                    "name": orderitem.customerproduct.product.name,
+                    "qty": orderitem.driver_quantity,
+                    "unit_cost": {"amount": str(orderitem.unit_price)}
+                }
+
+                tax_id = orderitem.customerproduct.freshbooks_tax_1
+
+                if tax_id:
+                    orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id)
+                    invoice_line["taxName1"] = orderitem_tax.get('name')
+                    invoice_line["taxAmount1"] = orderitem_tax.get('amount')
+
+                invoice_lines.append(invoice_line)
+
+            body = {
+                "invoice": {
+                    "customerid": freshbooks_client_id,
+                    "invoice_number": invoice_number,
+                    "po_number": po_number,
+                    "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
+                    "lines": [line for line in invoice_lines]
+                }
+            }
+
+            return body
+
 
     def handle_orderitem_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
