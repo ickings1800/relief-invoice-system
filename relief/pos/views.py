@@ -365,13 +365,15 @@ def download_invoice(request):
     if request.method == 'GET':
         pk = request.GET.get('pk', None)
         huey_task_id = request.GET.get('huey_task_id', None)
-        filename = request.GET.get('filename', huey_task_id or str(pk))
         if pk:
             invoice = get_object_or_404(Invoice, pk=pk)
+            filename = Customer.get_download_file_name(invoice.invoice_number)
             return invoice_pdf_view(request, pk, file_name=f"{filename}.pdf")
         if huey_task_id:
             huey = settings.HUEY
             task_result = huey.get(huey_task_id, peek=True)
+            invoice = get_object_or_404(Invoice, huey_task_id=huey_task_id)
+            filename = Customer.get_download_file_name(invoice.invoice_number)
             try:
                 if task_result:
                     pdf = huey.get(huey_task_id)
