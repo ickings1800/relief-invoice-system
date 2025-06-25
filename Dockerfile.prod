@@ -31,8 +31,6 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requir
 #  copy project
 COPY . .
 
-#  RUN python manage.py collectstatic --noinput --clear --settings=relief.settings.production
-
 #########
 # FINAL #
 #########
