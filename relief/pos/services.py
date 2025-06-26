@@ -1,6 +1,6 @@
 
 import json
-from .models import Customer
+from pos.models import *
 
 class FreshbooksService(object):
     def __init__(self, freshbooks_account_id, freshbooks_session):

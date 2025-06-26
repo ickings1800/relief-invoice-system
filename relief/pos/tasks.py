@@ -3,7 +3,8 @@ from huey import crontab
 from huey.contrib.djhuey import periodic_task, task, db_task
 from .services import FreshbooksService
 from django.conf import settings
-from .models import Invoice
+from decimal import Decimal
+from pos.models import *
 import time
 import json
 
@@ -66,31 +67,42 @@ def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
 
 
 @db_task(retries=10, retry_delay=10, context=True)
-def huey_create_freshbooks_invoice(user, freshbooks_create_invoice_body, task=None):
+def huey_create_invoice(user, freshbooks_tax_lookup, invoice_orderitems,
+        invoice_customer, parsed_create_date, invoice_number=None, po_number=None, minus_decimal=Decimal(0),
+         minus_description=None, task=None):
+
     freshbooks_svc = get_huey_freshbooks_service(user)
 
-    print(json.dumps(freshbooks_create_invoice_body))
+    #. create the ask on huey, get the task id
+    freshbooks_client_id = invoice_customer.freshbooks_client_id
 
-    invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_create_invoice_body)
+    freshbooks_invoice_body = OrderItem.build_freshbooks_invoice_body(
+        invoice_orderitems, freshbooks_client_id, 
+        invoice_number, po_number, parsed_create_date, freshbooks_tax_lookup
+    )
+
+    print(json.dumps(freshbooks_invoice_body))
+
+    invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_invoice_body)
 
     invoice_number = invoice.get('invoice_number')
     freshbooks_account_id = invoice.get('accounting_systemid')
     freshbooks_invoice_id = invoice.get('id')
-    created_date = invoice.get('create_date')
 
-    update_freshbooks_invoice= Invoice.objects.get(huey_task_id=task.id)
-    update_freshbooks_invoice.freshbooks_invoice_id = freshbooks_invoice_id
-    update_freshbooks_invoice.freshbooks_account_id = freshbooks_account_id
-    update_freshbooks_invoice.invoice_number = invoice_number
-    update_freshbooks_invoice.date_created = created_date
-    update_freshbooks_invoice.huey_task_id = None
-    update_freshbooks_invoice.save(update_fields=[
-        'freshbooks_invoice_id',
-        'freshbooks_account_id',
-        'invoice_number',
-        'date_created',
-        'huey_task_id'
-    ])
+    create_invoice_kwargs = {
+        'invoice_number': invoice_number,
+        'po_number': po_number,
+        'minus_decimal': minus_decimal,
+        'minus_description': minus_description,
+        'huey_task_id': task.id if task else None
+    }
+
+    new_invoice = Invoice.create_local_invoice(
+        invoice_orderitems, invoice_customer, parsed_create_date,
+        freshbooks_account_id, freshbooks_invoice_id, **create_invoice_kwargs
+    )
+
+    return new_invoice
 
 
 @db_task(retries=10, retry_delay=10, context=True)
