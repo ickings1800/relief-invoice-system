@@ -246,7 +246,7 @@ class Invoice(models.Model):
         create_invoice_kwargs = {
             'invoice_number': invoice_number,
             'po_number': po_number,
-            'minus': minus_decimal,
+            'minus_decimal': minus_decimal,
             'minus_description': minus_description
         }
         create_invoice_task = huey_create_invoice(
