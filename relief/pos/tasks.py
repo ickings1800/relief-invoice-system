@@ -4,7 +4,6 @@ from huey.contrib.djhuey import periodic_task, task, db_task
 from .services import FreshbooksService
 from django.conf import settings
 from decimal import Decimal
-from pos.models import *
 import time
 import json
 
@@ -70,6 +69,8 @@ def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
 def huey_create_invoice(user, freshbooks_tax_lookup, invoice_orderitems,
         invoice_customer, parsed_create_date, invoice_number=None, po_number=None, minus_decimal=Decimal(0),
          minus_description=None, task=None):
+
+    from .models import OrderItem, Invoice
 
     freshbooks_svc = get_huey_freshbooks_service(user)
 

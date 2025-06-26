@@ -382,7 +382,7 @@ class OrderItem(models.Model):
                     "unit_cost": {"amount": str(orderitem.unit_price)}
                 }
 
-                tax_id = orderitem.customerproduct.freshbooks_tax_1
+                tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
 
                 if tax_id:
                     orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id)
