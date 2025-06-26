@@ -49,18 +49,14 @@ urlpatterns = [
     path("api/group/update/", api.update_grouping, name="group_update"),
     path("api/customer/link/", api.link_customer, name="link_customers"),
     path("api/product/link/", api.link_product, name="link_products"),
-    path(
-        "api/orderitem/<int:pk>/delete/", api.orderitem_delete, name="orderitem_delete"
-    ),
+    path("api/orderitem/<int:pk>/delete/", api.orderitem_delete, name="orderitem_delete"),
     path("api/invoices/", api.invoice_list, name="invoice_list"),
     path(
         "api/invoices/years/",
         api.get_available_invoice_years_filter,
         name="get_invoice_years",
     ),
-    path(
-        "api/invoices/delete/<int:pk>/", api.hard_delete_invoice, name="invoice_delete"
-    ),
+    path("api/invoices/delete/<int:pk>/", api.hard_delete_invoice, name="invoice_delete"),
     path("api/invoices/<int:pk>/", api.invoice_detail, name="api_invoice_detail"),
     path("api/invoices/<int:pk>/update/", api.invoice_update, name="invoice_update"),
     path("api/invoices/sync/", api.invoice_sync, name="invoice_sync"),
@@ -74,9 +70,7 @@ urlpatterns = [
         api.invoice_download_status,
         name="invoice_download_status",
     ),
-    path(
-        "api/orderitem/<int:pk>/update/", api.orderitem_update, name="orderitem_update"
-    ),
+    path("api/orderitem/<int:pk>/update/", api.orderitem_update, name="orderitem_update"),
     path(
         "api/quote/<int:pk>/update/",
         api.customerproduct_update,

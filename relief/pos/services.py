@@ -16,23 +16,21 @@ class FreshbooksService(object):
         self.freshbooks_session = freshbooks_session
 
     def search_freshbooks_invoices(self, invoice_number):
-        search_url = "https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}".format(
-            self.freshbooks_account_id, invoice_number
+        search_url = (
+            "https://api.freshbooks.com/accounting/account/{0}/invoices/invoices?search[invoice_number]={1}".format(
+                self.freshbooks_account_id, invoice_number
+            )
         )
         freshbooks_invoice = self.freshbooks_session.get(search_url).json()
 
-        freshbooks_invoice_search = (
-            freshbooks_invoice.get("response").get("result").get("invoices")
-        )
+        freshbooks_invoice_search = freshbooks_invoice.get("response").get("result").get("invoices")
         return freshbooks_invoice_search
 
     def download_freshbooks_invoice(self, freshbooks_invoice_id):
         download_url = "https://api.freshbooks.com/accounting/account/{0}/invoices/invoices/{1}/pdf".format(
             self.freshbooks_account_id, freshbooks_invoice_id
         )
-        pdf = self.freshbooks_session.get(
-            download_url, stream=True, headers={"Accept": "application/pdf"}
-        )
+        pdf = self.freshbooks_session.get(download_url, stream=True, headers={"Accept": "application/pdf"})
         return pdf
 
     def create_freshbooks_invoice(self, invoice_data):
@@ -40,9 +38,7 @@ class FreshbooksService(object):
             self.freshbooks_account_id
         )
         headers = {"Api-Version": "alpha", "Content-Type": "application/json"}
-        response = self.freshbooks_session.post(
-            invoice_create_url, data=json.dumps(invoice_data), headers=headers
-        )
+        response = self.freshbooks_session.post(invoice_create_url, data=json.dumps(invoice_data), headers=headers)
 
         if response.status_code != 200:
             raise Exception("Failed to create invoice: {}".format(response.text))
@@ -54,9 +50,7 @@ class FreshbooksService(object):
             self.freshbooks_account_id, freshbooks_invoice_id
         )
         headers = {"Api-Version": "alpha", "Content-Type": "application/json"}
-        response = self.freshbooks_session.put(
-            invoice_update_url, data=json.dumps(invoice_data), headers=headers
-        )
+        response = self.freshbooks_session.put(invoice_update_url, data=json.dumps(invoice_data), headers=headers)
         if response.status_code != 200:
             raise Exception("Failed to update invoice: {}".format(response.text))
         return response.json().get("response").get("result").get("invoice")
@@ -169,9 +163,7 @@ class FreshbooksService(object):
             if client_queryset.count() > 0:
                 update_client = client_queryset.get()
                 if update_client.freshbooks_client_id == client_id:
-                    print(
-                        client_name, client_address, client_postal_code, client_country
-                    )
+                    print(client_name, client_address, client_postal_code, client_country)
                     update_client.name = client_name
                     update_client.address = client_address
                     update_client.postal_code = client_postal_code

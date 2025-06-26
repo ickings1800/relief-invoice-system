@@ -53,9 +53,7 @@ class CustomerListDetailUpdateSerializer(serializers.ModelSerializer):
         )
 
     def get_group(self, obj):
-        return [
-            customergroup.group.name for customergroup in obj.customergroup_set.all()
-        ]
+        return [customergroup.group.name for customergroup in obj.customergroup_set.all()]
 
 
 class ProductListDetailUpdateSerializer(serializers.ModelSerializer):
@@ -228,9 +226,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
 
     def get_orderitem_set(self, obj):
         ordered_orderitem = obj.orderitem_set.order_by("route__date")
-        return OrderItemSerializer(
-            ordered_orderitem, many=True, context=self.context
-        ).data
+        return OrderItemSerializer(ordered_orderitem, many=True, context=self.context).data
 
     def get_customer_name(self, obj):
         return obj.customer.name

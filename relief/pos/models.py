@@ -23,9 +23,7 @@ class Company(models.Model):
     business_no = models.CharField(max_length=10)
     fax_no = models.CharField(max_length=8)
     freshbooks_account_id = models.CharField(max_length=255, null=False, blank=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False)
 
 
 class Group(models.Model):
@@ -147,9 +145,7 @@ class CustomerGroup(models.Model):
                     #  all customers are valid
                     CustomerGroup.objects.filter(group=group).delete()
                     for index in range(len(client_list)):
-                        new_grouping = CustomerGroup(
-                            customer=client_list[index], group=group, index=index
-                        )
+                        new_grouping = CustomerGroup(customer=client_list[index], group=group, index=index)
                         new_grouping.save()
             else:
                 #  empty the group
@@ -196,9 +192,7 @@ class Invoice(models.Model):
     remark = models.CharField(max_length=255, null=True, blank=True)
     po_number = models.CharField(max_length=255, null=True, blank=True)
     discount_description = models.CharField(max_length=255, null=True, blank=True)
-    discount_percentage = models.DecimalField(
-        default=0.00, max_digits=7, decimal_places=4
-    )
+    discount_percentage = models.DecimalField(default=0.00, max_digits=7, decimal_places=4)
     minus = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     net_total = models.DecimalField(default=0.00, max_digits=9, decimal_places=4)
     gst = models.DecimalField(default=0.00, max_digits=2, decimal_places=0)
@@ -233,12 +227,8 @@ class Invoice(models.Model):
 
         gst_decimal = Decimal(invoice_customer.gst / 100)
         net_total -= minus_decimal
-        net_gst = (net_total * gst_decimal).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
-        total_incl_gst = (net_total + net_gst).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
+        net_gst = (net_total * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
+        total_incl_gst = (net_total + net_gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
         new_invoice = Invoice(
             date_created=parsed_create_date,
@@ -457,12 +447,8 @@ class OrderItem(models.Model):
             formatted_date = parsed_date.strftime("%Y-%m-%d")
             customer_obj = Customer.objects.filter(name=customer_name).first()
             product_obj = Product.objects.filter(name=product_name).first()
-            quote_obj = CustomerProduct.objects.filter(
-                customer=customer_obj.pk, product=product_obj.pk
-            ).first()
-            route_obj = Route.objects.filter(
-                date=formatted_date, do_number=do_number
-            ).first()
+            quote_obj = CustomerProduct.objects.filter(customer=customer_obj.pk, product=product_obj.pk).first()
+            route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
             invoice_obj = Invoice.objects.filter(invoice_number=invoice_number).first()
 
             if quote_obj and route_obj:
@@ -515,9 +501,7 @@ class OrderItem(models.Model):
             parsed_date = datetime.strptime(date, "%d/%m/%Y")
             formatted_date = parsed_date.strftime("%Y-%m-%d")
             quote_obj = CustomerProduct.objects.filter(pk=sku).first()
-            route_obj = Route.objects.filter(
-                date=formatted_date, do_number=do_number
-            ).first()
+            route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
 
             if quote_obj and route_obj:
                 new_orderitem = OrderItem(

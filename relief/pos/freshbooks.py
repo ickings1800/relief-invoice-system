@@ -24,15 +24,11 @@ def freshbooks_access(func):
         def token_updater(token):
             request.session["oauth_token"] = token.get("access_token")
             request.session["refresh_token"] = token.get("refresh_token")
-            request.session["unix_token_expires"] = current_unix_time + token.get(
-                "expires_in"
-            )
+            request.session["unix_token_expires"] = current_unix_time + token.get("expires_in")
 
             request.user.freshbooks_access_token = token.get("access_token")
             request.user.freshbooks_refresh_token = token.get("refresh_token")
-            request.user.freshbooks_token_expires = current_unix_time + token.get(
-                "expires_in"
-            )
+            request.user.freshbooks_token_expires = current_unix_time + token.get("expires_in")
             request.user.save()
 
         oauth_token = request.session.get("oauth_token")
@@ -68,12 +64,7 @@ def freshbooks_access(func):
         # TODO: allow user to choose which business account to use
         res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
-        account_id = (
-            res.get("response")
-            .get("business_memberships")[0]
-            .get("business")
-            .get("account_id")
-        )
+        account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
 
         request.session["freshbooks_account_id"] = account_id
 

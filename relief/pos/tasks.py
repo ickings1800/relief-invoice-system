@@ -51,12 +51,7 @@ def get_huey_freshbooks_service(user):
 
     res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
-    account_id = (
-        res.get("response")
-        .get("business_memberships")[0]
-        .get("business")
-        .get("account_id")
-    )
+    account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
 
     freshbooks_svc = FreshbooksService(account_id, freshbooks)
     return freshbooks_svc
@@ -127,9 +122,7 @@ def huey_create_invoice(
 
 
 @db_task(retries=10, retry_delay=10, context=True)
-def huey_update_freshbooks_invoice(
-    user, existing_invoice, freshbooks_update_invoice_body, task=None
-):
+def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_invoice_body, task=None):
     freshbooks_svc = get_huey_freshbooks_service(user)
     #  update invoice
     print(json.dumps(freshbooks_update_invoice_body))

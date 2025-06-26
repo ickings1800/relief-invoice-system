@@ -35,9 +35,7 @@ def redirect_to_freshbooks_auth(request):
     client_id = settings.FRESHBOOKS_CLIENT_ID
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     oauth = OAuth2Session(client_id, redirect_uri=redirect_uri)
-    authorization_url, state = oauth.authorization_url(
-        "https://auth.freshbooks.com/service/auth/oauth/authorize"
-    )
+    authorization_url, state = oauth.authorization_url("https://auth.freshbooks.com/service/auth/oauth/authorize")
     request.session["oauth_state"] = state
     return HttpResponseRedirect(authorization_url)
 
@@ -48,9 +46,7 @@ def get_token(request):
     client_secret = settings.FRESHBOOKS_CLIENT_SECRET
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
-    freshbooks = OAuth2Session(
-        client_id, token=request.session["oauth_state"], redirect_uri=redirect_uri
-    )
+    freshbooks = OAuth2Session(client_id, token=request.session["oauth_state"], redirect_uri=redirect_uri)
 
     freshbooks.headers.update(
         {
@@ -84,12 +80,7 @@ def get_token(request):
     # to check for the user's freshbooks account id
     res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
-    account_id = (
-        res.get("response")
-        .get("business_memberships")[0]
-        .get("business")
-        .get("account_id")
-    )
+    account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
 
     company = get_object_or_404(Company, freshbooks_account_id=account_id)
 
@@ -99,9 +90,7 @@ def get_token(request):
         request.session["freshbooks_account_id"] = account_id
         request.user.freshbooks_access_token = token.get("access_token")
         request.user.freshbooks_refresh_token = token.get("refresh_token")
-        request.user.freshbooks_token_expires = current_unix_time + token.get(
-            "expires_in"
-        )
+        request.user.freshbooks_token_expires = current_unix_time + token.get("expires_in")
         request.user.save()
         return HttpResponseRedirect(reverse("pos:overview"))
 
@@ -159,9 +148,7 @@ class NumberedPageCanvas(canvas.Canvas):
 
     def draw_page_number(self, page_count):
         self.setFont("Helvetica-Bold", 8)
-        self.drawRightString(
-            200 * mm, 10 * mm, "Page %d of %d" % (self._pageNumber, page_count)
-        )
+        self.drawRightString(200 * mm, 10 * mm, "Page %d of %d" % (self._pageNumber, page_count))
 
 
 @login_required
@@ -169,15 +156,11 @@ def invoice_pdf_view(request, pk, file_name=""):
     invoice = Invoice.objects.select_related("customer").get(pk=pk)
     if invoice:
         invoice_customer = invoice.customer
-        query_oi = OrderItem.objects.filter(
-            customerproduct__customer__id=invoice_customer.pk, invoice_id=pk
-        ).order_by("route__date")
-        unique_orderitem_names = set(
-            [oi.customerproduct.product.name for oi in query_oi]
+        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by(
+            "route__date"
         )
-        unique_quote_price_set = set(
-            query_oi.values_list("customerproduct__product__name", "unit_price")
-        )
+        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
+        unique_quote_price_set = set(query_oi.values_list("customerproduct__product__name", "unit_price"))
         unique_quote_price_dict = {k: v for k, v in unique_quote_price_set}
 
         pv_table = pivot(
@@ -194,10 +177,7 @@ def invoice_pdf_view(request, pk, file_name=""):
             mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
             product_sum.update(mapped_row)
 
-        nett_amt = {
-            name: unique_quote_price_dict[name] * product_sum[name]
-            for name in unique_orderitem_names
-        }
+        nett_amt = {name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names}
 
         subtotal = 0
         for k, v in nett_amt.items():
@@ -205,17 +185,11 @@ def invoice_pdf_view(request, pk, file_name=""):
 
         total_nett_amt = subtotal - invoice.minus
         gst_decimal = Decimal(invoice.gst / 100)
-        gst = (total_nett_amt * gst_decimal).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
-        total_incl_gst = (total_nett_amt + gst).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
+        gst = (total_nett_amt * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
+        total_incl_gst = (total_nett_amt + gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
         response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="{0}.pdf"'.format(
-            file_name
-        )
+        response["Content-Disposition"] = 'attachment; filename="{0}.pdf"'.format(file_name)
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -244,9 +218,7 @@ def invoice_pdf_view(request, pk, file_name=""):
         taxHeadingStyle.fontSize = 14
 
         top_table_data = []
-        top_table_data.append(
-            ["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)]
-        )
+        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)])
         top_table_data.append(
             [
                 "TUAS BAY WALK #02-30 SINGAPORE 637780",
@@ -271,9 +243,7 @@ def invoice_pdf_view(request, pk, file_name=""):
         if invoice_customer.address:
             top_table_data.append([invoice_customer.address])
         if invoice_customer.postal_code and invoice_customer.country:
-            top_table_data.append(
-                [invoice_customer.country + " " + invoice_customer.postal_code]
-            )
+            top_table_data.append([invoice_customer.country + " " + invoice_customer.postal_code])
         else:
             top_table_data.append([invoice_customer.country])
 
@@ -318,15 +288,11 @@ def invoice_pdf_view(request, pk, file_name=""):
             data_row.append(row.get("route__do_number", styleBH))
             datalist.append(data_row)
         table_width = (19 / len(heading)) * cm
-        product_table = Table(
-            datalist, [table_width for i in range(len(heading))], 5.25 * mm
-        )
+        product_table = Table(datalist, [table_width for i in range(len(heading))], 5.25 * mm)
         product_table.hAlign = "CENTER"
         product_table.setStyle(product_style)
 
-        quantity_style = TableStyle(
-            [("ALIGN", (0, 0), (-1, -1), "CENTER"), ("FONTSIZE", (0, 0), (-1, -1), 9)]
-        )
+        quantity_style = TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("FONTSIZE", (0, 0), (-1, -1), 9)])
         quantity_data = []
         #   -- quantity row --
         quantity_row = []
@@ -339,9 +305,7 @@ def invoice_pdf_view(request, pk, file_name=""):
         unit_price_row = []
         unit_price_row.append(Paragraph("UNIT PRICE", styleBH))
         for name in unique_orderitem_names:
-            unit_price_row.append(
-                Paragraph(str(unique_quote_price_dict.get(name)), styleBH)
-            )
+            unit_price_row.append(Paragraph(str(unique_quote_price_dict.get(name)), styleBH))
         unit_price_row.append("")
         quantity_data.append(unit_price_row)
         #  -- nett amount row --
@@ -351,9 +315,7 @@ def invoice_pdf_view(request, pk, file_name=""):
             nett_amt_row.append(Paragraph(str(nett_amt.get(name)), styleBH))
         nett_amt_row.append("")
         quantity_data.append(nett_amt_row)
-        quantity_table = Table(
-            quantity_data, [table_width for i in range(len(heading))], 5 * mm
-        )
+        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))], 5 * mm)
         quantity_table.hAlign = "CENTER"
         quantity_table.setStyle(quantity_style)
 
@@ -383,9 +345,7 @@ def invoice_pdf_view(request, pk, file_name=""):
 
         if invoice.minus > 0:
             if invoice.discount_description:
-                total_data.append(
-                    ["", invoice.discount_description, str(invoice.minus)]
-                )
+                total_data.append(["", invoice.discount_description, str(invoice.minus)])
             else:
                 total_data.append(["", "MINUS ($)", str(invoice.minus)])
             total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
@@ -430,9 +390,7 @@ def download_invoice(request):
             try:
                 if task_result:
                     pdf = huey.get(huey_task_id)
-                    return FileResponse(
-                        io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf"
-                    )
+                    return FileResponse(io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf")
                 else:
                     return HttpResponseBadRequest(
                         {
@@ -519,24 +477,15 @@ def export_invoice(request):
         if date_start_string and date_end_string:
             date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
             date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
-            orderitems_with_invoices = OrderItem.objects.select_related(
-                "route", "invoice"
-            ).filter(
+            orderitems_with_invoices = OrderItem.objects.select_related("route", "invoice").filter(
                 route__date__gte=date_start,
                 route__date__lte=date_end,
                 invoice__invoice_number__isnull=False,
             )
-            invoice_ids = set(
-                [
-                    orderitem.invoice.invoice_number
-                    for orderitem in orderitems_with_invoices
-                ]
-            )
+            invoice_ids = set([orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
             export_invoices = Invoice.objects.filter(invoice_number__in=invoice_ids)
             response = HttpResponse(content_type="text/csv")
-            response["Content-Disposition"] = (
-                'attachment; filename="invoice_summary.csv"'
-            )
+            response["Content-Disposition"] = 'attachment; filename="invoice_summary.csv"'
 
             writer = csv.DictWriter(response, fieldnames=field_names)
             writer.writeheader()

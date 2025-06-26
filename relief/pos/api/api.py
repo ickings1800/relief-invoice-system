@@ -26,9 +26,7 @@ def group_list(request):
 @api_view(["GET"])
 def customer_list(request):
     if request.method == "GET":
-        customers = Customer.objects.prefetch_related(
-            "customergroup_set", "customergroup_set__group"
-        )
+        customers = Customer.objects.prefetch_related("customergroup_set", "customergroup_set__group")
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -39,9 +37,7 @@ def product_list(request):
     if request.method == "GET":
         customer_id = request.GET.get("customer_id")
         if customer_id:
-            products_existing = CustomerProduct.objects.filter(
-                customer_id=customer_id
-            ).distinct("product_id")
+            products_existing = CustomerProduct.objects.filter(customer_id=customer_id).distinct("product_id")
             products_existing_ids = [cp.product_id for cp in products_existing]
             products = Product.objects.exclude(id__in=products_existing_ids)
         else:
@@ -56,9 +52,7 @@ def product_list(request):
 def product_detail(request, freshbooks_svc, pk):
     if request.method == "GET":
         product = get_object_or_404(Product, pk=pk)
-        product_detail = freshbooks_svc.freshbooks_product_detail(
-            product.freshbooks_item_id
-        )
+        product_detail = freshbooks_svc.freshbooks_product_detail(product.freshbooks_item_id)
         return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -68,17 +62,11 @@ def orderitem_update(request, pk):
     if request.method == "PUT":
         update_data = request.data
         orderitem = get_object_or_404(OrderItem, pk=pk)
-        orderitem_update_serializer = OrderItemUpdateSerializer(
-            orderitem, data=update_data
-        )
+        orderitem_update_serializer = OrderItemUpdateSerializer(orderitem, data=update_data)
         if orderitem_update_serializer.is_valid():
             orderitem_update_serializer.save()
-            return Response(
-                status=status.HTTP_200_OK, data=orderitem_update_serializer.data
-            )
-        return Response(
-            status=status.HTTP_400_BAD_REQUEST, data=orderitem_update_serializer.errors
-        )
+            return Response(status=status.HTTP_200_OK, data=orderitem_update_serializer.data)
+        return Response(status=status.HTTP_400_BAD_REQUEST, data=orderitem_update_serializer.errors)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -116,9 +104,7 @@ def route_update(request, pk):
         route.save()
 
         if not route:
-            return Response(
-                status=status.HTTP_404_NOT_FOUND, data={"error": "route id not found"}
-            )
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "route id not found"})
 
         if validated_do_number:
             try:
@@ -130,17 +116,11 @@ def route_update(request, pk):
                 )
 
             if validated_do_number != route.do_number:
-                route_exists = Route.objects.filter(
-                    do_number=validated_do_number
-                ).count()
+                route_exists = Route.objects.filter(do_number=validated_do_number).count()
                 if route_exists > 0:
                     return Response(
                         status=status.HTTP_400_BAD_REQUEST,
-                        data={
-                            "error": "route already exists with do_number {0}".format(
-                                validated_do_number
-                            )
-                        },
+                        data={"error": "route already exists with do_number {0}".format(validated_do_number)},
                     )
                 else:
                     route.do_number = do_number_int
@@ -165,9 +145,7 @@ def route_update(request, pk):
                 if int(oi_driver_qty) < 0 or int(oi_qty) < 0:
                     return Response(
                         status=status.HTTP_400_BAD_REQUEST,
-                        data={
-                            "error": "driver quantity or quantity cannot be less than zero"
-                        },
+                        data={"error": "driver quantity or quantity cannot be less than zero"},
                     )
             except Exception as e:
                 print(e)
@@ -191,9 +169,7 @@ def update_grouping(request):
         arrangement = request.data.get("arrangement", None)
         if group_id and isinstance(arrangement, list):
             customers = CustomerGroup.update_grouping(group_id, arrangement)
-            customer_serializer = CustomerListDetailUpdateSerializer(
-                customers, many=True
-            )
+            customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
             return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
@@ -207,9 +183,7 @@ def group_create(request):
                 new_group = group_create_serializer.save()
                 print(type(new_group))
                 group_list_serializer = GroupListSerializer(new_group)
-                return Response(
-                    status=status.HTTP_201_CREATED, data=group_list_serializer.data
-                )
+                return Response(status=status.HTTP_201_CREATED, data=group_list_serializer.data)
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
         except Exception as group_name_exists:
             return Response(
@@ -222,12 +196,8 @@ def group_create(request):
 def customerproduct_list(request, pk):
     if request.method == "GET":
         customerproducts = CustomerProduct.objects.filter(customer_id=pk)
-        customerproduct_list_serializer = CustomerProductListDetailSerializer(
-            customerproducts, many=True
-        )
-        return Response(
-            status=status.HTTP_200_OK, data=customerproduct_list_serializer.data
-        )
+        customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
+        return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -235,21 +205,15 @@ def customerproduct_list(request, pk):
 def customerproduct_detail(request, pk):
     if request.method == "GET":
         customerproduct = get_object_or_404(CustomerProduct, pk=pk)
-        customerproduct_list_serializer = CustomerProductListDetailSerializer(
-            customerproduct
-        )
-        return Response(
-            status=status.HTTP_200_OK, data=customerproduct_list_serializer.data
-        )
+        customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproduct)
+        return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
 def customerproduct_create(request):
     if request.method == "POST":
-        customerproduct_create_serializer = CustomerProductCreateSerializer(
-            data=request.data
-        )
+        customerproduct_create_serializer = CustomerProductCreateSerializer(data=request.data)
         if customerproduct_create_serializer.is_valid():
             customerproduct_create_serializer.save()
             return Response(
@@ -305,9 +269,7 @@ def invoice_list(request):
             invoices = invoices.filter(date_generated__year=filter_invoice_year)
         if filter_customer_id:
             invoices = invoices.filter(customer__pk=filter_customer_id)
-        invoice_serializer = InvoiceListSerializer(
-            list(invoices), many=True, context={"request": request}
-        )
+        invoice_serializer = InvoiceListSerializer(list(invoices), many=True, context={"request": request})
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
     except ValueError:
         return Response(
@@ -333,9 +295,7 @@ def get_available_invoice_years_filter(request):
 @api_view(["DELETE"])
 def hard_delete_invoice(request, pk):
     if request.method == "DELETE":
-        delete_invoice = Invoice.objects.prefetch_related(
-            "orderitem_set", "orderitem_set__route"
-        ).get(pk=pk)
+        delete_invoice = Invoice.objects.prefetch_related("orderitem_set", "orderitem_set__route").get(pk=pk)
         delete_route_ids = []
         delete_orderitems = []
         if delete_invoice:
@@ -392,10 +352,7 @@ def create_invoice(request, freshbooks_svc):
 
         freshbooks_taxes = freshbooks_svc.get_freshbooks_taxes()
 
-        freshbooks_tax_lookup = {
-            tax.get("id"): {tax.get("name"): tax.get("amount")}
-            for tax in freshbooks_taxes
-        }
+        freshbooks_tax_lookup = {tax.get("id"): {tax.get("name"): tax.get("amount")} for tax in freshbooks_taxes}
 
         create_invoice_kwargs = {
             "invoice_number": invoice_number,
@@ -446,9 +403,7 @@ def get_all_quotes(request):
         customerproducts = CustomerProduct.objects.select_related("customer", "product")
         if customer_id:
             customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
-        customerproduct_serializer = CustomerProductListDetailSerializer(
-            customerproducts, many=True
-        )
+        customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -548,9 +503,7 @@ def get_filter_orderitem_rows(request):
         if parsed_end_date:
             orderitem_qset = orderitem_qset.filter(route__date__lte=parsed_end_date)
         if parsed_customer_ids:
-            orderitem_qset = orderitem_qset.filter(
-                customerproduct__customer_id__in=parsed_customer_ids
-            )
+            orderitem_qset = orderitem_qset.filter(customerproduct__customer_id__in=parsed_customer_ids)
 
         orderitem_qset = orderitem_qset.filter(invoice__isnull=True)
         rows = list(orderitem_qset)
@@ -599,9 +552,7 @@ def get_freshbooks_import_clients(request, freshbooks_svc):
     existing_freshbooks_clients = Customer.objects.filter(
         freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False
     )
-    existing_client_ids = [
-        client.freshbooks_client_id for client in existing_freshbooks_clients
-    ]
+    existing_client_ids = [client.freshbooks_client_id for client in existing_freshbooks_clients]
     freshbooks_clients = freshbooks_svc.get_freshbooks_clients()
     not_exists_freshbooks_client = []
     for client in freshbooks_clients:
@@ -623,9 +574,7 @@ def import_freshbooks_clients(request, freshbooks_svc):
             if res.get("id"):
                 valid_import_client_ids.append(res)
             else:
-                return Response(
-                    status=status.HTTP_404_NOT_FOUND, data=import_client_ids
-                )
+                return Response(status=status.HTTP_404_NOT_FOUND, data=import_client_ids)
         Customer.import_freshbooks_clients(valid_import_client_ids)
         return Response(status=status.HTTP_201_CREATED, data=import_client_ids)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -638,9 +587,7 @@ def get_freshbooks_import_products(request, freshbooks_svc):
         existing_freshbooks_products = Product.objects.filter(
             freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False
         )
-        existing_product_ids = [
-            product.freshbooks_item_id for product in existing_freshbooks_products
-        ]
+        existing_product_ids = [product.freshbooks_item_id for product in existing_freshbooks_products]
         freshbooks_products = freshbooks_svc.get_freshbooks_products()
 
         not_exists_freshbooks_products = []
@@ -664,9 +611,7 @@ def import_freshbooks_products(request, freshbooks_svc):
             if res.get("id"):
                 valid_import_product_list.append(res)
             else:
-                return Response(
-                    status=status.HTTP_404_NOT_FOUND, data=import_product_ids
-                )
+                return Response(status=status.HTTP_404_NOT_FOUND, data=import_product_ids)
         print(valid_import_product_list)
         Product.freshbooks_import_products(valid_import_product_list)
         return Response(status=status.HTTP_201_CREATED, data=valid_import_product_list)
@@ -778,9 +723,7 @@ def customer_sync(request, freshbooks_svc):
             freshbooks_svc.update_freshbooks_clients()
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        customers = Customer.objects.prefetch_related(
-            "customergroup_set", "customergroup_set__group"
-        )
+        customers = Customer.objects.prefetch_related("customergroup_set", "customergroup_set__group")
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -792,21 +735,15 @@ def invoice_sync(request, freshbooks_svc):
     if request.method == "POST":
         sync_invoices = Invoice.objects.all()
         for invoice in sync_invoices:
-            freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(
-                invoice.invoice_number
-            )
+            freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice.invoice_number)
             if len(freshbooks_invoice_search) > 0:
                 freshbooks_invoice = freshbooks_invoice_search[0]
                 invoice.po_number = freshbooks_invoice.get("po_number")
                 invoice.date_created = freshbooks_invoice.get("create_date")
-                invoice.freshbooks_account_id = freshbooks_invoice.get(
-                    "accounting_systemid"
-                )
+                invoice.freshbooks_account_id = freshbooks_invoice.get("accounting_systemid")
                 invoice.freshbooks_invoice_id = freshbooks_invoice.get("invoiceid")
                 invoice.save()
-        invoice_serializer = InvoiceListSerializer(
-            sync_invoices, context={"request": request}, many=True
-        )
+        invoice_serializer = InvoiceListSerializer(sync_invoices, context={"request": request}, many=True)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -825,9 +762,7 @@ def invoice_update(request, freshbooks_svc, pk):
         print(orderitems_id, invoice_number, po_number)
 
         try:
-            existing_invoice = Invoice.objects.prefetch_related("orderitem_set").get(
-                pk=pk
-            )
+            existing_invoice = Invoice.objects.prefetch_related("orderitem_set").get(pk=pk)
             minus_decimal = Decimal(minus)
         except Exception as e:
             print(str(e))
@@ -920,16 +855,10 @@ def invoice_update(request, freshbooks_svc, pk):
 
         gst_decimal = Decimal(existing_invoice.gst / 100)
         net_total -= minus_decimal
-        net_gst = (net_total * gst_decimal).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
-        total_incl_gst = (net_total + net_gst).quantize(
-            Decimal(".0001"), rounding=ROUND_UP
-        )
+        net_gst = (net_total * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
+        total_incl_gst = (net_total + net_gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
-        update_invoice_task = huey_update_freshbooks_invoice(
-            request.user, existing_invoice, body
-        )
+        update_invoice_task = huey_update_freshbooks_invoice(request.user, existing_invoice, body)
 
         existing_invoice.date_created = None
         existing_invoice.po_number = po_number
@@ -993,9 +922,7 @@ def invoice_start_download(request, freshbooks_svc):
             status_url = request.build_absolute_uri(status_url)
             return Response({"status_url": status_url}, status=status.HTTP_200_OK)
 
-    freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(
-        invoice_number
-    )
+    freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
 
     if len(freshbooks_invoice_search) == 0:
         return Response(
@@ -1006,14 +933,9 @@ def invoice_start_download(request, freshbooks_svc):
     if len(freshbooks_invoice_search) > 0:
         freshbooks_invoice = freshbooks_invoice_search[0]
         freshbooks_invoice_id = freshbooks_invoice.get("id")
-        huey_pdf_task = huey_download_freshbooks_invoice(
-            freshbooks_invoice_id, request.user
-        )
+        huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, request.user)
         print("Huey task created: ", huey_pdf_task.id)
-        status_url = (
-            reverse("pos:invoice_download_status")
-            + f"?task_id={huey_pdf_task.id}&filename={filename}"
-        )
+        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}&filename={filename}"
         status_url = request.build_absolute_uri(status_url)
         return Response({"status_url": status_url}, status=status.HTTP_200_OK)
 
@@ -1037,9 +959,7 @@ def invoice_download_status(request):
         return Response(
             {
                 "status": "completed",
-                "pdf_url": request.build_absolute_uri(
-                    f"{url}?pk={pk}&filename={filename}"
-                ),
+                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}&filename={filename}"),
             },
             status=status.HTTP_200_OK,
         )
@@ -1053,9 +973,7 @@ def invoice_download_status(request):
                 return Response(
                     {
                         "status": "completed",
-                        "pdf_url": request.build_absolute_uri(
-                            f"{url}?huey_task_id={task_id}&filename={filename}"
-                        ),
+                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}&filename={filename}"),
                     },
                     status=status.HTTP_200_OK,
                 )
