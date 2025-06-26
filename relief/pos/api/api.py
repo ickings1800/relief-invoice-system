@@ -340,11 +340,11 @@ def create_invoice(request, freshbooks_svc):
             'minus_decimal': minus_decimal,
             'minus_description': minus_description
         }
-        create_invoice_task_id = Invoice.create_invoice(
+        create_invoice_task = Invoice.create_invoice(
             request.user, freshbooks_tax_lookup, invoice_orderitems, invoice_customer,
             parsed_create_date,  **create_invoice_kwargs
         )
-        return Response(data={"huey_task_id": create_invoice_task_id}, status=status.HTTP_201_CREATED)
+        return Response(data={"huey_task_id": create_invoice_task.id}, status=status.HTTP_201_CREATED)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 
