@@ -1,3 +1,4 @@
+import io
 import json
 import time
 from decimal import Decimal
@@ -5,6 +6,7 @@ from decimal import Decimal
 from django.conf import settings
 from huey import crontab
 from huey.contrib.djhuey import db_task, periodic_task, task
+from pypdf import PdfReader
 from requests_oauthlib import OAuth2Session
 
 from .services import FreshbooksService
@@ -59,8 +61,11 @@ def get_huey_freshbooks_service(user):
 
 @task(retries=10, retry_delay=10)
 def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
+    # Read the PDF content into a PdfReader object, will throw error if not valid PDF.
+    # when error is thrown, huey will retry the task
     freshbooks_svc = get_huey_freshbooks_service(user)
     pdf = freshbooks_svc.download_freshbooks_invoice(freshbooks_invoice_id)
+    reader = PdfReader(io.BytesIO(pdf.content))
     return pdf.content
 
 
