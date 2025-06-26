@@ -1029,7 +1029,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         createInvoice(data)
         .then(res => res.json())
         .then(() => this.resetInputs())
-        .then(() => this.filterOrderItemsByCustomer(this.selected_customer.id));
+        .then(() => setTimeout(() => this.filterOrderItemsByCustomer(this.selected_customer.id), 3500));
       },
       resetInputs: function(event) {
         console.log('reset inputs')
