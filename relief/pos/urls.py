@@ -1,30 +1,31 @@
-from django.urls import path
 from django.contrib.auth import views as auth_views
-from .api import urls
-from . import views
+from django.urls import path
 
-app_name = 'pos'
+from . import views
+from .api import urls
+
+app_name = "pos"
 urlpatterns = [
     #  /pos/customers/detail/<pk>/
-    path('quotes/', views.overview, name='overview'),
+    path("quotes/", views.overview, name="overview"),
     #  /pos/invoice/pdf/
-    path('invoice/pdf/', views.download_invoice, name='invoice_download'),
+    path("invoice/pdf/", views.download_invoice, name="invoice_download"),
     #  /pos/orderitem/summary/
-    path('orderitem/summary/', views.orderitem_summary, name='orderitem_summary'),
+    path("orderitem/summary/", views.orderitem_summary, name="orderitem_summary"),
     #  /pos/invoice/export/
-    path('invoice/export/', views.export_invoice, name='invoice_export'),
+    path("invoice/export/", views.export_invoice, name="invoice_export"),
     #  /pos/quotes/export/
-    path('quotes/export/', views.export_quote, name='export_quote'),
+    path("quotes/export/", views.export_quote, name="export_quote"),
     #  /pos/express/
-    path('express/', views.express_order, name='express_order'),
+    path("express/", views.express_order, name="express_order"),
     #  /pos/import/
-    path('import/', views.import_items, name='import_items'),
+    path("import/", views.import_items, name="import_items"),
     #  /pos/login
-    path('login/', views.redirect_to_freshbooks_auth, name='login'),
+    path("login/", views.redirect_to_freshbooks_auth, name="login"),
     #  /pos/logout
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     #  /pos/token/
-    path('token/', views.get_token, name='get_freshbooks_token'),
+    path("token/", views.get_token, name="get_freshbooks_token"),
 ]
 
 urlpatterns += urls.urlpatterns
