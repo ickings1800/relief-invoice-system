@@ -378,28 +378,24 @@ def download_invoice(request):
     if request.method == "GET":
         pk = request.GET.get("pk", None)
         huey_task_id = request.GET.get("huey_task_id", None)
+        filename = request.GET.get("filename", "download")
         if pk:
             invoice = get_object_or_404(Invoice, pk=pk)
             filename = invoice.customer.get_download_file_name(invoice.invoice_number)
-            return invoice_pdf_view(request, pk, file_name=f"{filename}.pdf")
+            return invoice_pdf_view(request, pk, file_name=f"{filename}")
         if huey_task_id:
             huey = settings.HUEY
             task_result = huey.get(huey_task_id, peek=True)
-            try:
-                if task_result:
-                    pdf = huey.get(huey_task_id)
-                    invoice = get_object_or_404(Invoice, huey_task_id=huey_task_id)
-                    filename = invoice.customer.get_download_file_name(invoice.invoice_number)
-                    return FileResponse(io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf")
-                else:
-                    return HttpResponseBadRequest(
-                        {
-                            "status": "error",
-                            "message": "Task not found or not completed.",
-                        }
-                    )
-            except Exception as e:
-                return HttpResponseBadRequest({"status": "error", "message": str(e)})
+            if task_result:
+                pdf = huey.get(huey_task_id, peek=True)
+                return FileResponse(io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf")
+            else:
+                return HttpResponseBadRequest(
+                    {
+                        "status": "error",
+                        "message": "Task not found or not completed.",
+                    }
+                )
         return HttpResponseBadRequest("No invoice id or huey task id provided.")
     return HttpResponseBadRequest("Invalid request method.")
 

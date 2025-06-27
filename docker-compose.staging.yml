@@ -10,9 +10,22 @@ services:
       - 8000
     volumes:
       - ./relief/:/home/app/
+      - ./relief.sqlite:/home/app/relief.sqlite:rw
       - static_volume:/home/app/relief/staticfiles
     env_file:
       - ./.env.staging
+  huey:
+    build:
+      context: ./
+      dockerfile: Dockerfile.prod
+    command: python manage.py run_huey
+    volumes:
+      - ./relief/:/home/app/
+      - ./relief.sqlite:/usr/src/app/relief.sqlite:rw
+    env_file:
+      - ./.env.staging
+    depends_on:
+      - redis
   nginx-proxy:
     container_name: nginx-proxy
     build: ./nginx

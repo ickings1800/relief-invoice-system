@@ -82,7 +82,7 @@ def huey_create_invoice(
     minus_description=None,
     task=None,
 ):
-    from .models import Invoice, OrderItem
+    from .models import OrderItem
 
     freshbooks_svc = get_huey_freshbooks_service(user)
 
@@ -98,7 +98,7 @@ def huey_create_invoice(
         freshbooks_tax_lookup,
     )
 
-    print(json.dumps(freshbooks_invoice_body))
+    print("huey_create_invoice:: ", json.dumps(freshbooks_invoice_body))
 
     invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_invoice_body)
 
