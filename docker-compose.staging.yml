@@ -21,7 +21,7 @@ services:
     command: python manage.py run_huey
     volumes:
       - ./relief/:/home/app/
-      - ./relief.sqlite:/usr/src/app/relief.sqlite:rw
+      - ./relief.sqlite:/home/app/relief.sqlite:rw
     env_file:
       - ./.env.staging
     depends_on:
