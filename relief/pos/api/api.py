@@ -952,14 +952,13 @@ def invoice_download_status(request):
     """
     task_id = request.GET.get("task_id", None)
     pk = request.GET.get("pk", None)
-    filename = request.GET.get("filename", task_id or pk)
 
     if pk:
         url = reverse("pos:invoice_download")
         return Response(
             {
                 "status": "completed",
-                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}&filename={filename}"),
+                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}"),
             },
             status=status.HTTP_200_OK,
         )
@@ -973,7 +972,7 @@ def invoice_download_status(request):
                 return Response(
                     {
                         "status": "completed",
-                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}&filename={filename}"),
+                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}"),
                     },
                     status=status.HTTP_200_OK,
                 )
