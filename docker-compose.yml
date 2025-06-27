@@ -15,6 +15,18 @@ services:
       - ./.env.dev
     depends_on:
       - redis
+  huey:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    command: python manage.py run_huey
+    volumes:
+      - ./relief/:/usr/src/app/
+      - ./relief.sqlite:/usr/src/app/relief.sqlite:rw
+    env_file:
+      - ./.env.dev
+    depends_on:
+      - redis
   redis:
     image: redis:alpine
     restart: "no"
