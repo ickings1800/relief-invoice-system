@@ -385,11 +385,11 @@ def download_invoice(request):
         if huey_task_id:
             huey = settings.HUEY
             task_result = huey.get(huey_task_id, peek=True)
-            invoice = get_object_or_404(Invoice, huey_task_id=huey_task_id)
-            filename = invoice.customer.get_download_file_name(invoice.invoice_number)
             try:
                 if task_result:
                     pdf = huey.get(huey_task_id)
+                    invoice = get_object_or_404(Invoice, huey_task_id=huey_task_id)
+                    filename = invoice.customer.get_download_file_name(invoice.invoice_number)
                     return FileResponse(io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf")
                 else:
                     return HttpResponseBadRequest(
