@@ -375,6 +375,14 @@ class OrderItem(models.Model):
     class Meta:
         ordering = ["route__date"]
 
+    def filter_orderitems_by_customer_group(customer_group):
+        """
+        Filter order items by customer group.
+        :param customer_group: CustomerGroup object
+        :return: QuerySet of OrderItem objects
+        """
+        return OrderItem.objects.filter(customerproduct__customer__customergroup__group=customer_group.group)
+
     def check_orderitem_consistent_pricing(invoice_orderitems):
         price_map = {}
         for oi in invoice_orderitems:

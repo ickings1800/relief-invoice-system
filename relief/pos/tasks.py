@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from huey import crontab
-from huey.contrib.djhuey import db_task, periodic_task, task
+from huey.contrib.djhuey import db_periodic_task, db_task, task
 from pypdf import PdfReader
 from requests_oauthlib import OAuth2Session
 
@@ -65,11 +65,11 @@ def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
     # when error is thrown, huey will retry the task
     freshbooks_svc = get_huey_freshbooks_service(user)
     pdf = freshbooks_svc.download_freshbooks_invoice(freshbooks_invoice_id)
-    reader = PdfReader(io.BytesIO(pdf.content))
+    PdfReader(io.BytesIO(pdf.content))
     return pdf.content
 
 
-@db_task(retries=10, retry_delay=10, context=True)
+@db_task(retries=2, retry_delay=60, context=True)
 def huey_create_invoice(
     user,
     freshbooks_tax_lookup,
@@ -126,7 +126,37 @@ def huey_create_invoice(
     return new_invoice
 
 
-@db_task(retries=10, retry_delay=10, context=True)
+@db_periodic_task(crontab(hour="9"))
+def huey_create_invoice_9am_daily():
+    pass
+
+
+@db_periodic_task(crontab(day_of_week="1", hour="9"))
+def huey_create_invoice_9am_monday():
+    pass
+
+
+@db_periodic_task(crontab(day="11", hour="9"))
+def huey_create_invoice_9am_eleventh_of_month():
+    pass
+
+
+@db_periodic_task(crontab(day="21", hour="9"))
+def huey_create_invoice_9am_twentyfirst_of_month():
+    pass
+
+
+@db_periodic_task(crontab(day="1", hour="9"))
+def huey_create_invoice_9am_first_of_month():
+    pass
+
+
+@db_periodic_task(crontab(day="16", hour="9"))
+def huey_create_invoice_9am_sixteenth_of_month():
+    pass
+
+
+@db_task(retries=5, retry_delay=10, context=True)
 def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_invoice_body, task=None):
     freshbooks_svc = get_huey_freshbooks_service(user)
     #  update invoice
@@ -155,8 +185,3 @@ def huey_update_freshbooks_invoice(user, existing_invoice, freshbooks_update_inv
             "huey_task_id",
         ]
     )
-
-
-@periodic_task(crontab(minute="*/5"))
-def every_five_mins():
-    print("Every five minutes this will be printed by the consumer")

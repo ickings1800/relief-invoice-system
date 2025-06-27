@@ -935,7 +935,7 @@ def invoice_start_download(request, freshbooks_svc):
         freshbooks_invoice_id = freshbooks_invoice.get("id")
         huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, request.user)
         print("Huey task created: ", huey_pdf_task.id)
-        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}&filename={filename}"
+        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}"
         status_url = request.build_absolute_uri(status_url)
         return Response({"status_url": status_url}, status=status.HTTP_200_OK)
 
