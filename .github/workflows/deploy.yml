@@ -50,9 +50,8 @@ jobs:
         EOF
     - name: Run Django commands
       run: |
-        ssh -tt -i ~/.ssh/gh_rsa $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'EOF'
+        ssh -i ~/.ssh/gh_rsa $LIGHTSAIL_USER@$LIGHTSAIL_HOST << 'EOF'
           cd /home/ubuntu/relief-invoice-system/
           docker compose -f docker-compose.prod.yml exec -d web python manage.py migrate --settings=relief.settings.production
           docker compose -f docker-compose.prod.yml exec -d web python manage.py collectstatic --noinput --settings=relief.settings.production
-          docker compose -f docker-compose.prod.yml exec -d web python manage.py run_huey --settings=relief.settings.production
         EOF
