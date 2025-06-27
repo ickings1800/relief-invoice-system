@@ -19,7 +19,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    command: python manage.py run_huey
+    command: python manage.py run_huey --settings=relief.settings.local
     volumes:
       - ./relief/:/usr/src/app/
       - ./relief.sqlite:/usr/src/app/relief.sqlite:rw
