@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from django.db import models
-from django.db.models import JSONField
+
+import csv
+from datetime import date, datetime
+from decimal import ROUND_UP, Decimal
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
-from decimal import Decimal
-from datetime import date, datetime
-from requests_oauthlib import OAuth2Session
-from decimal import Decimal, ROUND_UP
+from django.db import models
+from django.db.models import JSONField
+
 from .tasks import huey_create_invoice
-import csv
 
 # Create your models here.
 
@@ -56,35 +57,35 @@ class Customer(models.Model):
     to_whatsapp = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
 
     def get_download_file_name(self, invoice_number):
-        invoice_name = ''
+        invoice_name = ""
 
         if self.download_prefix:
-            invoice_name += self.download_prefix + '_'
+            invoice_name += self.download_prefix + "_"
 
         invoice_name += str(invoice_number)
 
         if self.download_suffix:
-            invoice_name += '_' + self.download_suffix
+            invoice_name += "_" + self.download_suffix
         if self.to_whatsapp:
-            invoice_name += '_whatsapp'
+            invoice_name += "_whatsapp"
         if self.to_email:
-            invoice_name += '_email'
+            invoice_name += "_email"
         if self.to_fax:
-            invoice_name += '_fax'
+            invoice_name += "_fax"
         if self.to_print:
-            invoice_name += '_print'
+            invoice_name += "_print"
 
         return invoice_name
 
     def handle_customer_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
-        default_group = Group.objects.filter(name='Default').first()
+        default_group = Group.objects.filter(name="Default").first()
         for row in csv_reader:
             row_client = Customer(name=row["name"], gst=row["gst"])
             row_client.save()
@@ -101,26 +102,29 @@ class Customer(models.Model):
                 customer_group.save()
 
     def import_freshbooks_clients(import_clients):
-        default_group = Group.objects.filter(name='Default').first()
+        default_group = Group.objects.filter(name="Default").first()
         if not default_group:
-            new_group = Group(name='Default')
+            new_group = Group(name="Default")
             new_group.save()
             default_group = new_group
 
         for client in import_clients:
-            if client.get('organization', ''):
-                client_name = client.get('organization', '')
+            if client.get("organization", ""):
+                client_name = client.get("organization", "")
             else:
-                client_name = client.get('fname', '') + client.get('lname', '')
-            client_address = client.get('p_street')
-            client_postal_code = client.get('p_code')
-            client_country = client.get('p_country')
-            client_id = client.get('id')
-            client_accounting_systemid = client.get('accounting_systemid')
+                client_name = client.get("fname", "") + client.get("lname", "")
+            client_address = client.get("p_street")
+            client_postal_code = client.get("p_code")
+            client_country = client.get("p_country")
+            client_id = client.get("id")
+            client_accounting_systemid = client.get("accounting_systemid")
             new_client = Customer(
-                name=client_name, address=client_address, postal_code=client_postal_code,
-                country=client_country, freshbooks_client_id=client_id,
-                freshbooks_account_id=client_accounting_systemid
+                name=client_name,
+                address=client_address,
+                postal_code=client_postal_code,
+                country=client_country,
+                freshbooks_client_id=client_id,
+                freshbooks_account_id=client_accounting_systemid,
             )
             new_client.save()
             customer_group = CustomerGroup(group=default_group, customer=new_client)
@@ -141,12 +145,11 @@ class CustomerGroup(models.Model):
                     #  all customers are valid
                     CustomerGroup.objects.filter(group=group).delete()
                     for index in range(len(client_list)):
-                        new_grouping = CustomerGroup(
-                            customer=client_list[index], group=group, index=index)
+                        new_grouping = CustomerGroup(customer=client_list[index], group=group, index=index)
                         new_grouping.save()
             else:
                 #  empty the group
-                print('empty the group')
+                print("empty the group")
                 CustomerGroup.objects.filter(group=group).delete()
         updated_grouping = Customer.objects.filter(id__in=client_id_list)
         return updated_grouping
@@ -159,7 +162,7 @@ class Product(models.Model):
     freshbooks_account_id = models.CharField(max_length=12, null=True, blank=False)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -172,11 +175,14 @@ class Product(models.Model):
 
     def freshbooks_import_products(item_arr):
         for item in item_arr:
-            item_name = item.get('name')
-            item_id = item.get('itemid')
-            item_accounting_systemid = item.get('accounting_systemid')
-            new_item = Product(name=item_name, freshbooks_item_id=item_id,
-                               freshbooks_account_id=item_accounting_systemid)
+            item_name = item.get("name")
+            item_id = item.get("itemid")
+            item_accounting_systemid = item.get("accounting_systemid")
+            new_item = Product(
+                name=item_name,
+                freshbooks_item_id=item_id,
+                freshbooks_account_id=item_accounting_systemid,
+            )
             new_item.save()
 
 
@@ -200,21 +206,29 @@ class Invoice(models.Model):
     huey_task_id = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
-        unique_together = ('invoice_number', 'customer')
-        ordering = ['invoice_number']
+        unique_together = ("invoice_number", "customer")
+        ordering = ["invoice_number"]
 
-    def create_local_invoice(invoice_orderitems, invoice_customer, parsed_create_date,
-                                freshbooks_account_id, freshbooks_invoice_id,
-                                invoice_number=None, po_number=None, minus_decimal=Decimal(0),
-                                minus_description=None, huey_task_id=None):
+    def create_local_invoice(
+        invoice_orderitems,
+        invoice_customer,
+        parsed_create_date,
+        freshbooks_account_id,
+        freshbooks_invoice_id,
+        invoice_number=None,
+        po_number=None,
+        minus_decimal=Decimal(0),
+        minus_description=None,
+        huey_task_id=None,
+    ):
         net_total = 0
         for orderitem in invoice_orderitems:
-            net_total += (orderitem.driver_quantity * orderitem.unit_price)
+            net_total += orderitem.driver_quantity * orderitem.unit_price
 
         gst_decimal = Decimal(invoice_customer.gst / 100)
         net_total -= minus_decimal
-        net_gst = (net_total * gst_decimal).quantize(Decimal('.0001'), rounding=ROUND_UP)
-        total_incl_gst = (net_total + net_gst).quantize(Decimal('.0001'), rounding=ROUND_UP)
+        net_gst = (net_total * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
+        total_incl_gst = (net_total + net_gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
         new_invoice = Invoice(
             date_created=parsed_create_date,
@@ -230,7 +244,7 @@ class Invoice(models.Model):
             pivot=invoice_customer.pivot_invoice,
             freshbooks_account_id=freshbooks_account_id,
             freshbooks_invoice_id=freshbooks_invoice_id,
-            huey_task_id=huey_task_id
+            huey_task_id=huey_task_id,
         )
         new_invoice.save()
 
@@ -240,34 +254,46 @@ class Invoice(models.Model):
 
         return new_invoice
 
-    def create_invoice(user, freshbooks_tax_lookup, invoice_orderitems, invoice_customer, parsed_create_date,
-            invoice_number=None, po_number=None, minus_decimal=Decimal(0), minus_description=None
-        ):
+    def create_invoice(
+        user,
+        freshbooks_tax_lookup,
+        invoice_orderitems,
+        invoice_customer,
+        parsed_create_date,
+        invoice_number=None,
+        po_number=None,
+        minus_decimal=Decimal(0),
+        minus_description=None,
+    ):
         create_invoice_kwargs = {
-            'invoice_number': invoice_number,
-            'po_number': po_number,
-            'minus_decimal': minus_decimal,
-            'minus_description': minus_description
+            "invoice_number": invoice_number,
+            "po_number": po_number,
+            "minus_decimal": minus_decimal,
+            "minus_description": minus_description,
         }
         create_invoice_task = huey_create_invoice(
-            user, freshbooks_tax_lookup,  invoice_orderitems, invoice_customer,
-            parsed_create_date, **create_invoice_kwargs
+            user,
+            freshbooks_tax_lookup,
+            invoice_orderitems,
+            invoice_customer,
+            parsed_create_date,
+            **create_invoice_kwargs,
         )
         return create_invoice_task
 
     def handle_invoice_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
-            date_generated = row['date_generated']
-            remark = row['remark']
-            minus = row['minus']
-            net_total = row['net_total']
-            gst = row['gst']
-            net_gst = row['net_gst']
-            total_incl_gst = row['total_incl_gst']
-            invoice_number = row['invoice_number']
-            customer = row['customer']
-            pivot = row['pivot']
+            date_generated = row["date_generated"]
+            remark = row["remark"]
+            minus = row["minus"]
+            net_total = row["net_total"]
+            gst = row["gst"]
+            net_gst = row["net_gst"]
+            total_incl_gst = row["total_incl_gst"]
+            invoice_number = row["invoice_number"]
+            customer = row["customer"]
+            pivot = row["pivot"]
 
             customer_obj = Customer.objects.filter(name=customer).first()
             if customer_obj:
@@ -280,7 +306,7 @@ class Invoice(models.Model):
                     total_incl_gst=total_incl_gst,
                     invoice_number=invoice_number,
                     customer=customer_obj,
-                    pivot=pivot
+                    pivot=pivot,
                 )
                 new_invoice.save()
                 new_invoice.date_generated = date_generated
@@ -297,7 +323,7 @@ class Route(models.Model):
 
     # Route automatically defaults to order by index ascending in database model level
     class Meta:
-        ordering = ['index']
+        ordering = ["index"]
 
 
 class CustomerProduct(models.Model):
@@ -305,7 +331,7 @@ class CustomerProduct(models.Model):
         default=0.00,
         max_digits=6,
         decimal_places=4,
-        validators=[MinValueValidator(Decimal('0.01'))]
+        validators=[MinValueValidator(Decimal("0.01"))],
     )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -314,8 +340,8 @@ class CustomerProduct(models.Model):
     sort_order = models.IntegerField(null=True)
 
     class Meta:
-        unique_together = ('customer', 'product', 'quote_price')
-        ordering = ['sort_order']
+        unique_together = ("customer", "product", "quote_price")
+        ordering = ["sort_order"]
 
     def handle_quote_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
@@ -331,7 +357,7 @@ class CustomerProduct(models.Model):
                     customer_id=customer_obj.pk,
                     product_id=product_obj.pk,
                     quote_price=quote_price,
-                    freshbooks_tax_1=freshbooks_tax_1
+                    freshbooks_tax_1=freshbooks_tax_1,
                 )
                 new_quote.save()
 
@@ -347,8 +373,15 @@ class OrderItem(models.Model):
     invoice = models.ForeignKey(Invoice, null=True, on_delete=models.SET_NULL)
 
     class Meta:
-        ordering = ['route__date']
+        ordering = ["route__date"]
 
+    def filter_orderitems_by_customer_group(customer_group):
+        """
+        Filter order items by customer group.
+        :param customer_group: CustomerGroup object
+        :return: QuerySet of OrderItem objects
+        """
+        return OrderItem.objects.filter(customerproduct__customer__customergroup__group=customer_group.group)
 
     def check_orderitem_consistent_pricing(invoice_orderitems):
         price_map = {}
@@ -359,50 +392,52 @@ class OrderItem(models.Model):
             if price_map[product_name] != oi.unit_price:
                 return False
         return True
-    
+
     def build_freshbooks_invoice_body(
-            invoice_orderitems, freshbooks_client_id,
-            invoice_number, po_number, parsed_create_date,
-            freshbooks_tax_lookup_dict
-        ):
-            invoice_lines = []
+        invoice_orderitems,
+        freshbooks_client_id,
+        invoice_number,
+        po_number,
+        parsed_create_date,
+        freshbooks_tax_lookup_dict,
+    ):
+        invoice_lines = []
 
-            for orderitem in invoice_orderitems:
-                orderitem_date_str = datetime.strftime(orderitem.route.date, '%d-%m-%Y')
-                description = f"DATE: {orderitem_date_str} D/O: {orderitem.route.do_number}"
+        for orderitem in invoice_orderitems:
+            orderitem_date_str = datetime.strftime(orderitem.route.date, "%d-%m-%Y")
+            description = f"DATE: {orderitem_date_str} D/O: {orderitem.route.do_number}"
 
-                if orderitem.note:
-                    description += "P/O: {0}".format(orderitem.note)
+            if orderitem.note:
+                description += "P/O: {0}".format(orderitem.note)
 
-                invoice_line = {
-                    "type": 0,
-                    "description": description,
-                    "name": orderitem.customerproduct.product.name,
-                    "qty": orderitem.driver_quantity,
-                    "unit_cost": {"amount": str(orderitem.unit_price)}
-                }
-
-                tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
-
-                if tax_id:
-                    orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id)
-                    invoice_line["taxName1"] = orderitem_tax.get('name')
-                    invoice_line["taxAmount1"] = orderitem_tax.get('amount')
-
-                invoice_lines.append(invoice_line)
-
-            body = {
-                "invoice": {
-                    "customerid": freshbooks_client_id,
-                    "invoice_number": invoice_number,
-                    "po_number": po_number,
-                    "create_date": datetime.strftime(parsed_create_date, '%Y-%m-%d'),
-                    "lines": [line for line in invoice_lines]
-                }
+            invoice_line = {
+                "type": 0,
+                "description": description,
+                "name": orderitem.customerproduct.product.name,
+                "qty": orderitem.driver_quantity,
+                "unit_cost": {"amount": str(orderitem.unit_price)},
             }
 
-            return body
+            tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
 
+            if tax_id:
+                orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id)
+                invoice_line["taxName1"] = orderitem_tax.get("name")
+                invoice_line["taxAmount1"] = orderitem_tax.get("amount")
+
+            invoice_lines.append(invoice_line)
+
+        body = {
+            "invoice": {
+                "customerid": freshbooks_client_id,
+                "invoice_number": invoice_number,
+                "po_number": po_number,
+                "create_date": datetime.strftime(parsed_create_date, "%Y-%m-%d"),
+                "lines": [line for line in invoice_lines],
+            }
+        }
+
+        return body
 
     def handle_orderitem_import(csv_file):
         csv_reader = csv.DictReader(csv_file)
@@ -416,12 +451,11 @@ class OrderItem(models.Model):
             do_number = row["do_number"]
             invoice_number = row["invoice_number"]
 
-            parsed_date = datetime.strptime(date, '%d/%m/%Y')
-            formatted_date = parsed_date.strftime('%Y-%m-%d')
+            parsed_date = datetime.strptime(date, "%d/%m/%Y")
+            formatted_date = parsed_date.strftime("%Y-%m-%d")
             customer_obj = Customer.objects.filter(name=customer_name).first()
             product_obj = Product.objects.filter(name=product_name).first()
-            quote_obj = CustomerProduct.objects.filter(
-                customer=customer_obj.pk, product=product_obj.pk).first()
+            quote_obj = CustomerProduct.objects.filter(customer=customer_obj.pk, product=product_obj.pk).first()
             route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
             invoice_obj = Invoice.objects.filter(invoice_number=invoice_number).first()
 
@@ -432,7 +466,7 @@ class OrderItem(models.Model):
                     unit_price=unit_price,
                     customerproduct=quote_obj,
                     route=route_obj,
-                    invoice=invoice_obj
+                    invoice=invoice_obj,
                 )
                 new_orderitem.save()
 
@@ -445,23 +479,23 @@ class OrderItem(models.Model):
                     unit_price=unit_price,
                     customerproduct=quote_obj,
                     route=new_route,
-                    invoice=invoice_obj
+                    invoice=invoice_obj,
                 )
                 new_orderitem.save()
 
     def handle_detrack_import(csv_file):
-        csv_reader = csv.DictReader(csv_file, delimiter=',')
+        csv_reader = csv.DictReader(csv_file, delimiter=",")
 
         #  save csv into memory
         for row in csv_reader:
-            date = row['Date']
-            sku = row['SKU']
-            orderitem_qty = row['Actual Quantity']
-            do_number = row['D.O. No.']
-            name = row['Deliver to']
-            po_number_start = name.index('(') if '(' in name else None
-            po_number_end = name.index(')') if ')' in name else None
-            po_number = ''
+            date = row["Date"]
+            sku = row["SKU"]
+            orderitem_qty = row["Actual Quantity"]
+            do_number = row["D.O. No."]
+            name = row["Deliver to"]
+            po_number_start = name.index("(") if "(" in name else None
+            po_number_end = name.index(")") if ")" in name else None
+            po_number = ""
 
             if not sku:
                 continue
@@ -470,10 +504,10 @@ class OrderItem(models.Model):
                 continue
 
             if po_number_start and po_number_end:
-                po_number = name[po_number_start:po_number_end+1]
+                po_number = name[po_number_start : po_number_end + 1]
 
-            parsed_date = datetime.strptime(date, '%d/%m/%Y')
-            formatted_date = parsed_date.strftime('%Y-%m-%d')
+            parsed_date = datetime.strptime(date, "%d/%m/%Y")
+            formatted_date = parsed_date.strftime("%Y-%m-%d")
             quote_obj = CustomerProduct.objects.filter(pk=sku).first()
             route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
 
@@ -484,7 +518,7 @@ class OrderItem(models.Model):
                     driver_quantity=orderitem_qty,
                     unit_price=quote_obj.quote_price,
                     customerproduct=quote_obj,
-                    route=route_obj
+                    route=route_obj,
                 )
                 new_orderitem.save()
 
@@ -497,6 +531,6 @@ class OrderItem(models.Model):
                     driver_quantity=orderitem_qty,
                     unit_price=quote_obj.quote_price,
                     customerproduct=quote_obj,
-                    route=new_route
+                    route=new_route,
                 )
                 new_orderitem.save()
