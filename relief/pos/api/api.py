@@ -352,7 +352,9 @@ def create_invoice(request, freshbooks_svc):
 
         freshbooks_taxes = freshbooks_svc.get_freshbooks_taxes()
 
-        freshbooks_tax_lookup = {tax.get("id"): {tax.get("name"): tax.get("amount")} for tax in freshbooks_taxes}
+        freshbooks_tax_lookup = {
+            tax.get("id"): {"name": tax.get("name"), "amount": tax.get("amount")} for tax in freshbooks_taxes
+        }
 
         create_invoice_kwargs = {
             "invoice_number": invoice_number,
@@ -360,6 +362,8 @@ def create_invoice(request, freshbooks_svc):
             "minus_decimal": minus_decimal,
             "minus_description": minus_description,
         }
+
+        print("freshbooks_tax_lookup: ", freshbooks_tax_lookup)
         create_invoice_task = Invoice.create_invoice(
             request.user,
             freshbooks_tax_lookup,
@@ -918,7 +922,7 @@ def invoice_start_download(request, freshbooks_svc):
     if invoice:
         filename = invoice.customer.get_download_file_name(invoice.invoice_number)
         if invoice.pivot:
-            status_url = reverse("pos:invoice_download_status") + f"?pk={invoice.pk}"
+            status_url = reverse("pos:invoice_download_status") + f"?pk={invoice.pk}&filename={filename}"
             status_url = request.build_absolute_uri(status_url)
             return Response({"status_url": status_url}, status=status.HTTP_200_OK)
 
@@ -935,7 +939,14 @@ def invoice_start_download(request, freshbooks_svc):
         freshbooks_invoice_id = freshbooks_invoice.get("id")
         huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, request.user)
         print("Huey task created: ", huey_pdf_task.id)
-        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}"
+        try:
+            invoice = Invoice.objects.get(freshbooks_invoice_id=freshbooks_invoice_id)
+            invoice.huey_task_id = huey_pdf_task.id
+            invoice.save()
+            filename = invoice.customer.get_download_file_name(invoice.invoice_number)
+        except Invoice.DoesNotExist:
+            filename = freshbooks_invoice.get("invoice_number", "download")
+        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}&filename={filename}"
         status_url = request.build_absolute_uri(status_url)
         return Response({"status_url": status_url}, status=status.HTTP_200_OK)
 
@@ -952,13 +963,14 @@ def invoice_download_status(request):
     """
     task_id = request.GET.get("task_id", None)
     pk = request.GET.get("pk", None)
+    filename = request.GET.get("filename", None)
 
     if pk:
         url = reverse("pos:invoice_download")
         return Response(
             {
                 "status": "completed",
-                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}"),
+                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}&filename={filename}"),
             },
             status=status.HTTP_200_OK,
         )
@@ -972,7 +984,7 @@ def invoice_download_status(request):
                 return Response(
                     {
                         "status": "completed",
-                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}"),
+                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}&filename={filename}"),
                     },
                     status=status.HTTP_200_OK,
                 )

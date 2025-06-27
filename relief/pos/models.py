@@ -402,7 +402,6 @@ class OrderItem(models.Model):
         freshbooks_tax_lookup_dict,
     ):
         invoice_lines = []
-
         for orderitem in invoice_orderitems:
             orderitem_date_str = datetime.strftime(orderitem.route.date, "%d-%m-%Y")
             description = f"DATE: {orderitem_date_str} D/O: {orderitem.route.do_number}"
@@ -410,22 +409,29 @@ class OrderItem(models.Model):
             if orderitem.note:
                 description += "P/O: {0}".format(orderitem.note)
 
-            invoice_line = {
-                "type": 0,
-                "description": description,
-                "name": orderitem.customerproduct.product.name,
-                "qty": orderitem.driver_quantity,
-                "unit_cost": {"amount": str(orderitem.unit_price)},
-            }
-
-            tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
-
-            if tax_id:
-                orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id)
-                invoice_line["taxName1"] = orderitem_tax.get("name")
-                invoice_line["taxAmount1"] = orderitem_tax.get("amount")
-
-            invoice_lines.append(invoice_line)
+            try:
+                tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
+                orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id, None) if tax_id else None
+                if orderitem_tax:
+                    invoice_line = {
+                        "type": 0,
+                        "description": description,
+                        "name": orderitem.customerproduct.product.name,
+                        "qty": orderitem.driver_quantity,
+                        "unit_cost": {"amount": str(orderitem.unit_price)},
+                        "taxName1": orderitem_tax.get("name", None),
+                        "taxAmount1": orderitem_tax.get("amount", None),
+                    }
+            except TypeError:
+                invoice_line = {
+                    "type": 0,
+                    "description": description,
+                    "name": orderitem.customerproduct.product.name,
+                    "qty": orderitem.driver_quantity,
+                    "unit_cost": {"amount": str(orderitem.unit_price)},
+                }
+            finally:
+                invoice_lines.append(invoice_line)
 
         body = {
             "invoice": {

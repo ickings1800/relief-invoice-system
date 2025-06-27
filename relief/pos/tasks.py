@@ -82,7 +82,7 @@ def huey_create_invoice(
     minus_description=None,
     task=None,
 ):
-    from .models import Invoice, OrderItem
+    from .models import OrderItem
 
     freshbooks_svc = get_huey_freshbooks_service(user)
 
@@ -98,32 +98,32 @@ def huey_create_invoice(
         freshbooks_tax_lookup,
     )
 
-    print(json.dumps(freshbooks_invoice_body))
+    print("huey_create_invoice:: ", json.dumps(freshbooks_invoice_body))
 
-    invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_invoice_body)
+    # invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_invoice_body)
 
-    invoice_number = invoice.get("invoice_number")
-    freshbooks_account_id = invoice.get("accounting_systemid")
-    freshbooks_invoice_id = invoice.get("id")
+    # invoice_number = invoice.get("invoice_number")
+    # freshbooks_account_id = invoice.get("accounting_systemid")
+    # freshbooks_invoice_id = invoice.get("id")
 
-    create_invoice_kwargs = {
-        "invoice_number": invoice_number,
-        "po_number": po_number,
-        "minus_decimal": minus_decimal,
-        "minus_description": minus_description,
-        "huey_task_id": task.id if task else None,
-    }
+    # create_invoice_kwargs = {
+    #     "invoice_number": invoice_number,
+    #     "po_number": po_number,
+    #     "minus_decimal": minus_decimal,
+    #     "minus_description": minus_description,
+    #     "huey_task_id": task.id if task else None,
+    # }
 
-    new_invoice = Invoice.create_local_invoice(
-        invoice_orderitems,
-        invoice_customer,
-        parsed_create_date,
-        freshbooks_account_id,
-        freshbooks_invoice_id,
-        **create_invoice_kwargs,
-    )
+    # new_invoice = Invoice.create_local_invoice(
+    #     invoice_orderitems,
+    #     invoice_customer,
+    #     parsed_create_date,
+    #     freshbooks_account_id,
+    #     freshbooks_invoice_id,
+    #     **create_invoice_kwargs,
+    # )
 
-    return new_invoice
+    # return new_invoice
 
 
 @db_periodic_task(crontab(hour="9"))
