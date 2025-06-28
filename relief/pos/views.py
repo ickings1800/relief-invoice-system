@@ -1,9 +1,7 @@
 import csv
 import io
 import time
-from collections import Counter
 from datetime import datetime
-from decimal import ROUND_UP, Decimal
 
 from django.conf import settings
 from django.contrib.auth import login
@@ -16,17 +14,10 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
-from django_pivot.pivot import pivot
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm, mm
-from reportlab.pdfgen import canvas
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from requests_oauthlib import OAuth2Session
 
 from .forms import ExportInvoiceForm, ExportOrderItemForm, ImportFileForm
+from .freshbooks import freshbooks_access
 from .models import Company, Customer, CustomerProduct, Invoice, OrderItem, Product
 
 
@@ -115,288 +106,42 @@ def express_order(request):
         return render(request, template_name)
 
 
-class NumberedPageCanvas(canvas.Canvas):
-    """
-    http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
-    http://code.activestate.com/recipes/576832/
-    http://www.blog.pythonlibrary.org/2013/08/12/reportlab-how-to-add-page-numbers/
-    """
-
-    def __init__(self, *args, **kwargs):
-        """Constructor"""
-        super().__init__(*args, **kwargs)
-        self.pages = []
-
-    def showPage(self):
-        """
-        On a page break, add information to the list
-        """
-        self.pages.append(dict(self.__dict__))
-        self._startPage()
-
-    def save(self):
-        """
-        Add the page number to each page (page x of y)
-        """
-        page_count = len(self.pages)
-
-        for page in self.pages:
-            self.__dict__.update(page)
-            self.draw_page_number(page_count)
-            super().showPage()
-        canvas.Canvas.save(self)
-
-    def draw_page_number(self, page_count):
-        self.setFont("Helvetica-Bold", 8)
-        self.drawRightString(200 * mm, 10 * mm, "Page %d of %d" % (self._pageNumber, page_count))
-
-
 @login_required
-def invoice_pdf_view(request, pk, file_name=""):
-    invoice = Invoice.objects.select_related("customer").get(pk=pk)
-    if invoice:
-        invoice_customer = invoice.customer
-        query_oi = OrderItem.objects.filter(customerproduct__customer__id=invoice_customer.pk, invoice_id=pk).order_by(
-            "route__date"
-        )
-        unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
-        unique_quote_price_set = set(query_oi.values_list("customerproduct__product__name", "unit_price"))
-        unique_quote_price_dict = {k: v for k, v in unique_quote_price_set}
-
-        pv_table = pivot(
-            query_oi,
-            ["route__do_number", "route__date"],
-            "customerproduct__product__name",
-            "driver_quantity",
-            default=0,
-        )
-
-        product_sum = Counter()
-
-        for row in pv_table:
-            mapped_row = {name: row.get(name, 0) for name in unique_orderitem_names}
-            product_sum.update(mapped_row)
-
-        nett_amt = {name: unique_quote_price_dict[name] * product_sum[name] for name in unique_orderitem_names}
-
-        subtotal = 0
-        for k, v in nett_amt.items():
-            subtotal += v
-
-        total_nett_amt = subtotal - invoice.minus
-        gst_decimal = Decimal(invoice.gst / 100)
-        gst = (total_nett_amt * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
-        total_incl_gst = (total_nett_amt + gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
-
-        response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="{0}.pdf"'.format(file_name)
-
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            response,
-            pagesize=A4,
-            rightMargin=1 * cm,
-            leftMargin=1 * cm,
-            topMargin=5 * mm,
-            bottomMargin=5 * mm,
-        )
-
-        # container for the "Flowable" objects
-        elements = []
-
-        # Make heading for each column and start data list
-
-        top_table_style = TableStyle(
-            [
-                ("FONTSIZE", (0, 0), (-1, -1), 10),
-                ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-            ]
-        )
-        taxStyle = getSampleStyleSheet()
-        taxHeadingStyle = taxStyle["Normal"]
-        taxHeadingStyle.fontName = "Helvetica-Bold"
-        taxHeadingStyle.fontSize = 14
-
-        top_table_data = []
-        top_table_data.append(["SUN-UP BEAN FOOD MFG PTE LTD", Paragraph("TAX INVOICE", taxHeadingStyle)])
-        top_table_data.append(
-            [
-                "TUAS BAY WALK #02-30 SINGAPORE 637780",
-                "INVOICE NUMBER:",
-                invoice.invoice_number,
-            ]
-        )
-        if invoice.date_created:
-            top_table_data.append(
-                [
-                    "TEL: 68639035 FAX: 68633738",
-                    "DATE: ",
-                    invoice.date_created.strftime("%d/%m/%Y"),
-                ]
-            )
-        else:
-            top_table_data.append(["TEL: 68639035 FAX: 68633738", "DATE: ", ""])
-        top_table_data.append(["REG NO: 200302589N"])
-        top_table_data.append(["BILL TO"])
-        top_table_data.append([invoice_customer.name])
-
-        if invoice_customer.address:
-            top_table_data.append([invoice_customer.address])
-        if invoice_customer.postal_code and invoice_customer.country:
-            top_table_data.append([invoice_customer.country + " " + invoice_customer.postal_code])
-        else:
-            top_table_data.append([invoice_customer.country])
-
-        top_table = Table(top_table_data, [12 * cm, 4 * cm, 3 * cm])
-        top_table.setStyle(top_table_style)
-
-        # Assemble data for each column using simple loop to append it into data list
-
-        styles = getSampleStyleSheet()
-        styleBH = styles["Normal"]
-        styleBH.alignment = TA_CENTER
-        styleBH.fontName = "Helvetica-Bold"
-
-        product_style = TableStyle(
-            [
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.black),
-                ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.black),
-                ("FONTSIZE", (0, 0), (-1, -1), 10),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ]
-        )
-        heading = []
-        heading.append(Paragraph("DATE", styleBH))
-        for name in unique_orderitem_names:
-            heading.append(Paragraph(name, styleBH))
-        heading.append(Paragraph("D/O", styleBH))
-        datalist = [heading]
-
-        for row in pv_table:
-            data_row = []
-            data_row.append(row.get("route__date").strftime("%d/%m/%Y"))
-            for name in unique_orderitem_names:
-                if row.get(name) is None:
-                    data_row.append("")
-                else:
-                    qty = row.get(name)
-                    if qty == 0:
-                        data_row.append("")
-                    else:
-                        data_row.append(str(row.get(name)))
-            data_row.append(row.get("route__do_number", styleBH))
-            datalist.append(data_row)
-        table_width = (19 / len(heading)) * cm
-        product_table = Table(datalist, [table_width for i in range(len(heading))], 5.25 * mm)
-        product_table.hAlign = "CENTER"
-        product_table.setStyle(product_style)
-
-        quantity_style = TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("FONTSIZE", (0, 0), (-1, -1), 9)])
-        quantity_data = []
-        #   -- quantity row --
-        quantity_row = []
-        quantity_row.append(Paragraph("QUANTITY", styleBH))
-        for name in unique_orderitem_names:
-            quantity_row.append(Paragraph(str(product_sum.get(name, 0)), styleBH))
-        quantity_row.append("")
-        quantity_data.append(quantity_row)
-        #  -- unit price row --
-        unit_price_row = []
-        unit_price_row.append(Paragraph("UNIT PRICE", styleBH))
-        for name in unique_orderitem_names:
-            unit_price_row.append(Paragraph(str(unique_quote_price_dict.get(name)), styleBH))
-        unit_price_row.append("")
-        quantity_data.append(unit_price_row)
-        #  -- nett amount row --
-        nett_amt_row = []
-        nett_amt_row.append(Paragraph("NETT AMOUNT", styleBH))
-        for name in unique_orderitem_names:
-            nett_amt_row.append(Paragraph(str(nett_amt.get(name)), styleBH))
-        nett_amt_row.append("")
-        quantity_data.append(nett_amt_row)
-        quantity_table = Table(quantity_data, [table_width for i in range(len(heading))], 5 * mm)
-        quantity_table.hAlign = "CENTER"
-        quantity_table.setStyle(quantity_style)
-
-        # -- subtotal, gst, total amount --
-        total_data_style = TableStyle(
-            [
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("SPAN", (0, 0), (0, 0)),
-                ("SPAN", (0, 0), (0, -1)),
-                ("GRID", (1, 0), (-1, -1), 0.5, colors.black),
-                ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-            ]
-        )
-
-        note_styles = getSampleStyleSheet()
-        notes_style = note_styles["Normal"]
-        notes_style.alignment = TA_LEFT
-        notes_style.fontName = "Helvetica-Bold"
-
-        total_data = []
-        if invoice.remark:
-            notes_paragraph = Paragraph(invoice.remark, notes_style)
-        else:
-            notes_paragraph = Paragraph("", notes_style)
-
-        total_data.append([notes_paragraph, "SUB-TOTAL ($)", str(subtotal)])
-
-        if invoice.minus > 0:
-            if invoice.discount_description:
-                total_data.append(["", invoice.discount_description, str(invoice.minus)])
-            else:
-                total_data.append(["", "MINUS ($)", str(invoice.minus)])
-            total_data.append(["", "TOTAL NETT AMT ($)", str(total_nett_amt)])
-
-        total_data.append(["", "GST ({0}%)".format(invoice.gst), str(gst)])
-        total_data.append(["", "TOTAL (inc. GST) ($)", str(total_incl_gst)])
-        total_data_table = Table(total_data, [12.8 * cm, 4 * cm, 2 * cm])
-        total_data_table.hAlign = "RIGHT"
-        total_data_table.setStyle(total_data_style)
-
-        elements.append(top_table)
-        elements.append(Spacer(0, 5 * mm))
-        elements.append(product_table)
-        elements.append(Spacer(0, 5 * mm))
-        elements.append(quantity_table)
-        elements.append(Spacer(0, 5 * mm))
-        elements.append(total_data_table)
-
-        doc.build(elements, canvasmaker=NumberedPageCanvas)
-
-        response.write(buffer.getvalue())
-        buffer.close()
-        return response
-    return HttpResponseBadRequest()
-
-
-@login_required
-def download_invoice(request):
-    #  TODO: check if freshbooks customer id is in database for file name
+@freshbooks_access
+def download_invoice(request, freshbooks_svc):
     if request.method == "GET":
         pk = request.GET.get("pk", None)
-        huey_task_id = request.GET.get("huey_task_id", None)
+        if not pk:
+            return HttpResponseBadRequest("No invoice id provided.")
+        invoice = get_object_or_404(Invoice, pk=pk)
+        filename = invoice.customer.get_download_file_name(invoice.invoice_number)
+        if invoice.pivot:
+            invoice_pivot_pdf_io = io.BytesIO()
+            Invoice.download_pivot_invoice(invoice.pk, invoice_pivot_pdf_io)
+            invoice_pivot_pdf_io.seek(0)
+            return FileResponse(invoice_pivot_pdf_io, as_attachment=True, filename=f"{filename}.pdf")
+        try:
+            invoice_freshbooks_pdf = freshbooks_svc.download_freshbooks_invoice(invoice.freshbooks_invoice_id)
+            return FileResponse(
+                io.BytesIO(invoice_freshbooks_pdf.content),
+                as_attachment=True,
+                filename=f"{filename}.pdf",
+                content_type="application/pdf",
+            )
+        except Exception:
+            return HttpResponseBadRequest("Failed to download invoice from FreshBooks.")
+    return HttpResponseBadRequest("Invalid request method.")
+
+
+@login_required
+def download_invoice_zip(request, huey_task_id):
+    if request.method == "GET":
         filename = request.GET.get("filename", "download")
-        if pk:
-            invoice = get_object_or_404(Invoice, pk=pk)
-            filename = invoice.customer.get_download_file_name(invoice.invoice_number)
-            return invoice_pdf_view(request, pk, file_name=f"{filename}")
-        if huey_task_id:
-            huey = settings.HUEY
-            task_result = huey.get(huey_task_id, peek=True)
-            if task_result:
-                pdf = huey.get(huey_task_id, peek=True)
-                return FileResponse(io.BytesIO(pdf), as_attachment=True, filename=f"{filename}.pdf")
-            else:
-                return HttpResponseBadRequest(
-                    {
-                        "status": "error",
-                        "message": "Task not found or not completed.",
-                    }
-                )
-        return HttpResponseBadRequest("No invoice id or huey task id provided.")
+        huey_db = settings.HUEY
+        if not huey_db.get(huey_task_id, peek=True):
+            return HttpResponseBadRequest("Download task is still in progress.")
+        zip_buffer = io.BytesIO(huey_db.get(huey_task_id, peek=False))
+        return FileResponse(zip_buffer, as_attachment=True, filename=f"{filename}.zip", content_type="application/zip")
     return HttpResponseBadRequest("Invalid request method.")
 
 

@@ -1,12 +1,15 @@
 import io
 import json
 import time
+import zipfile
 from decimal import Decimal
 
 from django.conf import settings
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task, task
+from huey.exceptions import CancelExecution, TaskException
 from pypdf import PdfReader
+from pypdf.errors import PdfStreamError
 from requests_oauthlib import OAuth2Session
 
 from .services import FreshbooksService
@@ -59,14 +62,97 @@ def get_huey_freshbooks_service(user):
     return freshbooks_svc
 
 
+@db_task(context=True)
+def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user, task=None):
+    from .models import Invoice
+
+    print("huey_download_invoice_main_task:: ", invoice_number_from, invoice_number_to)
+    try:
+        invoice_number_from = int(invoice_number_from)
+        invoice_number_to = int(invoice_number_to)
+    except ValueError:
+        raise CancelExecution(retry=False)
+
+    def valid_invoice_number(invoice_number_from, invoice_number_to):
+        if invoice_number_from and invoice_number_to:
+            if invoice_number_to > invoice_number_from:
+                return True
+        return False
+
+    if not valid_invoice_number(invoice_number_from, invoice_number_to):
+        raise CancelExecution(retry=False)
+
+    freshbooks_svc = get_huey_freshbooks_service(user)
+
+    #  key is huey task id, value is the filename
+    huey_download_tasks = dict()
+    huey_q = []
+
+    invoice_in_database = None
+
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+        for invoice_number in range(invoice_number_from, invoice_number_to + 1):
+            try:
+                invoice_in_database = Invoice.objects.get(invoice_number=invoice_number)
+            except Invoice.MultipleObjectsReturned:
+                #  multiple invoices found (shouldn't happen), but let's just use the first one
+                invoice_in_database = Invoice.objects.filter(invoice_number=invoice_number).first()
+            except Invoice.DoesNotExist:
+                invoice_in_database = None
+
+            if not invoice_in_database:
+                # if invoice is not in database, we need to download it from Freshbooks
+                freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
+
+                if len(freshbooks_invoice_search) == 0:
+                    continue
+
+                freshbooks_invoice = freshbooks_invoice_search[0]
+                freshbooks_invoice_id = freshbooks_invoice.get("id")
+                huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, user)
+                huey_download_tasks[huey_pdf_task.id] = freshbooks_invoice.get("invoice_number", "download")
+                huey_q.append(huey_pdf_task)
+
+            # if invoice is in database, we need to see if it is a pivot invoice or have to download from Freshbooks
+            filename = invoice_in_database.customer.get_download_file_name(invoice_in_database.invoice_number) + ".pdf"
+
+            if invoice_in_database.pivot:
+                pivot_invoice_pdf_buffer = Invoice.download_pivot_invoice(invoice_in_database.pk, io.BytesIO())
+                zip_file.writestr(filename, pivot_invoice_pdf_buffer.getvalue())
+                pivot_invoice_pdf_buffer.close()
+                continue
+            else:
+                freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
+                if len(freshbooks_invoice_search) == 0:
+                    continue
+                huey_pdf_task = huey_download_freshbooks_invoice(invoice_in_database.freshbooks_invoice_id, user)
+                huey_download_tasks[huey_pdf_task.id] = filename
+                huey_q.append(huey_pdf_task)
+
+        #  after all huey tasks are created, we need to wait for them to finish
+        for task_result in huey_q:
+            try:
+                pdf_content = task_result.get(blocking=True)
+                zip_file.writestr(huey_download_tasks.get(task_result.id), pdf_content)
+            except TaskException:
+                continue
+    return zip_buffer.getvalue()
+
+
 @task(retries=10, retry_delay=10)
 def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
     # Read the PDF content into a PdfReader object, will throw error if not valid PDF.
     # when error is thrown, huey will retry the task
     freshbooks_svc = get_huey_freshbooks_service(user)
     pdf = freshbooks_svc.download_freshbooks_invoice(freshbooks_invoice_id)
-    PdfReader(io.BytesIO(pdf.content))
-    return pdf.content
+    try:
+        PdfReader(io.BytesIO(pdf.content))
+        return pdf.content
+    except PdfStreamError as e:
+        print(f"Failed to read PDF content for invoice {freshbooks_invoice_id}: {str(e)}")
+        raise TaskException()
 
 
 @db_task(retries=2, retry_delay=60, context=True)

@@ -18,7 +18,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile.prod
-    command: python manage.py run_huey --settings=relief.settings.production
+    command: python manage.py run_huey -w 2 --settings=relief.settings.production
     volumes:
       - ./relief/:/home/app/
       - ./relief.sqlite:/home/app/relief.sqlite:rw
