@@ -890,70 +890,27 @@ def invoice_start_download(request, freshbooks_svc):
     Huey task will be created to prepare to download the invoice.
     Huey task id will be returned to the client.
     """
-    invoice_number = request.GET.get("invoice_number", None)
-    pk = request.GET.get("pk", None)
 
-    if not invoice_number and not pk:
+    def valid_invoice_number(invoice_number_from, invoice_number_to):
+        if invoice_number_from and invoice_number_to:
+            if invoice_number_to > invoice_number_from:
+                return True
+        return False
+
+    invoice_number_from = request.GET.get("from", None)
+    invoice_number_to = request.GET.get("to", None)
+
+    if not valid_invoice_number(invoice_number_from, invoice_number_to):
         return Response(
             status=status.HTTP_400_BAD_REQUEST,
-            data={"error": "Invoice number or pk must be provided"},
+            data={"error": "Invoice number (to and from) must be provided and 'to' must be greater than 'from'."},
         )
 
-    invoice = None
-    filename = ""
-    try:
-        if pk:
-            invoice = Invoice.objects.get(pk=pk)
-        if invoice_number:
-            invoice = Invoice.objects.get(invoice_number=invoice_number)
-
-    except Invoice.DoesNotExist:
-        #  invoice is not created from the platform, search, and download from freshbooks
-        if not invoice_number:
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={"error": "Invoice number not provided for freshbooks search"},
-            )
-
-    except Invoice.MultipleObjectsReturned:
-        #  multiple invoices found (shouldn't happen), but let's just use the first one
-        invoice = Invoice.objects.filter(invoice_number=invoice_number).first()
-
-    if invoice:
-        filename = invoice.customer.get_download_file_name(invoice.invoice_number)
-        if invoice.pivot:
-            status_url = reverse("pos:invoice_download_status") + f"?pk={invoice.pk}&filename={filename}"
-            status_url = request.build_absolute_uri(status_url)
-            return Response({"status_url": status_url}, status=status.HTTP_200_OK)
-
-    freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice_number)
-
-    if len(freshbooks_invoice_search) == 0:
-        return Response(
-            status=status.HTTP_404_NOT_FOUND,
-            data={"error": "Invoice not found in FreshBooks"},
-        )
-
-    if len(freshbooks_invoice_search) > 0:
-        freshbooks_invoice = freshbooks_invoice_search[0]
-        freshbooks_invoice_id = freshbooks_invoice.get("id")
-        huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, request.user)
-        print("Huey task created: ", huey_pdf_task.id)
-        try:
-            invoice = Invoice.objects.get(freshbooks_invoice_id=freshbooks_invoice_id)
-            invoice.huey_task_id = huey_pdf_task.id
-            invoice.save()
-            filename = invoice.customer.get_download_file_name(invoice.invoice_number)
-        except Invoice.DoesNotExist:
-            filename = freshbooks_invoice.get("invoice_number", "download")
-        status_url = reverse("pos:invoice_download_status") + f"?task_id={huey_pdf_task.id}&filename={filename}"
-        status_url = request.build_absolute_uri(status_url)
-        return Response({"status_url": status_url}, status=status.HTTP_200_OK)
-
-    return Response(
-        status=status.HTTP_400_BAD_REQUEST,
-        data={"error": "Unable to start invoice download"},
+    huey_download_task = huey_download_invoice_main_task(invoice_number_from, invoice_number_to, request.user)
+    status_url = request.build_absolute_uri(
+        reverse("pos:invoice_download_status") + f"?task_id={huey_download_task.id}&filename={invoice_number_to}.pdf"
     )
+    return Response(status=status.HTTP_202_ACCEPTED, data={"status": "pending", "status_url": status_url})
 
 
 @api_view(["GET"])
@@ -962,44 +919,31 @@ def invoice_download_status(request):
     Check the status of the invoice download task.
     """
     task_id = request.GET.get("task_id", None)
-    pk = request.GET.get("pk", None)
-    filename = request.GET.get("filename", None)
-
-    if pk:
-        url = reverse("pos:invoice_download")
+    filename = request.GET.get("filename", "download")
+    if not task_id:
         return Response(
-            {
-                "status": "completed",
-                "pdf_url": request.build_absolute_uri(f"{url}?pk={pk}&filename={filename}"),
-            },
-            status=status.HTTP_200_OK,
+            {"status": "error", "message": "Task ID must be provided"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-
-    if task_id:
-        huey = settings.HUEY
-        task_result = huey.get(task_id, peek=True)
-        try:
-            if task_result:
-                url = reverse("pos:invoice_download")
-                return Response(
-                    {
-                        "status": "completed",
-                        "pdf_url": request.build_absolute_uri(f"{url}?huey_task_id={task_id}&filename={filename}"),
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    {"status": "pending", "pdf_url": None},
-                    status=status.HTTP_202_ACCEPTED,
-                )
-        except Exception as e:
+    huey = settings.HUEY
+    task_result = huey.get(task_id, peek=True)
+    try:
+        if task_result:
+            url = reverse("pos:download_invoice_zip", kwargs={"huey_task_id": task_id})
             return Response(
-                {"status": "error", "message": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {
+                    "status": "completed",
+                    "zip_url": request.build_absolute_uri(f"{url}?filename={filename}"),
+                },
+                status=status.HTTP_200_OK,
             )
-
-    return Response(
-        {"status": "error", "message": "Task ID or PK must be provided"},
-        status=status.HTTP_400_BAD_REQUEST,
-    )
+        else:
+            return Response(
+                {"status": "pending", "zip_url": None},
+                status=status.HTTP_202_ACCEPTED,
+            )
+    except Exception as e:
+        return Response(
+            {"status": "error", "message": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

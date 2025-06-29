@@ -8,10 +8,12 @@ app_name = "pos"
 urlpatterns = [
     #  /pos/customers/detail/<pk>/
     path("quotes/", views.overview, name="overview"),
-    #  /pos/invoice/pdf/
-    path("invoice/pdf/", views.download_invoice, name="invoice_download"),
     #  /pos/orderitem/summary/
     path("orderitem/summary/", views.orderitem_summary, name="orderitem_summary"),
+    #  /pos/download/
+    path("download/", views.download_invoice, name="download_invoice"),
+    #  /pos/download/zip/
+    path("download/zip/<str:huey_task_id>/", views.download_invoice_zip, name="download_invoice_zip"),
     #  /pos/invoice/export/
     path("invoice/export/", views.export_invoice, name="invoice_export"),
     #  /pos/quotes/export/

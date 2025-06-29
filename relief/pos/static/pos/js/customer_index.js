@@ -366,15 +366,13 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
       },
       download: async function(event){
         console.log('download invoice range')
-        for (let i = this.from; i <= this.to ; i++){
-          let url = origin + '/pos/api/invoice/download/?invoice_number=' + i.toString();
-          getInvoiceDownloadStatusUrl(url)
-            .then(res => res.json())
-            .then(res => { 
-              this.$emit('push-invoice-status-url-to-queue', res.status_url)
-            })
-            .catch(e => console.log(e))
-        }
+        let url = `${origin}/pos/api/invoice/download/?to=${this.to}&from=${this.from}`;
+        getInvoiceDownloadStatusUrl(url)
+          .then(res => res.json())
+          .then(res => { 
+            this.$emit('push-invoice-status-url-to-queue', res.status_url)
+          })
+          .catch(e => console.log(e))
       },
       resetFields: function(event) {
         this.from = null;
@@ -1463,7 +1461,7 @@ var CustomerList = Vue.component('CustomerList', {
               {{ invoice.date_created }}
             </td>
             <td>{{ invoice.total_incl_gst }}</td>
-            <td><a class="btn btn-sm" v-on:click.prevent="trigger_download_invoice" :href="invoice.download_url">Download</a></td>
+            <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>
           </tr>
         </tbody>
       </table>
@@ -1510,15 +1508,6 @@ var CustomerList = Vue.component('CustomerList', {
         console.log('invoice update event')
         this.$emit('show-update-invoice', invoice);
        },
-       trigger_download_invoice: function(event) {
-        console.log('trigger download invoice')
-        let invoice_status_url = event.target.href;
-        getInvoiceDownloadStatusUrl(invoice_status_url)
-          .then(res => res.json())
-          .then(res => res.status_url)
-          .then(res => this.$emit('push-invoice-status-url-to-queue', res))
-          .catch(err => console.error(err));
-       }
    },
    watch: {
     orderitems: function(newVal, oldVal){
@@ -1685,7 +1674,7 @@ var app = new Vue({
     getAllTaxes().then(res => res.json()).then(res => this.taxes = res).catch((err) => window.location.href=origin)
     getAllGroups().then(res => res.json()).then(res => this.groups = res)
     getAllInvoices().then(res => res.json()).then(res => this.invoices = res)
-    setInterval(function () { this.process_invoice_download_q(); }.bind(this), 1000);
+    setInterval(function () { this.process_invoice_download_q(); }.bind(this), 5000);
   },
   computed: {
     modal_opened: function() {
@@ -1897,7 +1886,7 @@ var app = new Vue({
           if (res.status === 'completed') {
             console.log('invoice download success')
             let a = document.createElement('a');
-            a.href = res.pdf_url;
+            a.href = res.zip_url;
             document.body.appendChild(a);
             a.click();
             a.remove();

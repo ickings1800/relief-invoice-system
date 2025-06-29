@@ -129,7 +129,7 @@ class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):
         return obj.customer.pk
 
     def get_download_url(self, obj):
-        url = reverse("pos:invoice_download_trigger")
+        url = reverse("pos:download_invoice")
         return f"{url}?pk={obj.pk}"
 
 
