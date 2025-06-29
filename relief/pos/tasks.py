@@ -114,6 +114,7 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
                 huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, user)
                 huey_download_tasks[huey_pdf_task.id] = freshbooks_invoice.get("invoice_number", "download")
                 huey_q.append(huey_pdf_task)
+                continue
 
             # if invoice is in database, we need to see if it is a pivot invoice or have to download from Freshbooks
             filename = invoice_in_database.customer.get_download_file_name(invoice_in_database.invoice_number) + ".pdf"
