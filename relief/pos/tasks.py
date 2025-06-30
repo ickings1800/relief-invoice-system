@@ -133,6 +133,7 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
                 huey_q.append(huey_pdf_task)
 
         #  after all huey tasks are created, we need to wait for them to finish
+        #  TODO: Make this non-blocking
         for task_result in huey_q:
             try:
                 pdf_content = task_result.get(blocking=True)
@@ -169,7 +170,7 @@ def huey_create_invoice(
     minus_description=None,
     task=None,
 ):
-    from .models import OrderItem
+    from .models import Invoice, OrderItem
 
     freshbooks_svc = get_huey_freshbooks_service(user)
 
