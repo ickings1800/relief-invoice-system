@@ -633,13 +633,11 @@ class OrderItem(models.Model):
     class Meta:
         ordering = ["route__date"]
 
-    def filter_orderitems_by_customer_group(customer_group):
+    def get_available_orderitems_for_customer(customer):
         """
-        Filter order items by customer group.
-        :param customer_group: CustomerGroup object
-        :return: QuerySet of OrderItem objects
+        Returns all order items for a customer that are not yet invoiced.
         """
-        return OrderItem.objects.filter(customerproduct__customer__customergroup__group=customer_group.group)
+        return OrderItem.objects.filter(customerproduct__customer=customer, invoice=None)
 
     def check_orderitem_consistent_pricing(invoice_orderitems):
         price_map = {}
@@ -665,7 +663,7 @@ class OrderItem(models.Model):
             description = f"DATE: {orderitem_date_str} D/O: {orderitem.route.do_number}"
 
             if orderitem.note:
-                description += "P/O: {0}".format(orderitem.note)
+                description += " P/O: {0}".format(orderitem.note)
 
             try:
                 tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
@@ -680,7 +678,7 @@ class OrderItem(models.Model):
                         "taxName1": orderitem_tax.get("name", None),
                         "taxAmount1": orderitem_tax.get("amount", None),
                     }
-            except TypeError:
+            except ValueError:
                 invoice_line = {
                     "type": 0,
                     "description": description,
