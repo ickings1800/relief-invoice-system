@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 import time
@@ -5,6 +6,7 @@ import zipfile
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task, task
 from huey.exceptions import CancelExecution, TaskException
@@ -112,7 +114,7 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
                 freshbooks_invoice = freshbooks_invoice_search[0]
                 freshbooks_invoice_id = freshbooks_invoice.get("id")
                 huey_pdf_task = huey_download_freshbooks_invoice(freshbooks_invoice_id, user)
-                huey_download_tasks[huey_pdf_task.id] = freshbooks_invoice.get("invoice_number", "download")
+                huey_download_tasks[huey_pdf_task.id] = freshbooks_invoice.get("invoice_number", "download") + ".pdf"
                 huey_q.append(huey_pdf_task)
                 continue
 
@@ -214,32 +216,60 @@ def huey_create_invoice(
     return new_invoice
 
 
-@db_periodic_task(crontab(hour="9"))
+# @db_periodic_task(crontab(hour="17"))
+@db_periodic_task(crontab(minute="*"))
 def huey_create_invoice_9am_daily():
-    pass
+    from .models import CustomerGroup, OrderItem
+
+    customergroup_arr = CustomerGroup.objects.filter(group__name="Default")
+    for cg in customergroup_arr:
+        #  get all customers in the default group
+        #  and create invoices for them
+        User = get_user_model()
+        user = User.objects.get(pk=1)  #  Temporarily hardcode with user id 1
+        freshbooks_svc = get_huey_freshbooks_service(user)
+        customer = cg.customer
+        customer_orderitems = OrderItem.get_available_orderitems_for_customer(customer)
+        parsed_create_date = datetime.datetime.now().date()
+        freshbooks_tax_lookup = freshbooks_svc.get_freshbooks_taxes()
+        print("")
+        print("User:: ", user)
+        print("Freshbooks Tax Lookup:: ", freshbooks_tax_lookup)
+        print("Customer Order Items:: ", customer_orderitems)
+        print("Creating invoice for customer:", customer.name)
+        print("Parsed Create Date:: ", parsed_create_date)
+        print("")
+
+        # huey_create_invoice(
+        #     user=customer.user,
+        #     freshbooks_tax_lookup=freshbooks_tax_lookup,
+        #     invoice_orderitems=customer_orderitems,
+        #     invoice_customer=customer,
+        #     parsed_create_date=parsed_create_date,
+        # )
 
 
-@db_periodic_task(crontab(day_of_week="1", hour="9"))
+@db_periodic_task(crontab(day_of_week="1", hour="17"))
 def huey_create_invoice_9am_monday():
     pass
 
 
-@db_periodic_task(crontab(day="11", hour="9"))
+@db_periodic_task(crontab(day="11", hour="17"))
 def huey_create_invoice_9am_eleventh_of_month():
     pass
 
 
-@db_periodic_task(crontab(day="21", hour="9"))
+@db_periodic_task(crontab(day="21", hour="17"))
 def huey_create_invoice_9am_twentyfirst_of_month():
     pass
 
 
-@db_periodic_task(crontab(day="1", hour="9"))
+@db_periodic_task(crontab(day="1", hour="17"))
 def huey_create_invoice_9am_first_of_month():
     pass
 
 
-@db_periodic_task(crontab(day="16", hour="9"))
+@db_periodic_task(crontab(day="16", hour="17"))
 def huey_create_invoice_9am_sixteenth_of_month():
     pass
 
