@@ -678,14 +678,17 @@ class OrderItem(models.Model):
                         "taxName1": orderitem_tax.get("name", None),
                         "taxAmount1": orderitem_tax.get("amount", None),
                     }
-            except ValueError:
-                invoice_line = {
-                    "type": 0,
-                    "description": description,
-                    "name": orderitem.customerproduct.product.name,
-                    "qty": orderitem.driver_quantity,
-                    "unit_cost": {"amount": str(orderitem.unit_price)},
-                }
+                else:
+                    invoice_line = {
+                        "type": 0,
+                        "description": description,
+                        "name": orderitem.customerproduct.product.name,
+                        "qty": orderitem.driver_quantity,
+                        "unit_cost": {"amount": str(orderitem.unit_price)},
+                    }
+            except Exception as e:
+                # If there is an error with the tax_id
+                print(f"Error creating invoice line for orderitem {orderitem.pk}: {e}")
             finally:
                 invoice_lines.append(invoice_line)
 
