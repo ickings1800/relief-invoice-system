@@ -665,32 +665,25 @@ class OrderItem(models.Model):
             if orderitem.note:
                 description += " P/O: {0}".format(orderitem.note)
 
+            invoice_line = {
+                "type": 0,
+                "description": description,
+                "name": orderitem.customerproduct.product.name,
+                "qty": orderitem.driver_quantity,
+                "unit_cost": {"amount": str(orderitem.unit_price)},
+            }
+
             try:
                 tax_id = int(orderitem.customerproduct.freshbooks_tax_1)
                 orderitem_tax = freshbooks_tax_lookup_dict.get(tax_id, None) if tax_id else None
                 if orderitem_tax:
-                    invoice_line = {
-                        "type": 0,
-                        "description": description,
-                        "name": orderitem.customerproduct.product.name,
-                        "qty": orderitem.driver_quantity,
-                        "unit_cost": {"amount": str(orderitem.unit_price)},
-                        "taxName1": orderitem_tax.get("name", None),
-                        "taxAmount1": orderitem_tax.get("amount", None),
-                    }
-                else:
-                    invoice_line = {
-                        "type": 0,
-                        "description": description,
-                        "name": orderitem.customerproduct.product.name,
-                        "qty": orderitem.driver_quantity,
-                        "unit_cost": {"amount": str(orderitem.unit_price)},
-                    }
-            except Exception as e:
-                # If there is an error with the tax_id
-                print(f"Error creating invoice line for orderitem {orderitem.pk}: {e}")
-            finally:
-                invoice_lines.append(invoice_line)
+                    invoice_line["taxName1"] = orderitem_tax.get("name", None)
+                    invoice_line["taxAmount1"] = orderitem_tax.get("amount", None)
+            except ValueError:
+                pass
+
+            print("invoice_lines", invoice_lines)
+            invoice_lines.append(invoice_line)
 
         body = {
             "invoice": {
