@@ -11,7 +11,6 @@ def freshbooks_access(func):
     # One-time configuration and initialization.
     refresh_url = "https://api.freshbooks.com/auth/oauth/token"
     client_id = settings.FRESHBOOKS_CLIENT_ID
-    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
     @functools.wraps(func)
@@ -46,17 +45,12 @@ def freshbooks_access(func):
             "expires_in": expires_in - current_unix_time,
         }
 
-        extra = {
-            "grant_type": "refresh_token",
-        }
-
         print(f"wrapper:: token: {token}")
 
         freshbooks = OAuth2Session(
             client_id,
             token=token,
             auto_refresh_url=refresh_url,
-            auto_refresh_kwargs=extra,
             token_updater=token_updater,
             redirect_uri=redirect_uri,
         )
