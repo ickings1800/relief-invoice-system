@@ -679,7 +679,7 @@ class OrderItem(models.Model):
                 if orderitem_tax:
                     invoice_line["taxName1"] = orderitem_tax.get("name", None)
                     invoice_line["taxAmount1"] = orderitem_tax.get("amount", None)
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
             print("invoice_lines", invoice_lines)
