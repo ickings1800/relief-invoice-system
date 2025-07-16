@@ -139,6 +139,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField()
     date = serializers.SerializerMethodField()
     do_number = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -152,8 +153,12 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "date",
             "do_number",
             "unit_price",
+            "currency",
             "note",
         )
+
+    def get_currency(self, obj):
+        return obj.customerproduct.customer.currency
 
     def get_customer_name(self, obj):
         return obj.customerproduct.customer.name

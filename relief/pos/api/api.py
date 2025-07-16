@@ -725,8 +725,8 @@ def customer_sync(request, freshbooks_svc):
     if request.method == "POST":
         try:
             freshbooks_svc.update_freshbooks_clients()
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": str(e)})
         customers = Customer.objects.prefetch_related("customergroup_set", "customergroup_set__group")
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)

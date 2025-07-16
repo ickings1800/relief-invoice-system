@@ -71,7 +71,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
   		              </td>
   		              <td>{{ orderitem.product_name }}</td>
   		              <td>{{ orderitem.driver_quantity }}</td>
-  		              <td>{{ orderitem.unit_price }}</td>
+  		              <td>{{ orderitem.unit_price }} {{ orderitem.currency }}</td>
   		              <td>{{ orderitem.note }}</td>
   		              <td>{{ orderitem.do_number }}</td>
   		            </tr>
@@ -869,6 +869,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
         create_date: null,
         invoice_number: null,
         po_number: null,
+        currency: null,
         discount: 0,
         discount_description: null,
         select_all: false,
@@ -937,7 +938,7 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
     		              </td>
     		              <td>{{ orderitem.product_name }}</td>
     		              <td>{{ orderitem.driver_quantity }}</td>
-    		              <td>{{ orderitem.unit_price }}</td>
+    		              <td>{{ orderitem.unit_price }} {{ orderitem.currency }}</td>
     		              <td>{{ orderitem.note }}</td>
     		              <td>{{ orderitem.do_number }}</td>
     		            </tr>

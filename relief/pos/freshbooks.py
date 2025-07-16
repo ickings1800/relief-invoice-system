@@ -25,10 +25,11 @@ def freshbooks_access(func):
             request.session["refresh_token"] = token.get("refresh_token")
             request.session["unix_token_expires"] = current_unix_time + token.get("expires_in")
 
-            request.user.freshbooks_access_token = token.get("access_token")
-            request.user.freshbooks_refresh_token = token.get("refresh_token")
-            request.user.freshbooks_token_expires = current_unix_time + token.get("expires_in")
-            request.user.save()
+            if request.user.is_authenticated:
+                request.user.freshbooks_access_token = token.get("access_token")
+                request.user.freshbooks_refresh_token = token.get("refresh_token")
+                request.user.freshbooks_token_expires = current_unix_time + token.get("expires_in")
+                request.user.save()
 
         oauth_token = request.session.get("oauth_token")
         refresh_token = request.session.get("refresh_token")

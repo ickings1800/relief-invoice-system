@@ -124,6 +124,8 @@ class FreshbooksService(object):
         return client_arr
 
     def update_freshbooks_clients(self):
+        from pos.models import Customer
+
         page = 1
         client_arr = []
         while True:
@@ -155,6 +157,7 @@ class FreshbooksService(object):
             client_postal_code = client.get("p_code")
             client_country = client.get("p_country")
             client_accounting_systemid = client.get("accounting_systemid")
+            client_currency = client.get("currency_code", "USD")
 
             client_queryset = Customer.objects.filter(
                 freshbooks_client_id=client_id,
@@ -168,6 +171,7 @@ class FreshbooksService(object):
                     update_client.address = client_address
                     update_client.postal_code = client_postal_code
                     update_client.country = client_country
+                    update_client.currency = client_currency
                     update_client.save()
 
     def get_freshbooks_products(self):

@@ -6,7 +6,6 @@ from collections import Counter
 from datetime import date, datetime
 from decimal import ROUND_UP, Decimal
 
-from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import JSONField
@@ -19,23 +18,35 @@ from reportlab.lib.units import cm, mm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .managers import CompanyAwareManager
 from .tasks import huey_create_invoice
 
 # Create your models here.
 
 
+class CompanyAwareModel(models.Model):
+    #  Separate manager allowing bypassing company check
+    objects_all_companies = models.Manager()
+    #  override the default manager to always require a specific company filter
+    objects = CompanyAwareManager()
+
+    class Meta:
+        abstract = True
+
+
 class Company(models.Model):
     name = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    postal_code = models.CharField(max_length=6)
-    tel_no = models.CharField(max_length=8)
-    business_no = models.CharField(max_length=10)
-    fax_no = models.CharField(max_length=8)
+    address = models.CharField(max_length=255, null=True, blank=True)
+    postal_code = models.CharField(max_length=6, null=True, blank=True)
+    tel_no = models.CharField(max_length=8, null=True, blank=True)
+    business_no = models.CharField(max_length=10, null=True, blank=True)
+    fax_no = models.CharField(max_length=8, null=True, blank=True)
     freshbooks_account_id = models.CharField(max_length=255, null=False, blank=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False)
+    # user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False)
 
 
-class Group(models.Model):
+class Group(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     name = models.CharField(max_length=255, null=False, blank=False)
 
     def __str__(self):
@@ -49,12 +60,14 @@ class Group(models.Model):
         return new_group
 
 
-class Customer(models.Model):
+class Customer(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255, null=True, blank=False)
     postal_code = models.CharField(max_length=255, null=True, blank=False)
     country = models.CharField(max_length=128, null=True, blank=False)
     gst = models.DecimalField(default=9, max_digits=1, decimal_places=0)
+    currency = models.CharField(max_length=3, null=True, blank=False)
     freshbooks_account_id = models.CharField(max_length=8, null=True, blank=False)
     freshbooks_client_id = models.CharField(max_length=8, null=True, blank=False)
     pivot_invoice = models.BooleanField(default=False)
@@ -127,11 +140,13 @@ class Customer(models.Model):
             client_country = client.get("p_country")
             client_id = client.get("id")
             client_accounting_systemid = client.get("accounting_systemid")
+            client_currency = client.get("currency_code", "USD")
             new_client = Customer(
                 name=client_name,
                 address=client_address,
                 postal_code=client_postal_code,
                 country=client_country,
+                currency=client_currency,
                 freshbooks_client_id=client_id,
                 freshbooks_account_id=client_accounting_systemid,
             )
@@ -140,7 +155,8 @@ class Customer(models.Model):
             customer_group.save()
 
 
-class CustomerGroup(models.Model):
+class CustomerGroup(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     index = models.IntegerField(null=True)
     customer = models.ForeignKey(Customer, on_delete=models.DO_NOTHING, null=True)
     group = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True)
@@ -164,7 +180,8 @@ class CustomerGroup(models.Model):
         return updated_grouping
 
 
-class Product(models.Model):
+class Product(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     name = models.CharField(max_length=128)
     unit_price = models.DecimalField(default=0.00, max_digits=6, decimal_places=4)
     freshbooks_item_id = models.CharField(max_length=12, null=True, blank=False)
@@ -195,7 +212,8 @@ class Product(models.Model):
             new_item.save()
 
 
-class Invoice(models.Model):
+class Invoice(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     date_generated = models.DateField(auto_now=True)
     date_created = models.DateField(null=True)
     remark = models.CharField(max_length=255, null=True, blank=True)
@@ -571,7 +589,8 @@ class Invoice(models.Model):
         return buffer
 
 
-class Route(models.Model):
+class Route(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     index = models.SmallIntegerField(null=True)
     do_number = models.CharField(max_length=128, null=False, blank=False)
     po_number = models.TextField(null=True, blank=False, max_length=255)
@@ -584,7 +603,8 @@ class Route(models.Model):
         ordering = ["index"]
 
 
-class CustomerProduct(models.Model):
+class CustomerProduct(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     quote_price = models.DecimalField(
         default=0.00,
         max_digits=6,
@@ -620,7 +640,8 @@ class CustomerProduct(models.Model):
                 new_quote.save()
 
 
-class OrderItem(models.Model):
+class OrderItem(CompanyAwareModel):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=False, blank=False)
     quantity = models.PositiveSmallIntegerField(default=0)
     driver_quantity = models.PositiveSmallIntegerField(default=0)
     note = models.CharField(max_length=255, null=True, blank=True)
@@ -670,7 +691,7 @@ class OrderItem(models.Model):
                 "description": description,
                 "name": orderitem.customerproduct.product.name,
                 "qty": orderitem.driver_quantity,
-                "unit_cost": {"amount": str(orderitem.unit_price)},
+                "unit_cost": {"amount": str(orderitem.unit_price), "code": orderitem.customerproduct.customer.currency},
             }
 
             try:

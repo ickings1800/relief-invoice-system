@@ -12,13 +12,19 @@ from django.http import (
     HttpResponseBadRequest,
     HttpResponseRedirect,
 )
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.urls import reverse
 from requests_oauthlib import OAuth2Session
 
-from .forms import ExportInvoiceForm, ExportOrderItemForm, ImportFileForm
+from relief.users.models import User
+
+from .forms import CompanySelectForm, ExportInvoiceForm, ExportOrderItemForm, ImportFileForm
 from .freshbooks import freshbooks_access
 from .models import Company, Customer, CustomerProduct, Invoice, OrderItem, Product
+
+client_id = settings.FRESHBOOKS_CLIENT_ID
+client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
 
 # Create your views here.
@@ -33,9 +39,6 @@ def redirect_to_freshbooks_auth(request):
 
 def get_token(request):
     callback_url = request.get_full_path()
-    client_id = settings.FRESHBOOKS_CLIENT_ID
-    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
-    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
     freshbooks = OAuth2Session(client_id, token=request.session["oauth_state"], redirect_uri=redirect_uri)
 
@@ -67,17 +70,71 @@ def get_token(request):
     print(f"get_token:: Refresh Token: {request.session['refresh_token']}")
     print(f"get_token:: Expires In: {request.session['unix_token_expires']}")
 
+    return HttpResponseRedirect(reverse("pos:select_company"))
+
+
+def select_company(request):
+    template_name = "pos/login.html"
+    refresh_url = "https://api.freshbooks.com/auth/oauth/token"
+    current_unix_time = int(time.time())
+
+    def token_updater(token):
+        request.session["oauth_token"] = token.get("access_token")
+        request.session["refresh_token"] = token.get("refresh_token")
+        request.session["unix_token_expires"] = current_unix_time + token.get("expires_in")
+
+    token = {
+        "access_token": request.session.get("oauth_token"),
+        "refresh_token": request.session.get("refresh_token"),
+        "token_type": "Bearer",
+        "expires_in": request.session.get("unix_token_expires"),
+    }
+
+    freshbooks = OAuth2Session(
+        client_id,
+        token=token,
+        auto_refresh_url=refresh_url,
+        token_updater=token_updater,
+        redirect_uri=redirect_uri,
+    )
     # Use the access token to authenticate the user with the OAuth service
     # to check for the user's freshbooks account id
     res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
-    account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
+    if request.method == "GET":
+        business_memberships = res.get("response").get("business_memberships")
+        business_memberships_dict = {
+            bm.get("business").get("account_id"): bm.get("business").get("name") for bm in business_memberships
+        }
+        select_company_form = CompanySelectForm(companies=business_memberships_dict)
+        return render(request, template_name, {"select_company_form": select_company_form})
 
-    company = get_object_or_404(Company, freshbooks_account_id=account_id)
+    # We need to allow user to select which business account to use
+    if request.method == "POST":
+        select_company_form = CompanySelectForm(request.POST)
 
-    # If the user has a freshbooks account id, find the user object and log them in
-    if company is not None:
-        login(request, company.user)
+        if not select_company_form.is_valid():
+            return render(request, template_name, {"select_company_form": select_company_form})
+
+        try:
+            account_id = select_company_form.cleaned_data.get("company")
+            company = Company.objects.filter(freshbooks_account_id=account_id).first()
+        except Company.DoesNotExist:
+            company = Company(name=company)
+            company.save()
+
+        try:
+            freshbooks_user_email = res.get("response").get("email")
+            search_freshbooks_user = User.objects.filter(email=freshbooks_user_email, companies=company).first()
+        except User.DoesNotExist:
+            # Handle the case where the login failed, where user has logged in by freshbooks,
+            # but does not have an account on the system.
+            new_user = User(companies=company, email=freshbooks_user_email, username=freshbooks_user_email)
+            new_user.set_unusable_password()  # Set an unusable password since we use OAuth
+            new_user.save()
+            search_freshbooks_user = new_user
+
+        login(request, search_freshbooks_user)
         request.session["freshbooks_account_id"] = account_id
         request.user.freshbooks_access_token = token.get("access_token")
         request.user.freshbooks_refresh_token = token.get("refresh_token")
@@ -85,10 +142,7 @@ def get_token(request):
         request.user.save()
         return HttpResponseRedirect(reverse("pos:overview"))
 
-    # Handle the case where the login failed, where user has logged in by freshbooks,
-    # but does not have an account on the system.
-    # TODO: (register a new user, company object)
-    return HttpResponse(status=404)
+    return HttpResponseBadRequest("Invalid request method.")
 
 
 @login_required
@@ -113,7 +167,14 @@ def download_invoice(request, freshbooks_svc):
         pk = request.GET.get("pk", None)
         if not pk:
             return HttpResponseBadRequest("No invoice id provided.")
-        invoice = get_object_or_404(Invoice, pk=pk)
+        try:
+            company = Company.objects.get(freshbooks_account_id=request.session["freshbooks_account_id"])
+            invoice = Invoice.objects.filter(company=company, pk=pk).first()
+        except Company.DoesNotExist:
+            return HttpResponseBadRequest("Company not found.")
+        except Invoice.DoesNotExist:
+            return HttpResponseBadRequest("Invoice not found.")
+
         filename = invoice.customer.get_download_file_name(invoice.invoice_number)
         if invoice.pivot:
             invoice_pivot_pdf_io = io.BytesIO()

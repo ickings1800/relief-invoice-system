@@ -26,6 +26,8 @@ urlpatterns = [
     path("login/", views.redirect_to_freshbooks_auth, name="login"),
     #  /pos/logout
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    #  /pos/select_company/
+    path("select_company/", views.select_company, name="select_company"),
     #  /pos/token/
     path("token/", views.get_token, name="get_freshbooks_token"),
 ]
