@@ -2,9 +2,11 @@ import io
 import json
 import time
 import zipfile
+from datetime import datetime
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from huey.contrib.djhuey import db_task, task
 from huey.exceptions import CancelExecution, TaskException
 from pypdf import PdfReader
@@ -23,10 +25,6 @@ def get_huey_freshbooks_service(user):
     redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
     current_unix_time = int(time.time())
 
-    extra = {
-        "grant_type": "refresh_token",
-    }
-
     def token_updater(token):
         user.freshbooks_access_token = token.get("access_token")
         user.freshbooks_refresh_token = token.get("refresh_token")
@@ -40,15 +38,10 @@ def get_huey_freshbooks_service(user):
         "expires_in": expires_in - current_unix_time,
     }
 
-    extra = {
-        "grant_type": "refresh_token",
-    }
-
     freshbooks = OAuth2Session(
         client_id,
         token=token,
         auto_refresh_url=refresh_url,
-        auto_refresh_kwargs=extra,
         token_updater=token_updater,
         redirect_uri=redirect_uri,
     )
@@ -62,7 +55,7 @@ def get_huey_freshbooks_service(user):
 
 
 @db_task(context=True)
-def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user, task=None):
+def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user, company, task=None):
     from .models import Invoice
 
     print("huey_download_invoice_main_task:: ", invoice_number_from, invoice_number_to)
@@ -94,10 +87,10 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
         for invoice_number in range(invoice_number_from, invoice_number_to + 1):
             try:
-                invoice_in_database = Invoice.objects.get(invoice_number=invoice_number)
+                invoice_in_database = Invoice.objects.get(company=company, invoice_number=invoice_number)
             except Invoice.MultipleObjectsReturned:
                 #  multiple invoices found (shouldn't happen), but let's just use the first one
-                invoice_in_database = Invoice.objects.filter(invoice_number=invoice_number).first()
+                invoice_in_database = Invoice.objects.filter(company=company, invoice_number=invoice_number).first()
             except Invoice.DoesNotExist:
                 invoice_in_database = None
 
@@ -156,7 +149,7 @@ def huey_download_freshbooks_invoice(freshbooks_invoice_id, user):
         raise TaskException()
 
 
-@db_task(retries=2, retry_delay=60, context=True)
+@db_task(context=True)
 def huey_create_invoice(
     user,
     freshbooks_tax_lookup,
@@ -213,62 +206,48 @@ def huey_create_invoice(
     return new_invoice
 
 
+# docker time is in UTC time
 # @db_periodic_task(crontab(hour="17"))
-# @db_periodic_task(crontab(hour="*"))
-# def huey_create_invoice_9am_daily():
-#     pass
+@task()
+def huey_create_invoice_automation(group_name, company):
+    from .models import CustomerGroup, OrderItem
 
-# customergroup_arr = CustomerGroup.objects.filter(group__name="Default")
-# for cg in customergroup_arr:
-#     #  get all customers in the default group
-#     #  and create invoices for them
-#     User = get_user_model()
-#     user = User.objects.get(pk=1)  #  Temporarily hardcode with user id 1
-#     freshbooks_svc = get_huey_freshbooks_service(user)
-#     customer = cg.customer
-#     customer_orderitems = OrderItem.get_available_orderitems_for_customer(customer)
-#     parsed_create_date = datetime.datetime.now().date()
-#     freshbooks_tax_lookup = freshbooks_svc.get_freshbooks_taxes()
-# print("")
-# print("User:: ", user)
-# print("Freshbooks Tax Lookup:: ", freshbooks_tax_lookup)
-# print("Customer Order Items:: ", customer_orderitems)
-# print("Creating invoice for customer:", customer.name)
-# print("Parsed Create Date:: ", parsed_create_date)
-# print("")
+    User = get_user_model()
+    user = User.objects.get(pk=1)  #  Temporarily hardcode with user id 1
+    freshbooks_svc = get_huey_freshbooks_service(user)
+    freshbooks_tax_lookup = freshbooks_svc.get_freshbooks_taxes()
+    customergroup_arr = CustomerGroup.objects.filter(company=company, group__name=group_name).order_by("index")
+    parsed_create_date = datetime.now().date()
 
-# huey_create_invoice(
-#     user=customer.user,
-#     freshbooks_tax_lookup=freshbooks_tax_lookup,
-#     invoice_orderitems=customer_orderitems,
-#     invoice_customer=customer,
-#     parsed_create_date=parsed_create_date,
-# )
+    for cg in customergroup_arr:
+        #  get all customers in the default group
+        #  and create invoices for them
+        customer = cg.customer
+        customer_orderitems = OrderItem.get_available_orderitems_for_customer(customer)
 
+        if len(customer_orderitems) == 0:
+            print(f"No order items found for customer {customer.name} in group {group_name}.")
+            continue
 
-# @db_periodic_task(crontab(day_of_week="1", hour="17"))
-# def huey_create_invoice_9am_monday():
-#     pass
+        print("")
+        print("User:: ", user)
+        print("Freshbooks Tax Lookup:: ", freshbooks_tax_lookup)
+        print("Customer Order Items:: ", customer_orderitems)
+        print("Creating invoice for customer:", customer.name)
+        print("Parsed Create Date:: ", parsed_create_date)
+        print("")
 
+        if settings.DEBUG:
+            print("Debug mode: Skipping invoice creation.")
+            continue
 
-# @db_periodic_task(crontab(day="11", hour="17"))
-# def huey_create_invoice_9am_eleventh_of_month():
-#     pass
-
-
-# @db_periodic_task(crontab(day="21", hour="17"))
-# def huey_create_invoice_9am_twentyfirst_of_month():
-#     pass
-
-
-# @db_periodic_task(crontab(day="1", hour="17"))
-# def huey_create_invoice_9am_first_of_month():
-#     pass
-
-
-# @db_periodic_task(crontab(day="16", hour="17"))
-# def huey_create_invoice_9am_sixteenth_of_month():
-#     pass
+        # huey_create_invoice(
+        #     user=user,
+        #     freshbooks_tax_lookup=freshbooks_tax_lookup,
+        #     invoice_orderitems=customer_orderitems,
+        #     invoice_customer=customer,
+        #     parsed_create_date=parsed_create_date,
+        # )
 
 
 @db_task(retries=5, retry_delay=10, context=True)

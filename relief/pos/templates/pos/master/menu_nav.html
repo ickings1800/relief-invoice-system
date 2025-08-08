@@ -18,7 +18,7 @@
 <header class="navbar">
     <div class="container">
       <section class="navbar-section">
-        <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">relief.systems ALPHA</a>
+        <a href="{% url 'pos:overview' %}" class="navbar-brand mr-2">Relief BETA Test</a>
         {% if user.is_authenticated %}
             <a class="nav-link" href="{% url 'pos:express_order' %}" tabindex="-1" aria-disabled="true">Orders</a>
             <a class="nav-link" href="{% url 'pos:import_items' %}" tabindex="-1" aria-disabled="true">Import</a>

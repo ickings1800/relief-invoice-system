@@ -1,14 +1,16 @@
+import json
+import time
 from datetime import datetime
 from decimal import ROUND_UP, Decimal
 
 from django.conf import settings
-from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
 from ..freshbooks import freshbooks_access
+from ..managers import get_company_from_request, get_object_or_404_with_company
 from ..models import *
 from ..tasks import *
 from .serializers import *
@@ -17,7 +19,10 @@ from .serializers import *
 @api_view(["GET"])
 def group_list(request):
     if request.method == "GET":
-        groups = Group.objects.all()
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        groups = Group.objects.filter(company=company)
         group_list_serializer = GroupListSerializer(groups, many=True)
         return Response(status=status.HTTP_200_OK, data=group_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -26,7 +31,12 @@ def group_list(request):
 @api_view(["GET"])
 def customer_list(request):
     if request.method == "GET":
-        customers = Customer.objects.prefetch_related("customergroup_set", "customergroup_set__group")
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        customers = Customer.objects.filter(company=company).prefetch_related(
+            "customergroup_set", "customergroup_set__group"
+        )
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -35,13 +45,18 @@ def customer_list(request):
 @api_view(["GET"])
 def product_list(request):
     if request.method == "GET":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         customer_id = request.GET.get("customer_id")
         if customer_id:
-            products_existing = CustomerProduct.objects.filter(customer_id=customer_id).distinct("product_id")
+            products_existing = CustomerProduct.objects.filter(company=company, customer_id=customer_id).distinct(
+                "product_id"
+            )
             products_existing_ids = [cp.product_id for cp in products_existing]
-            products = Product.objects.exclude(id__in=products_existing_ids)
+            products = Product.objects.filter(company=company).exclude(id__in=products_existing_ids)
         else:
-            products = Product.objects.all()
+            products = Product.objects.filter(company=company)
         product_serializer = ProductListDetailUpdateSerializer(products, many=True)
         return Response(status=status.HTTP_200_OK, data=product_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -51,7 +66,10 @@ def product_list(request):
 @freshbooks_access
 def product_detail(request, freshbooks_svc, pk):
     if request.method == "GET":
-        product = get_object_or_404(Product, pk=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        product = get_object_or_404_with_company(Product, company, pk=pk)
         product_detail = freshbooks_svc.freshbooks_product_detail(product.freshbooks_item_id)
         return Response(status=status.HTTP_200_OK, data=product_detail)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -60,8 +78,11 @@ def product_detail(request, freshbooks_svc, pk):
 @api_view(["PUT"])
 def orderitem_update(request, pk):
     if request.method == "PUT":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         update_data = request.data
-        orderitem = get_object_or_404(OrderItem, pk=pk)
+        orderitem = get_object_or_404_with_company(OrderItem, company, pk=pk)
         orderitem_update_serializer = OrderItemUpdateSerializer(orderitem, data=update_data)
         if orderitem_update_serializer.is_valid():
             orderitem_update_serializer.save()
@@ -73,7 +94,10 @@ def orderitem_update(request, pk):
 @api_view(["GET"])
 def route_detail(request, pk):
     if request.method == "GET":
-        route = get_object_or_404(Route, pk=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        route = get_object_or_404_with_company(Route, company, pk=pk)
         route_serializer = RouteSerializer(route)
         return Response(status=status.HTTP_200_OK, data=route_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -95,7 +119,12 @@ def route_update(request, pk):
         validated_po_number = body.get("po_number")
         validated_orderitems = body.get("orderitem_set")
 
-        route = Route.objects.get(pk=route_pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        route = Route.objects.filter(company=company, pk=route_pk).first()
+        if not route:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Route not found"})
         if route.po_number != validated_po_number:
             route.po_number = validated_po_number
         if route.note != validated_note:
@@ -116,7 +145,7 @@ def route_update(request, pk):
                 )
 
             if validated_do_number != route.do_number:
-                route_exists = Route.objects.filter(do_number=validated_do_number).count()
+                route_exists = Route.objects.filter(company=company, do_number=validated_do_number).count()
                 if route_exists > 0:
                     return Response(
                         status=status.HTTP_400_BAD_REQUEST,
@@ -130,13 +159,13 @@ def route_update(request, pk):
             oi_driver_qty = oi.get("driver_quantity")
             oi_qty = oi.get("quantity")
             print("quantites: ", oi_driver_qty, oi_qty)
-            orderitem = OrderItem.objects.get(pk=oi_id)
+            orderitem = OrderItem.objects.filter(company=company, pk=oi_id).first()
+            if not orderitem:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                    data={"error": "OrderItem not found"},
+                )
             try:
-                if not orderitem:
-                    return Response(
-                        status=status.HTTP_404_NOT_FOUND,
-                        data={"error": "orderitem id not found"},
-                    )
                 if oi_driver_qty is None:
                     return Response(
                         status=status.HTTP_400_BAD_REQUEST,
@@ -165,10 +194,13 @@ def route_update(request, pk):
 @api_view(["PUT"])
 def update_grouping(request):
     if request.method == "PUT":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         group_id = request.data.get("group_id", None)
         arrangement = request.data.get("arrangement", None)
         if group_id and isinstance(arrangement, list):
-            customers = CustomerGroup.update_grouping(group_id, arrangement)
+            customers = CustomerGroup.update_grouping(company, group_id, arrangement)
             customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
             return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
@@ -195,7 +227,10 @@ def group_create(request):
 @api_view(["GET"])
 def customerproduct_list(request, pk):
     if request.method == "GET":
-        customerproducts = CustomerProduct.objects.filter(customer_id=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        customerproducts = CustomerProduct.objects.filter(company=company, customer_id=pk)
         customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -204,7 +239,10 @@ def customerproduct_list(request, pk):
 @api_view(["GET"])
 def customerproduct_detail(request, pk):
     if request.method == "GET":
-        customerproduct = get_object_or_404(CustomerProduct, pk=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        customerproduct = get_object_or_404_with_company(CustomerProduct, company, pk=pk)
         customerproduct_list_serializer = CustomerProductListDetailSerializer(customerproduct)
         return Response(status=status.HTTP_200_OK, data=customerproduct_list_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -213,6 +251,10 @@ def customerproduct_detail(request, pk):
 @api_view(["POST"])
 def customerproduct_create(request):
     if request.method == "POST":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        request.data["company"] = company.id
         customerproduct_create_serializer = CustomerProductCreateSerializer(data=request.data)
         if customerproduct_create_serializer.is_valid():
             customerproduct_create_serializer.save()
@@ -242,7 +284,12 @@ def customerproduct_update(request, freshbooks_svc, pk):
     except Exception as e:
         return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": str(e)})
 
-    customerproduct = CustomerProduct.objects.get(pk=pk)
+    company = get_company_from_request(request)
+    if not company:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+    customerproduct = CustomerProduct.objects.filter(company=company, pk=pk).first()
+    if not customerproduct:
+        return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "CustomerProduct not found"})
     customerproduct.freshbooks_tax_1 = freshbooks_tax_id
     customerproduct.quote_price = quote_price
     customerproduct.save()
@@ -253,7 +300,10 @@ def customerproduct_update(request, freshbooks_svc, pk):
 @api_view(["GET"])
 def invoice_detail(request, pk):
     if request.method == "GET":
-        invoice = get_object_or_404(Invoice, pk=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        invoice = get_object_or_404_with_company(Invoice, company, pk=pk)
         invoice_serializer = InvoiceDetailSerializer(invoice)
         return Response(status=status.HTTP_200_OK, data=invoice_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -261,9 +311,12 @@ def invoice_detail(request, pk):
 
 @api_view(["GET"])
 def invoice_list(request):
+    company = get_company_from_request(request)
+    if not company:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
     filter_customer_id = request.GET.get("customer_id")
     filter_invoice_year = request.GET.get("year")
-    invoices = Invoice.objects.select_related("customer")
+    invoices = Invoice.objects.filter(company=company).select_related("customer")
     try:
         if filter_invoice_year:
             invoices = invoices.filter(date_generated__year=filter_invoice_year)
@@ -283,7 +336,10 @@ def invoice_list(request):
 @api_view(["GET"])
 def get_available_invoice_years_filter(request):
     if request.method == "GET":
-        available_years = Invoice.objects.dates("date_generated", "year", order="DESC")
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        available_years = Invoice.objects.filter(company=company).dates("date_generated", "year", order="DESC")
         years = [dt.year for dt in available_years]
         return Response(status=status.HTTP_200_OK, data=years)
     return Response(
@@ -295,7 +351,16 @@ def get_available_invoice_years_filter(request):
 @api_view(["DELETE"])
 def hard_delete_invoice(request, pk):
     if request.method == "DELETE":
-        delete_invoice = Invoice.objects.prefetch_related("orderitem_set", "orderitem_set__route").get(pk=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        delete_invoice = (
+            Invoice.objects.filter(company=company, pk=pk)
+            .prefetch_related("orderitem_set", "orderitem_set__route")
+            .first()
+        )
+        if not delete_invoice:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Invoice not found"})
         delete_route_ids = []
         delete_orderitems = []
         if delete_invoice:
@@ -329,11 +394,17 @@ def create_invoice(request, freshbooks_svc):
         print(customer_id, create_date, orderitems_id, invoice_number, po_number)
 
         try:
-            invoice_customer = Customer.objects.get(pk=customer_id)
-            invoice_orderitems = OrderItem.objects.filter(pk__in=orderitems_id)
+            company = get_company_from_request(request)
+            if not company:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+            invoice_customer = Customer.objects.filter(company=company, pk=customer_id).first()
+            if not invoice_customer:
+                return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Customer not found"})
+            invoice_orderitems = OrderItem.objects.filter(company=company, pk__in=orderitems_id)
             parsed_create_date = datetime.strptime(create_date, "%Y-%m-%d")
             minus_decimal = Decimal(minus) if minus > 0 else Decimal(0)
-        except Exception:
+        except Exception as e:
+            print(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
         if len(invoice_orderitems) == 0:
@@ -364,26 +435,63 @@ def create_invoice(request, freshbooks_svc):
         }
 
         print("freshbooks_tax_lookup: ", freshbooks_tax_lookup)
-        create_invoice_task = Invoice.create_invoice(
-            request.user,
+        create_invoice_kwargs = {
+            "invoice_number": invoice_number,
+            "po_number": po_number,
+            "minus_decimal": minus_decimal,
+            "minus_description": minus_description,
+        }
+
+        # . create the ask on huey, get the task id
+        freshbooks_client_id = invoice_customer.freshbooks_client_id
+
+        freshbooks_invoice_body = OrderItem.build_freshbooks_invoice_body(
+            invoice_orderitems,
+            freshbooks_client_id,
+            invoice_number,
+            po_number,
+            parsed_create_date,
             freshbooks_tax_lookup,
+        )
+
+        invoice = freshbooks_svc.create_freshbooks_invoice(freshbooks_invoice_body)
+
+        invoice_number = invoice.get("invoice_number")
+        freshbooks_account_id = invoice.get("accounting_systemid")
+        freshbooks_invoice_id = invoice.get("id")
+
+        create_invoice_kwargs = {
+            "invoice_number": invoice_number,
+            "po_number": po_number,
+            "minus_decimal": minus_decimal,
+            "minus_description": minus_description,
+        }
+
+        new_invoice = Invoice.create_local_invoice(
+            company,
             invoice_orderitems,
             invoice_customer,
             parsed_create_date,
+            freshbooks_account_id,
+            freshbooks_invoice_id,
             **create_invoice_kwargs,
         )
         return Response(
-            data={"huey_task_id": create_invoice_task.id},
+            data=InvoiceDetailSerializer(new_invoice).data,
             status=status.HTTP_201_CREATED,
         )
+
     return Response(status=status.HTTP_400_BAD_REQUEST, data=request.data)
 
 
 @api_view(["DELETE"])
 def customerproduct_delete(request, pk):
     if request.method == "DELETE":
-        customerproduct = get_object_or_404(CustomerProduct, id=pk)
-        orderitems = OrderItem.objects.filter(customerproduct_id=customerproduct.pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        customerproduct = get_object_or_404_with_company(CustomerProduct, company, id=pk)
+        orderitems = OrderItem.objects.filter(company=company, customerproduct_id=customerproduct.pk)
         print("orderitems: ", orderitems)
         if len(orderitems) == 0:
             customerproduct.delete()
@@ -403,10 +511,13 @@ def customerproduct_delete(request, pk):
 @api_view(["GET"])
 def get_all_quotes(request):
     if request.method == "GET":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         customer_id = request.GET.get("customer_id", None)
-        customerproducts = CustomerProduct.objects.select_related("customer", "product")
+        customerproducts = CustomerProduct.objects.filter(company=company).select_related("customer", "product")
         if customer_id:
-            customerproducts = CustomerProduct.objects.filter(customer_id=customer_id)
+            customerproducts = CustomerProduct.objects.filter(company=company, customer_id=customer_id)
         customerproduct_serializer = CustomerProductListDetailSerializer(customerproducts, many=True)
         return Response(status=status.HTTP_200_OK, data=customerproduct_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -424,6 +535,10 @@ def get_all_taxes(request, freshbooks_svc):
 @api_view(["POST"])
 def bulk_import_orders(request):
     if request.method == "POST":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+
         dataArr = request.data
         #  TODO: use a serializer to save model object instead
         error_rows = []
@@ -432,17 +547,18 @@ def bulk_import_orders(request):
             customerproduct_id = row.get("selectedProduct").get("id")
             quantity = row.get("quantity")
             date = row.get("date")
-            do_number = row.get("do_number")
+            do_number = row.get("do_number") or str(round(time.time() * 1000))
             po_number = row.get("po_number")
 
-            customer_exists = Customer.objects.get(id=customer_id)
-            customerproduct_exists = CustomerProduct.objects.get(id=customerproduct_id)
-            route_exists = Route.objects.filter(do_number=do_number, date=date)
+            customer_exists = Customer.objects.filter(company=company, id=customer_id).first()
+            customerproduct_exists = CustomerProduct.objects.filter(company=company, id=customerproduct_id).first()
+            route_exists = Route.objects.filter(company=company, do_number=do_number, date=date)
 
             if customer_exists and customerproduct_exists:
                 if len(route_exists) > 0:
                     route = route_exists[0]
                     new_orderitem = OrderItem(
+                        company=company,
                         quantity=quantity,
                         driver_quantity=quantity,
                         note=po_number,
@@ -452,9 +568,10 @@ def bulk_import_orders(request):
                     )
                     new_orderitem.save()
                 else:
-                    route = Route(do_number=do_number, date=date)
+                    route = Route(company=company, do_number=do_number, date=date)
                     route.save()
                     new_orderitem = OrderItem(
+                        company=company,
                         quantity=quantity,
                         driver_quantity=quantity,
                         note=po_number,
@@ -474,6 +591,9 @@ def bulk_import_orders(request):
 @api_view(["GET"])
 def get_filter_orderitem_rows(request):
     if request.method == "GET":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         start_date = request.GET.get("start_date")
         end_date = request.GET.get("end_date")
         customer_ids = request.GET.get("customer_ids")
@@ -495,7 +615,7 @@ def get_filter_orderitem_rows(request):
         except ValueError:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        orderitem_qset = OrderItem.objects.select_related(
+        orderitem_qset = OrderItem.objects.filter(company=company).select_related(
             "route",
             "customerproduct",
             "customerproduct__customer",
@@ -519,14 +639,19 @@ def get_filter_orderitem_rows(request):
 @freshbooks_access
 def get_freshbooks_products(request, freshbooks_svc):
     item_arr = freshbooks_svc.update_freshbooks_products()
+    company = get_company_from_request(request)
+    if not company:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+
     for item in item_arr:
         item_name = item.get("name")
         item_unit_price = item.get("unit_cost").get("amount")
         item_id = item.get("id")
         item_accounting_systemid = item.get("accounting_systemid")
 
+        # This is a sync operation, need to handle all companies
         item_queryset = Product.objects.filter(
-            freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid
+            company=company, freshbooks_item_id=item_id, freshbooks_account_id=item_accounting_systemid
         )
         if len(item_queryset) > 0:
             save_item = False
@@ -541,6 +666,7 @@ def get_freshbooks_products(request, freshbooks_svc):
                 update_item.save()
         else:
             new_item = Product(
+                company=company,
                 name=item_name,
                 unit_price=item_unit_price,
                 freshbooks_item_id=item_id,
@@ -553,8 +679,12 @@ def get_freshbooks_products(request, freshbooks_svc):
 @api_view(["GET"])
 @freshbooks_access
 def get_freshbooks_import_clients(request, freshbooks_svc):
+    company = get_company_from_request(request)
+    if not company:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+    # This is a sync operation, need to handle all companies
     existing_freshbooks_clients = Customer.objects.filter(
-        freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False
+        company=company, freshbooks_account_id__isnull=False, freshbooks_client_id__isnull=False
     )
     existing_client_ids = [client.freshbooks_client_id for client in existing_freshbooks_clients]
     freshbooks_clients = freshbooks_svc.get_freshbooks_clients()
@@ -571,6 +701,9 @@ def import_freshbooks_clients(request, freshbooks_svc):
     if request.method == "POST":
         import_client_ids = request.data.get("freshbooks_id_list")
         valid_import_client_ids = []
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         for import_client_id in import_client_ids:
             valid_client = freshbooks_svc.get_freshbooks_client(import_client_id)
             print(valid_client)
@@ -579,7 +712,7 @@ def import_freshbooks_clients(request, freshbooks_svc):
                 valid_import_client_ids.append(res)
             else:
                 return Response(status=status.HTTP_404_NOT_FOUND, data=import_client_ids)
-        Customer.import_freshbooks_clients(valid_import_client_ids)
+        Customer.import_freshbooks_clients(company, valid_import_client_ids)
         return Response(status=status.HTTP_201_CREATED, data=import_client_ids)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -588,8 +721,12 @@ def import_freshbooks_clients(request, freshbooks_svc):
 @freshbooks_access
 def get_freshbooks_import_products(request, freshbooks_svc):
     if request.method == "GET":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        # This is a sync operation, need to handle all companies
         existing_freshbooks_products = Product.objects.filter(
-            freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False
+            company=company, freshbooks_account_id__isnull=False, freshbooks_item_id__isnull=False
         )
         existing_product_ids = [product.freshbooks_item_id for product in existing_freshbooks_products]
         freshbooks_products = freshbooks_svc.get_freshbooks_products()
@@ -606,6 +743,9 @@ def get_freshbooks_import_products(request, freshbooks_svc):
 @freshbooks_access
 def import_freshbooks_products(request, freshbooks_svc):
     if request.method == "POST":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         import_product_ids = request.data.get("freshbooks_id_list")
         valid_import_product_list = []
         for import_product_id in import_product_ids:
@@ -617,7 +757,7 @@ def import_freshbooks_products(request, freshbooks_svc):
             else:
                 return Response(status=status.HTTP_404_NOT_FOUND, data=import_product_ids)
         print(valid_import_product_list)
-        Product.freshbooks_import_products(valid_import_product_list)
+        Product.freshbooks_import_products(company, valid_import_product_list)
         return Response(status=status.HTTP_201_CREATED, data=valid_import_product_list)
     return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -646,7 +786,12 @@ def link_customer(request, freshbooks_svc):
         freshbooks_client = None
         if not customer_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        customer_obj = Customer.objects.get(pk=customer_id)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        customer_obj = Customer.objects.filter(company=company, pk=customer_id).first()
+        if not customer_obj:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Customer not found"})
         if not customer_obj:
             return Response(status=status.HTTP_404_NOT_FOUND)
         customer_obj.pivot_invoice = pivot_invoice
@@ -684,7 +829,12 @@ def link_product(request, freshbooks_svc):
         freshbooks_product = None
         if not product_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        product_obj = Product.objects.get(pk=product_id)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        product_obj = Product.objects.filter(company=company, pk=product_id).first()
+        if not product_obj:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Product not found"})
         if not product_obj:
             return Response(status=status.HTTP_404_NOT_FOUND)
         if freshbooks_item_id:
@@ -707,7 +857,12 @@ def link_product(request, freshbooks_svc):
 @api_view(["DELETE"])
 def orderitem_delete(request, pk):
     if request.method == "DELETE":
-        orderitem = OrderItem.objects.select_related("route").get(id=pk)
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        orderitem = OrderItem.objects.filter(company=company, id=pk).select_related("route").first()
+        if not orderitem:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "OrderItem not found"})
         route = orderitem.route
         if orderitem:
             orderitem.delete()
@@ -723,11 +878,16 @@ def orderitem_delete(request, pk):
 @freshbooks_access
 def customer_sync(request, freshbooks_svc):
     if request.method == "POST":
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
         try:
-            freshbooks_svc.update_freshbooks_clients()
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        customers = Customer.objects.prefetch_related("customergroup_set", "customergroup_set__group")
+            freshbooks_svc.update_freshbooks_clients(company)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": str(e)})
+        customers = Customer.objects.filter(company=company).prefetch_related(
+            "customergroup_set", "customergroup_set__group"
+        )
         customer_serializer = CustomerListDetailUpdateSerializer(customers, many=True)
         return Response(status=status.HTTP_200_OK, data=customer_serializer.data)
     return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -737,7 +897,10 @@ def customer_sync(request, freshbooks_svc):
 @freshbooks_access
 def invoice_sync(request, freshbooks_svc):
     if request.method == "POST":
-        sync_invoices = Invoice.objects.all()
+        company = get_company_from_request(request)
+        if not company:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+        sync_invoices = Invoice.objects.filter(company=company)
         for invoice in sync_invoices:
             freshbooks_invoice_search = freshbooks_svc.search_freshbooks_invoices(invoice.invoice_number)
             if len(freshbooks_invoice_search) > 0:
@@ -766,7 +929,12 @@ def invoice_update(request, freshbooks_svc, pk):
         print(orderitems_id, invoice_number, po_number)
 
         try:
-            existing_invoice = Invoice.objects.prefetch_related("orderitem_set").get(pk=pk)
+            company = get_company_from_request(request)
+            if not company:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+            existing_invoice = Invoice.objects.filter(company=company, pk=pk).prefetch_related("orderitem_set").first()
+            if not existing_invoice:
+                return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Invoice not found"})
             minus_decimal = Decimal(minus)
         except Exception as e:
             print(str(e))
@@ -778,7 +946,7 @@ def invoice_update(request, freshbooks_svc, pk):
 
         print("Selected ID: ", orderitems_id)
 
-        orderitem_set_existing_invoice = OrderItem.objects.filter(pk__in=orderitems_id)
+        orderitem_set_existing_invoice = OrderItem.objects.filter(company=company, pk__in=orderitems_id)
 
         price_map = {}
         for oi in orderitem_set_existing_invoice:
@@ -862,8 +1030,19 @@ def invoice_update(request, freshbooks_svc, pk):
         net_gst = (net_total * gst_decimal).quantize(Decimal(".0001"), rounding=ROUND_UP)
         total_incl_gst = (net_total + net_gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
-        update_invoice_task = huey_update_freshbooks_invoice(request.user, existing_invoice, body)
+        #  update invoice
+        print(json.dumps(body))
 
+        freshbooks_updated_invoice = freshbooks_svc.update_freshbooks_invoice(
+            existing_invoice.freshbooks_invoice_id, body
+        )
+
+        invoice_number = freshbooks_updated_invoice.get("invoice_number")
+        date_created = freshbooks_updated_invoice.get("create_date")
+        freshbooks_account_id = freshbooks_updated_invoice.get("accounting_systemid")
+        freshbooks_invoice_id = freshbooks_updated_invoice.get("id")
+
+        existing_invoice.company = company
         existing_invoice.date_created = None
         existing_invoice.po_number = po_number
         existing_invoice.net_total = net_total
@@ -873,8 +1052,31 @@ def invoice_update(request, freshbooks_svc, pk):
         existing_invoice.invoice_number = invoice_number
         existing_invoice.minus = minus_decimal
         existing_invoice.discount_description = minus_description
-        existing_invoice.huey_task_id = update_invoice_task.id
-        existing_invoice.save()
+        existing_invoice.huey_task_id = None
+        existing_invoice.freshbooks_invoice_id = freshbooks_invoice_id
+        existing_invoice.freshbooks_account_id = freshbooks_account_id
+        existing_invoice.invoice_number = invoice_number
+        existing_invoice.date_created = date_created
+        existing_invoice.save(
+            update_fields=[
+                "company",
+                "date_created",
+                "po_number",
+                "net_total",
+                "gst",
+                "net_gst",
+                "total_incl_gst",
+                "invoice_number",
+                "minus",
+                "discount_description",
+                "huey_task_id",
+                "freshbooks_invoice_id",
+                "freshbooks_account_id",
+                "invoice_number",
+                "date_created",
+            ]
+        )
+
         return Response(
             data=InvoiceDetailSerializer(existing_invoice).data,
             status=status.HTTP_200_OK,
@@ -906,7 +1108,10 @@ def invoice_start_download(request, freshbooks_svc):
             data={"error": "Invoice number (to and from) must be provided and 'to' must be greater than 'from'."},
         )
 
-    huey_download_task = huey_download_invoice_main_task(invoice_number_from, invoice_number_to, request.user)
+    company = get_company_from_request(request)
+    if not company:
+        return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "Company not found"})
+    huey_download_task = huey_download_invoice_main_task(invoice_number_from, invoice_number_to, request.user, company)
     status_url = request.build_absolute_uri(
         reverse("pos:invoice_download_status") + f"?task_id={huey_download_task.id}&filename={invoice_number_to}.pdf"
     )

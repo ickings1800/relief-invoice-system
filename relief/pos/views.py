@@ -12,13 +12,19 @@ from django.http import (
     HttpResponseBadRequest,
     HttpResponseRedirect,
 )
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.urls import reverse
 from requests_oauthlib import OAuth2Session
+from users.models import User
 
-from .forms import ExportInvoiceForm, ExportOrderItemForm, ImportFileForm
+from .forms import CompanySelectForm, ExportInvoiceForm, ExportOrderItemForm, ImportFileForm
 from .freshbooks import freshbooks_access
+from .managers import get_company_from_request
 from .models import Company, Customer, CustomerProduct, Invoice, OrderItem, Product
+
+client_id = settings.FRESHBOOKS_CLIENT_ID
+client_secret = settings.FRESHBOOKS_CLIENT_SECRET
+redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
 
 # Create your views here.
@@ -33,9 +39,6 @@ def redirect_to_freshbooks_auth(request):
 
 def get_token(request):
     callback_url = request.get_full_path()
-    client_id = settings.FRESHBOOKS_CLIENT_ID
-    client_secret = settings.FRESHBOOKS_CLIENT_SECRET
-    redirect_uri = settings.FRESHBOOKS_REDIRECT_URI
 
     freshbooks = OAuth2Session(client_id, token=request.session["oauth_state"], redirect_uri=redirect_uri)
 
@@ -67,17 +70,87 @@ def get_token(request):
     print(f"get_token:: Refresh Token: {request.session['refresh_token']}")
     print(f"get_token:: Expires In: {request.session['unix_token_expires']}")
 
+    return HttpResponseRedirect(reverse("pos:select_company"))
+
+
+def select_company(request):
+    template_name = "pos/login.html"
+    refresh_url = "https://api.freshbooks.com/auth/oauth/token"
+    current_unix_time = int(time.time())
+
+    def token_updater(token):
+        request.session["oauth_token"] = token.get("access_token")
+        request.session["refresh_token"] = token.get("refresh_token")
+        request.session["unix_token_expires"] = current_unix_time + token.get("expires_in")
+
+    token = {
+        "access_token": request.session.get("oauth_token"),
+        "refresh_token": request.session.get("refresh_token"),
+        "token_type": "Bearer",
+        "expires_in": request.session.get("unix_token_expires"),
+    }
+
+    freshbooks = OAuth2Session(
+        client_id,
+        token=token,
+        auto_refresh_url=refresh_url,
+        token_updater=token_updater,
+        redirect_uri=redirect_uri,
+    )
     # Use the access token to authenticate the user with the OAuth service
     # to check for the user's freshbooks account id
     res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
 
-    account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
+    if request.method == "GET":
+        business_memberships = res.get("response").get("business_memberships")
+        business_memberships_dict = {
+            bm.get("business").get("account_id"): bm.get("business").get("name") for bm in business_memberships
+        }
+        select_company_form = CompanySelectForm(companies=business_memberships_dict)
+        return render(request, template_name, {"select_company_form": select_company_form})
 
-    company = get_object_or_404(Company, freshbooks_account_id=account_id)
+    # We need to allow user to select which business account to use
+    if request.method == "POST":
+        business_memberships = res.get("response").get("business_memberships")
+        business_memberships_dict = {
+            bm.get("business").get("account_id"): bm.get("business").get("name") for bm in business_memberships
+        }
+        print("POST request::", request.POST)
+        select_company_form = CompanySelectForm(request.POST, companies=business_memberships_dict)
 
-    # If the user has a freshbooks account id, find the user object and log them in
-    if company is not None:
-        login(request, company.user)
+        if not select_company_form.is_valid():
+            return render(request, template_name, {"select_company_form": select_company_form})
+
+        try:
+            account_id = select_company_form.cleaned_data.get("company")
+            company = Company.objects.get(freshbooks_account_id=account_id)
+        except Company.DoesNotExist:
+            create_company_name = business_memberships_dict.get(account_id)
+            company = Company(name=create_company_name, freshbooks_account_id=account_id)
+            company.save()
+        except Company.MultipleObjectsReturned:
+            return HttpResponseBadRequest("Multiple companies found with the same account ID.")
+
+        try:
+            freshbooks_user_email = res.get("response").get("email")
+            search_freshbooks_user = User.objects.get(email=freshbooks_user_email, companies=company)
+            print("search_freshbooks_user:: ", search_freshbooks_user)
+        except User.DoesNotExist:
+            # Handle the case where the login failed, where user has logged in by freshbooks,
+            # but does not have an account on the system.
+            print("User does not exist, creating a new user.")
+            new_user = User(email=freshbooks_user_email, username=freshbooks_user_email)
+            new_user.set_unusable_password()  # Set an unusable password since we use OAuth
+            new_user.save()
+            new_user.refresh_from_db()
+            new_user.companies.add(company)
+            new_user.save()
+            search_freshbooks_user = new_user
+        except User.MultipleObjectsReturned:
+            return HttpResponseBadRequest("Multiple users found with the same email address.")
+
+        login(request, search_freshbooks_user)
+        print("token:: ", token)
         request.session["freshbooks_account_id"] = account_id
         request.user.freshbooks_access_token = token.get("access_token")
         request.user.freshbooks_refresh_token = token.get("refresh_token")
@@ -85,10 +158,7 @@ def get_token(request):
         request.user.save()
         return HttpResponseRedirect(reverse("pos:overview"))
 
-    # Handle the case where the login failed, where user has logged in by freshbooks,
-    # but does not have an account on the system.
-    # TODO: (register a new user, company object)
-    return HttpResponse(status=404)
+    return HttpResponseBadRequest("Invalid request method.")
 
 
 @login_required
@@ -113,11 +183,18 @@ def download_invoice(request, freshbooks_svc):
         pk = request.GET.get("pk", None)
         if not pk:
             return HttpResponseBadRequest("No invoice id provided.")
-        invoice = get_object_or_404(Invoice, pk=pk)
+        try:
+            company = Company.objects.get(freshbooks_account_id=request.session["freshbooks_account_id"])
+            invoice = Invoice.objects.filter(company=company, pk=pk).first()
+        except Company.DoesNotExist:
+            return HttpResponseBadRequest("Company not found.")
+        except Invoice.DoesNotExist:
+            return HttpResponseBadRequest("Invoice not found.")
+
         filename = invoice.customer.get_download_file_name(invoice.invoice_number)
         if invoice.pivot:
             invoice_pivot_pdf_io = io.BytesIO()
-            Invoice.download_pivot_invoice(invoice.pk, invoice_pivot_pdf_io)
+            Invoice.download_pivot_invoice(invoice.company, invoice.pk, invoice_pivot_pdf_io)
             invoice_pivot_pdf_io.seek(0)
             return FileResponse(invoice_pivot_pdf_io, as_attachment=True, filename=f"{filename}.pdf")
         try:
@@ -168,10 +245,15 @@ def orderitem_summary(request):
         date_end_string = request.GET.get("end_date")
 
         if date_start_string and date_end_string:
+            company = get_company_from_request(request)
+            if not company:
+                return HttpResponseBadRequest("Company not found")
             date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
             date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
-            orderitems = OrderItem.objects.select_related("route", "invoice").filter(
-                route__date__gte=date_start, route__date__lte=date_end
+            orderitems = (
+                OrderItem.objects.filter(company=company)
+                .select_related("route", "invoice")
+                .filter(route__date__gte=date_start, route__date__lte=date_end)
             )
 
             response = HttpResponse(content_type="text/csv")
@@ -216,15 +298,22 @@ def export_invoice(request):
         date_end_string = request.GET.get("end_date")
 
         if date_start_string and date_end_string:
+            company = get_company_from_request(request)
+            if not company:
+                return HttpResponseBadRequest("Company not found")
             date_start = datetime.strptime(date_start_string, "%Y-%m-%d")
             date_end = datetime.strptime(date_end_string, "%Y-%m-%d")
-            orderitems_with_invoices = OrderItem.objects.select_related("route", "invoice").filter(
-                route__date__gte=date_start,
-                route__date__lte=date_end,
-                invoice__invoice_number__isnull=False,
+            orderitems_with_invoices = (
+                OrderItem.objects.filter(company=company)
+                .select_related("route", "invoice")
+                .filter(
+                    route__date__gte=date_start,
+                    route__date__lte=date_end,
+                    invoice__invoice_number__isnull=False,
+                )
             )
             invoice_ids = set([orderitem.invoice.invoice_number for orderitem in orderitems_with_invoices])
-            export_invoices = Invoice.objects.filter(invoice_number__in=invoice_ids)
+            export_invoices = Invoice.objects.filter(company=company, invoice_number__in=invoice_ids)
             response = HttpResponse(content_type="text/csv")
             response["Content-Disposition"] = 'attachment; filename="invoice_summary.csv"'
 
@@ -253,8 +342,11 @@ def export_invoice(request):
 @login_required
 def export_quote(request):
     if request.method == "GET":
+        company = get_company_from_request(request)
+        if not company:
+            return HttpResponseBadRequest("Company not found")
         field_names = ["sku", "customer", "product", "quote_price", "freshbooks_tax_1"]
-        quotes = CustomerProduct.objects.all()
+        quotes = CustomerProduct.objects.filter(company=company)
 
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="quotes.csv"'
@@ -281,6 +373,9 @@ def import_items(request):
     template_name = "pos/master/import_items.html"
     if request.method == "POST":
         form = ImportFileForm(request.POST, request.FILES)
+        company = get_company_from_request(request)
+        if not company:
+            return HttpResponseBadRequest("Company not found")
         if form.is_valid():
             import_customer_file = request.FILES.get("import_customer_file", None)
             import_product_file = request.FILES.get("import_product_file", None)
@@ -294,38 +389,38 @@ def import_items(request):
                     for chunk in import_customer_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/customer_import.csv") as csv_file:
-                    Customer.handle_customer_import(csv_file)
+                    Customer.handle_customer_import(company, csv_file)
             if import_product_file:
                 with open("/tmp/product_import.csv", "wb+") as destination:
                     for chunk in import_product_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/product_import.csv") as csv_file:
-                    Product.handle_product_import(csv_file)
+                    Product.handle_product_import(company, csv_file)
             if import_quote_file:
                 with open("/tmp/quote_import.csv", "wb+") as destination:
                     for chunk in import_quote_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/quote_import.csv") as csv_file:
-                    CustomerProduct.handle_quote_import(csv_file)
+                    CustomerProduct.handle_quote_import(company, csv_file)
             #  import invoice file
             if import_invoice_file:
                 with open("/tmp/invoice_import.csv", "wb+") as destination:
                     for chunk in import_invoice_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/invoice_import.csv") as csv_file:
-                    Invoice.handle_invoice_import(csv_file)
+                    Invoice.handle_invoice_import(company, csv_file)
             if import_orderitem_file:
                 with open("/tmp/orderitem_import.csv", "wb+") as destination:
                     for chunk in import_orderitem_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/orderitem_import.csv") as csv_file:
-                    OrderItem.handle_orderitem_import(csv_file)
+                    OrderItem.handle_orderitem_import(company, csv_file)
             if import_detrack_file:
                 with open("/tmp/detrack_import.csv", "wb+") as destination:
                     for chunk in import_detrack_file.chunks():
                         destination.write(chunk)
                 with open("/tmp/detrack_import.csv") as csv_file:
-                    OrderItem.handle_detrack_import(csv_file)
+                    OrderItem.handle_detrack_import(company, csv_file)
             return HttpResponseRedirect(reverse("pos:import_items"))
     else:
         form = ImportFileForm()

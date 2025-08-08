@@ -14,7 +14,6 @@
 	    v-on:show-create-group-modal="show_create_group_modal_window"
 	    v-on:show-edit-group-modal="show_edit_group_modal_window"
         v-on:show-customer-detail-modal="show_customer_detail_modal_window"
-        v-on:show-product-detail-modal="show_product_detail_modal_window"
         v-on:show-orderitem-edit-modal="show_orderitem_edit_modal_window"
         v-on:show-invoice-delete-modal="show_invoice_delete_modal_window"
         v-on:show-import-client-modal="show_import_client_modal_window"
@@ -58,11 +57,6 @@
         v-bind:customer="detail_customer"
         v-bind:opened="show_customer_detail_modal">
     </detail-customer-modal>
-    <detail-product-modal
-        v-on:show-product-detail-modal="show_product_detail_modal_window"
-        v-bind:product="detail_product"
-        v-bind:opened="show_product_detail_modal">
-    </detail-product-modal>
     <update-invoice-modal
         v-on:show-update-invoice="show_update_invoice_modal_window"
         v-bind:selected_invoice="update_invoice"

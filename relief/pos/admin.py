@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import reverse
 from .models import *
+from .managers import get_company_from_request
 # Register your models here.
 
 
@@ -19,7 +20,11 @@ class AdminCustomerProduct(admin.ModelAdmin):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'customer':
             customer_id = request.GET.get('customer')
-            kwargs['queryset'] = Customer.objects.filter(id=customer_id)
+            company = get_company_from_request(request)
+            if company:
+                kwargs['queryset'] = Customer.objects.filter(company=company, id=customer_id)
+            else:
+                kwargs['queryset'] = Customer.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
