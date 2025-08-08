@@ -52,11 +52,11 @@ var OrderRow = Vue.component('OrderRow', {
         <!-- form input control -->
         <div class="form-group mx-1">
             <label class="form-label" v-if="index === 0">D/O</label>
-            <input class="form-input" type="text" placeholder="D/O" v-model="data.do_number">
+            <input class="form-input" type="text" placeholder="D/O (Optional)" v-model="data.do_number">
         </div>
         <div class="form-group mx-1">
             <label class="form-label" v-if="index === 0">P/O</label>
-            <input class="form-input" type="text" placeholder="P/O" v-on:keydown.tab="tabHandler" v-model="data.po_number">
+            <input class="form-input" type="text" placeholder="P/O (Optional)" v-on:keydown.tab="tabHandler" v-model="data.po_number">
         </div>
         <button class="btn btn-error m-2 del-row-btn" v-on:click.prevent="deleteRow(index)">Delete</button>
     </div>
@@ -123,7 +123,7 @@ var OrderForm = Vue.component('OrderForm', {
   },
   template:`
     <div class="container">
-        <h1>Express Order</h1>
+        <h1>Manual Order</h1>
         <order-row 
           v-for="(row, index) in dataArray" 
           :key="'order-form-' + index"
@@ -177,6 +177,10 @@ var OrderForm = Vue.component('OrderForm', {
     },
     validateData: function(data){
       let error = false;
+      let row = 1;
+      data.forEach(d => {
+        d.error = []; // Reset error array for each row
+      });
       data.forEach(d => {
         if (!d.selectedCustomer) {
           d.error.push("Customer is required")
@@ -200,6 +204,10 @@ var OrderForm = Vue.component('OrderForm', {
         if (d.error.length > 0) {
           error = true;
         }
+        if (error) {
+          alert("Row " + row + " has errors: " + d.error.join(", "));
+        }
+        row += 1;
       })
       return error;
     },

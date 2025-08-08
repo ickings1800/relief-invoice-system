@@ -76,6 +76,7 @@ class CustomerProductListDetailSerializer(serializers.ModelSerializer):
         model = CustomerProduct
         fields = (
             "id",
+            "company",
             "customer_id",
             "customer_name",
             "product_id",
@@ -91,11 +92,14 @@ class CustomerProductListDetailSerializer(serializers.ModelSerializer):
     def get_product_name(self, obj):
         return obj.product.name
 
+    def get_company(self, obj):
+        return obj.company.id
+
 
 class CustomerProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProduct
-        fields = ("customer", "product", "quote_price", "freshbooks_tax_1")
+        fields = ("company", "customer", "product", "quote_price", "freshbooks_tax_1")
 
 
 class InvoiceListSerializer(serializers.HyperlinkedModelSerializer):

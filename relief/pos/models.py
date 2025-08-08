@@ -19,7 +19,6 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .managers import CompanyAwareManager
-from .tasks import huey_create_invoice
 
 # Create your models here.
 
@@ -52,11 +51,11 @@ class Group(CompanyAwareModel):
     def __str__(self):
         return self.name
 
-    def group_create(name):
-        group_exists = Group.objects.filter(name=name)
+    def group_create(company, name):
+        group_exists = Group.objects.filter(company=company, name=name)
         if len(group_exists) > 0:
             raise Exception("Group with the name of '{}' already exists.".format(name))
-        new_group = Group.objects.create(name=name)
+        new_group = Group.objects.create(company=company, name=name)
         return new_group
 
 
@@ -105,17 +104,17 @@ class Customer(CompanyAwareModel):
 
         return invoice_name
 
-    def handle_customer_import(csv_file):
+    def handle_customer_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file)
-        default_group = Group.objects.filter(name="Default").first()
+        default_group = Group.objects.filter(company=company, name="Default").first()
         for row in csv_reader:
-            row_client = Customer(name=row["name"], gst=row["gst"])
+            row_client = Customer(company=company, name=row["name"], gst=row["gst"])
             row_client.save()
             assign_group = row["group"]
             if assign_group and len(assign_group) > 0:
-                group = Group.objects.filter(name=assign_group).first()
+                group = Group.objects.filter(company=company, name=assign_group).first()
                 if not group:
-                    group = Group(name=assign_group)
+                    group = Group(company=company, name=assign_group)
                     group.save()
                 customer_group = CustomerGroup(group=group, customer=row_client)
                 customer_group.save()
@@ -123,10 +122,10 @@ class Customer(CompanyAwareModel):
                 customer_group = CustomerGroup(group=default_group, customer=row_client)
                 customer_group.save()
 
-    def import_freshbooks_clients(import_clients):
-        default_group = Group.objects.filter(name="Default").first()
+    def import_freshbooks_clients(company, import_clients):
+        default_group = Group.objects.filter(company=company, name="Default").first()
         if not default_group:
-            new_group = Group(name="Default")
+            new_group = Group(company=company, name="Default")
             new_group.save()
             default_group = new_group
 
@@ -142,6 +141,7 @@ class Customer(CompanyAwareModel):
             client_accounting_systemid = client.get("accounting_systemid")
             client_currency = client.get("currency_code", "USD")
             new_client = Customer(
+                company=company,
                 name=client_name,
                 address=client_address,
                 postal_code=client_postal_code,
@@ -151,7 +151,7 @@ class Customer(CompanyAwareModel):
                 freshbooks_account_id=client_accounting_systemid,
             )
             new_client.save()
-            customer_group = CustomerGroup(group=default_group, customer=new_client)
+            customer_group = CustomerGroup(company=company, group=default_group, customer=new_client)
             customer_group.save()
 
 
@@ -161,22 +161,24 @@ class CustomerGroup(CompanyAwareModel):
     customer = models.ForeignKey(Customer, on_delete=models.DO_NOTHING, null=True)
     group = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True)
 
-    def update_grouping(group_id, client_id_list):
-        group = Group.objects.filter(id=group_id).first()
+    def update_grouping(company, group_id, client_id_list):
+        group = Group.objects.filter(company=company, id=group_id).first()
         if group:
             if len(client_id_list) > 0:
-                client_list = Customer.objects.filter(id__in=client_id_list)
+                client_list = Customer.objects.filter(company=company, id__in=client_id_list)
                 if len(client_list) == len(client_id_list):
                     #  all customers are valid
-                    CustomerGroup.objects.filter(group=group).delete()
+                    CustomerGroup.objects.filter(company=company, group=group).delete()
                     for index in range(len(client_list)):
-                        new_grouping = CustomerGroup(customer=client_list[index], group=group, index=index)
+                        new_grouping = CustomerGroup(
+                            company=company, customer=client_list[index], group=group, index=index
+                        )
                         new_grouping.save()
             else:
                 #  empty the group
                 print("empty the group")
-                CustomerGroup.objects.filter(group=group).delete()
-        updated_grouping = Customer.objects.filter(id__in=client_id_list)
+                CustomerGroup.objects.filter(company=company, group=group).delete()
+        updated_grouping = Customer.objects.filter(company=company, id__in=client_id_list)
         return updated_grouping
 
 
@@ -193,18 +195,19 @@ class Product(CompanyAwareModel):
     def __str__(self):
         return self.name
 
-    def handle_product_import(csv_file):
+    def handle_product_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
-            row_product = Product(name=row["name"])
+            row_product = Product(company=company, name=row["name"])
             row_product.save()
 
-    def freshbooks_import_products(item_arr):
+    def freshbooks_import_products(company, item_arr):
         for item in item_arr:
             item_name = item.get("name")
             item_id = item.get("itemid")
             item_accounting_systemid = item.get("accounting_systemid")
             new_item = Product(
+                company=company,
                 name=item_name,
                 freshbooks_item_id=item_id,
                 freshbooks_account_id=item_accounting_systemid,
@@ -237,6 +240,7 @@ class Invoice(CompanyAwareModel):
         ordering = ["invoice_number"]
 
     def create_local_invoice(
+        company,
         invoice_orderitems,
         invoice_customer,
         parsed_create_date,
@@ -258,6 +262,7 @@ class Invoice(CompanyAwareModel):
         total_incl_gst = (net_total + net_gst).quantize(Decimal(".0001"), rounding=ROUND_UP)
 
         new_invoice = Invoice(
+            company=company,
             date_created=parsed_create_date,
             po_number=po_number,
             net_total=net_total,
@@ -281,34 +286,7 @@ class Invoice(CompanyAwareModel):
 
         return new_invoice
 
-    def create_invoice(
-        user,
-        freshbooks_tax_lookup,
-        invoice_orderitems,
-        invoice_customer,
-        parsed_create_date,
-        invoice_number=None,
-        po_number=None,
-        minus_decimal=Decimal(0),
-        minus_description=None,
-    ):
-        create_invoice_kwargs = {
-            "invoice_number": invoice_number,
-            "po_number": po_number,
-            "minus_decimal": minus_decimal,
-            "minus_description": minus_description,
-        }
-        create_invoice_task = huey_create_invoice(
-            user,
-            freshbooks_tax_lookup,
-            invoice_orderitems,
-            invoice_customer,
-            parsed_create_date,
-            **create_invoice_kwargs,
-        )
-        return create_invoice_task
-
-    def handle_invoice_import(csv_file):
+    def handle_invoice_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             date_generated = row["date_generated"]
@@ -322,9 +300,10 @@ class Invoice(CompanyAwareModel):
             customer = row["customer"]
             pivot = row["pivot"]
 
-            customer_obj = Customer.objects.filter(name=customer).first()
+            customer_obj = Customer.objects.filter(company=company, name=customer).first()
             if customer_obj:
                 new_invoice = Invoice(
+                    company=company,
                     remark=remark,
                     minus=minus,
                     net_total=net_total,
@@ -339,7 +318,7 @@ class Invoice(CompanyAwareModel):
                 new_invoice.date_generated = date_generated
                 new_invoice.save()
 
-    def download_pivot_invoice(invoice_pk, buffer):
+    def download_pivot_invoice(company, invoice_pk, buffer):
         class NumberedPageCanvas(canvas.Canvas):
             """
             http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
@@ -376,13 +355,15 @@ class Invoice(CompanyAwareModel):
                 self.drawRightString(200 * mm, 10 * mm, "Page %d of %d" % (self._pageNumber, page_count))
 
         try:
-            invoice = Invoice.objects.select_related("customer").get(pk=invoice_pk)
+            invoice = Invoice.objects.filter(company=company, pk=invoice_pk).select_related("customer").first()
+            if not invoice:
+                return None
         except Invoice.DoesNotExist:
             return None
 
         invoice_customer = invoice.customer
         query_oi = OrderItem.objects.filter(
-            customerproduct__customer__id=invoice_customer.pk, invoice_id=invoice_pk
+            company=company, customerproduct__customer__id=invoice_customer.pk, invoice_id=invoice_pk
         ).order_by("route__date")
         unique_orderitem_names = set([oi.customerproduct.product.name for oi in query_oi])
         unique_quote_price_set = set(query_oi.values_list("customerproduct__product__name", "unit_price"))
@@ -621,17 +602,18 @@ class CustomerProduct(CompanyAwareModel):
         unique_together = ("customer", "product", "quote_price")
         ordering = ["sort_order"]
 
-    def handle_quote_import(csv_file):
+    def handle_quote_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             customer_name = row["customer"]
             product_name = row["product"]
             quote_price = row["quote_price"]
             freshbooks_tax_1 = row["freshbooks_tax_1"]
-            customer_obj = Customer.objects.filter(name=customer_name).first()
-            product_obj = Product.objects.filter(name=product_name).first()
+            customer_obj = Customer.objects.filter(company=company, name=customer_name).first()
+            product_obj = Product.objects.filter(company=company, name=product_name).first()
             if customer_obj and product_obj:
                 new_quote = CustomerProduct(
+                    company=company,
                     customer_id=customer_obj.pk,
                     product_id=product_obj.pk,
                     quote_price=quote_price,
@@ -654,11 +636,11 @@ class OrderItem(CompanyAwareModel):
     class Meta:
         ordering = ["route__date"]
 
-    def get_available_orderitems_for_customer(customer):
+    def get_available_orderitems_for_customer(company, customer):
         """
         Returns all order items for a customer that are not yet invoiced.
         """
-        return OrderItem.objects.filter(customerproduct__customer=customer, invoice=None)
+        return OrderItem.objects.filter(company=company, customerproduct__customer=customer, invoice=None)
 
     def check_orderitem_consistent_pricing(invoice_orderitems):
         price_map = {}
@@ -718,7 +700,7 @@ class OrderItem(CompanyAwareModel):
 
         return body
 
-    def handle_orderitem_import(csv_file):
+    def handle_orderitem_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             date = row["date"]
@@ -727,19 +709,22 @@ class OrderItem(CompanyAwareModel):
             quantity = row["quantity"]
             driver_quantity = row["driver_quantity"]
             unit_price = row["unit_price"]
-            do_number = row["do_number"]
+            do_number = row["do_number"] or int(datetime.now().timestamp())
             invoice_number = row["invoice_number"]
 
             parsed_date = datetime.strptime(date, "%d/%m/%Y")
             formatted_date = parsed_date.strftime("%Y-%m-%d")
-            customer_obj = Customer.objects.filter(name=customer_name).first()
-            product_obj = Product.objects.filter(name=product_name).first()
-            quote_obj = CustomerProduct.objects.filter(customer=customer_obj.pk, product=product_obj.pk).first()
-            route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
-            invoice_obj = Invoice.objects.filter(invoice_number=invoice_number).first()
+            customer_obj = Customer.objects.filter(company=company, name=customer_name).first()
+            product_obj = Product.objects.filter(company=company, name=product_name).first()
+            quote_obj = CustomerProduct.objects.filter(
+                company=company, customer=customer_obj.pk, product=product_obj.pk
+            ).first()
+            route_obj = Route.objects.filter(company=company, date=formatted_date, do_number=do_number).first()
+            invoice_obj = Invoice.objects.filter(company=company, invoice_number=invoice_number).first()
 
             if quote_obj and route_obj:
                 new_orderitem = OrderItem(
+                    company=company,
                     quantity=quantity,
                     driver_quantity=driver_quantity,
                     unit_price=unit_price,
@@ -750,9 +735,10 @@ class OrderItem(CompanyAwareModel):
                 new_orderitem.save()
 
             if quote_obj and route_obj is None:
-                new_route = Route(do_number=do_number, date=formatted_date)
+                new_route = Route(company=company, do_number=do_number, date=formatted_date)
                 new_route.save()
                 new_orderitem = OrderItem(
+                    company=company,
                     quantity=quantity,
                     driver_quantity=driver_quantity,
                     unit_price=unit_price,
@@ -762,7 +748,7 @@ class OrderItem(CompanyAwareModel):
                 )
                 new_orderitem.save()
 
-    def handle_detrack_import(csv_file):
+    def handle_detrack_import(company, csv_file):
         csv_reader = csv.DictReader(csv_file, delimiter=",")
 
         #  save csv into memory
@@ -787,11 +773,12 @@ class OrderItem(CompanyAwareModel):
 
             parsed_date = datetime.strptime(date, "%d/%m/%Y")
             formatted_date = parsed_date.strftime("%Y-%m-%d")
-            quote_obj = CustomerProduct.objects.filter(pk=sku).first()
-            route_obj = Route.objects.filter(date=formatted_date, do_number=do_number).first()
+            quote_obj = CustomerProduct.objects.filter(company=company, pk=sku).first()
+            route_obj = Route.objects.filter(company=company, date=formatted_date, do_number=do_number).first()
 
             if quote_obj and route_obj:
                 new_orderitem = OrderItem(
+                    company=company,
                     note=po_number,
                     quantity=orderitem_qty,
                     driver_quantity=orderitem_qty,
@@ -802,9 +789,10 @@ class OrderItem(CompanyAwareModel):
                 new_orderitem.save()
 
             if quote_obj and route_obj is None:
-                new_route = Route(do_number=do_number, date=formatted_date)
+                new_route = Route(company=company, do_number=do_number, date=formatted_date)
                 new_route.save()
                 new_orderitem = OrderItem(
+                    company=company,
                     note=po_number,
                     quantity=orderitem_qty,
                     driver_quantity=orderitem_qty,

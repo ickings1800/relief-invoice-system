@@ -1,6 +1,7 @@
 import json
 
 from pos.models import *
+from pos.managers import get_company_from_request
 
 
 class FreshbooksService(object):
@@ -123,7 +124,7 @@ class FreshbooksService(object):
                 page += 1
         return client_arr
 
-    def update_freshbooks_clients(self):
+    def update_freshbooks_clients(self, company):
         from pos.models import Customer
 
         page = 1
@@ -160,6 +161,7 @@ class FreshbooksService(object):
             client_currency = client.get("currency_code", "USD")
 
             client_queryset = Customer.objects.filter(
+                company=company,
                 freshbooks_client_id=client_id,
                 freshbooks_account_id=client_accounting_systemid,
             )

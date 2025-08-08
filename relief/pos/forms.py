@@ -4,12 +4,12 @@ from django import forms
 
 
 class ImportFileForm(forms.Form):
-    import_customer_file = forms.FileField(
-        required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
-    )
-    import_product_file = forms.FileField(
-        required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
-    )
+    # import_customer_file = forms.FileField(
+    #     required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
+    # )
+    # import_product_file = forms.FileField(
+    #     required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
+    # )
     import_quote_file = forms.FileField(
         required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
     )
@@ -19,9 +19,9 @@ class ImportFileForm(forms.Form):
     import_detrack_file = forms.FileField(
         required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
     )
-    import_invoice_file = forms.FileField(
-        required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
-    )
+    # import_invoice_file = forms.FileField(
+    #     required=False, widget=forms.TextInput(attrs={"class": "form-input", "type": "file"})
+    # )
 
 
 class ExportOrderItemForm(forms.Form):
@@ -53,6 +53,8 @@ class CompanySelectForm(forms.Form):
 
     def clean_company(self):
         company = self.cleaned_data.get("company")
-        if company not in self.fields["company"].choices:
+        print("form validation companies:: ", self.fields["company"].choices)
+        account_ids = [choice[0] for choice in self.fields["company"].choices]
+        if company not in account_ids:
             raise forms.ValidationError("Please select a valid company")
         return company

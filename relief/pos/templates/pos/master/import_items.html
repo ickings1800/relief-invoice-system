@@ -7,22 +7,24 @@
             <form action="{% url 'pos:import_items' %}" method="post" enctype="multipart/form-data">
               {% csrf_token %}
               {{ form.as_p }}
-              <input class="btn btn-primary" type="submit" value="Submit">
+              <input class="btn btn-primary" type="submit" value="Import">
           </form>
           <div class="divider my-2"></div>
           <h2>Export Orderitems</h2>
             <form action="/pos/orderitem/summary" method="get">
               {{ export_form.as_p }}
-              <input class="btn btn-primary" type="submit" value="Export">
+              <input class="btn btn-primary" type="submit" value="Export Orderitems">
             </form>
+          <div class="divider my-2"></div>
             <h2>Export Invoice</h2>
             <form action="/pos/invoice/export/" method="get">
               {{ export_invoice.as_p }}
               <input class="btn btn-primary" type="submit" value="Export Invoice">
             </form>
+            <div class="divider my-2"></div>
+            <h2>Export Quotes</h2>
+            <a href="{% url 'pos:export_quote' %}" class="btn btn-primary">Export Quotes</a>
         </div>
-        <div class="divider my-2"></div>
-        <a href="{% url 'pos:export_quote' %}" class="btn btn-link">Export Quotes</a>
     </div>
 </div>
 {% endblock %}

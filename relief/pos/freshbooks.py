@@ -2,6 +2,8 @@ import functools
 import time
 
 from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from requests_oauthlib import OAuth2Session
 
 from .services import FreshbooksService
@@ -19,6 +21,13 @@ def freshbooks_access(func):
         # the view (and later middleware) are called.
 
         current_unix_time = int(time.time())
+
+        freshbooks_account_id = request.session.get("freshbooks_account_id")
+
+        print(f"wrapper:: Account ID: {freshbooks_account_id}")
+
+        if not freshbooks_account_id:
+            return HttpResponseRedirect(reverse("pos:select_company"))
 
         def token_updater(token):
             request.session["oauth_token"] = token.get("access_token")
@@ -56,16 +65,7 @@ def freshbooks_access(func):
             redirect_uri=redirect_uri,
         )
 
-        # TODO: allow user to choose which business account to use
-        res = freshbooks.get("https://api.freshbooks.com/auth/api/v1/users/me").json()
-
-        account_id = res.get("response").get("business_memberships")[0].get("business").get("account_id")
-
-        request.session["freshbooks_account_id"] = account_id
-
-        print(f"wrapper:: Account ID: {account_id}")
-
-        freshbooks_svc = FreshbooksService(account_id, freshbooks)
+        freshbooks_svc = FreshbooksService(freshbooks_account_id, freshbooks)
 
         response = func(request, freshbooks_svc, *args, **kwargs)
 

@@ -1,8 +1,8 @@
-import datetime
 import io
 import json
 import time
 import zipfile
+from datetime import datetime
 from decimal import Decimal
 
 from django.conf import settings
@@ -55,7 +55,7 @@ def get_huey_freshbooks_service(user):
 
 
 @db_task(context=True)
-def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user, task=None):
+def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user, company, task=None):
     from .models import Invoice
 
     print("huey_download_invoice_main_task:: ", invoice_number_from, invoice_number_to)
@@ -87,10 +87,10 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
         for invoice_number in range(invoice_number_from, invoice_number_to + 1):
             try:
-                invoice_in_database = Invoice.objects.get(invoice_number=invoice_number)
+                invoice_in_database = Invoice.objects.get(company=company, invoice_number=invoice_number)
             except Invoice.MultipleObjectsReturned:
                 #  multiple invoices found (shouldn't happen), but let's just use the first one
-                invoice_in_database = Invoice.objects.filter(invoice_number=invoice_number).first()
+                invoice_in_database = Invoice.objects.filter(company=company, invoice_number=invoice_number).first()
             except Invoice.DoesNotExist:
                 invoice_in_database = None
 
@@ -209,15 +209,15 @@ def huey_create_invoice(
 # docker time is in UTC time
 # @db_periodic_task(crontab(hour="17"))
 @task()
-def huey_create_invoice_automation(group_name):
+def huey_create_invoice_automation(group_name, company):
     from .models import CustomerGroup, OrderItem
 
     User = get_user_model()
     user = User.objects.get(pk=1)  #  Temporarily hardcode with user id 1
     freshbooks_svc = get_huey_freshbooks_service(user)
     freshbooks_tax_lookup = freshbooks_svc.get_freshbooks_taxes()
-    customergroup_arr = CustomerGroup.objects.filter(group__name=group_name).order_by("index")
-    parsed_create_date = datetime.datetime.now().date()
+    customergroup_arr = CustomerGroup.objects.filter(company=company, group__name=group_name).order_by("index")
+    parsed_create_date = datetime.now().date()
 
     for cg in customergroup_arr:
         #  get all customers in the default group

@@ -4,6 +4,7 @@ const origin = location.origin;
 var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
   data: function () {
       return {
+        create_date: null,
         customer_orderitems: [],
         selected_orderitems: [],
         invoice_number: null,
@@ -28,27 +29,17 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
   	            <!-- form input control -->
   	            <div class="form-group">
   	              <label class="form-label" for="update-date">Create Date</label>
-                  <input class="form-input" id="update-date" type="date" v-model="selected_invoice.date_created" readonly>
+                  <input class="form-input" id="update-date" type="date" v-model="create_date">
   	            </div>
   	            <div class="form-group">
-  	              <label class="form-label" for="po-number">PO Number</label>
+  	              <label class="form-label" for="po-number">PO Number (Optional)</label>
   	              <input class="form-input" type="text" id="po-number" v-model="po_number">
   	            </div>
   	            <div class="form-group">
-  	              <label class="form-label" for="invoice-number">Invoice Number</label>
+  	              <label class="form-label" for="invoice-number">Invoice Number (Optional)</label>
   	              <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
   	            </div>
   	        </div>
-            <div class="invoice-form">
-              <div class="form-group">
-                <label class="form-label" for="discount-desc">Discount Description</label>
-                <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="discount">Discount (Credit Note)</label>
-                <input class="form-input" type="text" id="discount" v-model="discount">
-              </div>
-            </div>
   	        <div class="invoice-create-update-table">
   		        <table class="table">
   		          <thead>
@@ -123,12 +114,13 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
          .then(res => res.json())
          .then(res => {
            console.log(res)
+          this.create_date = res.create_date;
           this.selected_orderitems =  res.orderitem_set.map(oi => oi.id)
           this.customer_orderitems = res.orderitem_set
           this.invoice_number =  res.invoice_number
           this.po_number =  res.po_number  
           this.discount =  res.minus
-          this.discount_description =  res.discount_description 
+          this.discount_description =  res.discount_description
          })
          .then(() => {
           orderitemFilter(null, null, [this.selected_invoice.customer_pk])
@@ -155,6 +147,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
        updateInvoice: function(event){
         console.log('creating invoice')
         const data = {
+          'create_date': this.create_date,
           'orderitems_id': this.selected_orderitems,
           'invoice_number': this.invoice_number,
           'po_number': this.po_number,
@@ -167,6 +160,7 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
       },
       resetInputs: function(event) {
         console.log('reset inputs')
+        this.create_date = null;
         this.selected_orderitems = [];
         this.customer_orderitems = [];
         this.invoice_number = null;
@@ -175,69 +169,6 @@ var UpdateInvoiceModal = Vue.component('UpdateInvoiceModal', {
         this.discount_description = null;
       }
   }
-})
-
-
-var ProductDetailModal = Vue.component('ProductDetailModal', {
-  data: function () {
-      return {
-        freshbooks_item_id: null,
-        freshbooks_products: [],
-      }
-  },
-
-  template:`
-    <!-- Add Customer Modal -->
-    <div class="modal" v-if="product" id="detail-product-modal" v-bind:class="{ 'active': opened }">
-      <a href="#close" class="modal-overlay" aria-label="Close" v-on:click="close"></a>
-      <div class="modal-container product-detail-modal-window">
-        <div class="modal-header h6" v-if="product">{{ product.name }}</div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Name: {{ product.name }}</label>
-            <label class="form-label">Freshbooks Name</label>
-            <select class="form-select" v-model="freshbooks_item_id">
-              <option :value="null"></option>
-              <option v-for="product in freshbooks_products" :value="product.itemid">{{ product.name }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-            <div class="divider"></div>
-            <a class="btn btn-link btn-sm my-2" v-on:click="close">Cancel</a>
-            <a href="#" class="btn btn-primary" v-on:click.prevent="linkProduct">Submit</a>
-        </div>
-      </div>
-    </div>
-   `,
-   props: ['opened', 'product'],
-   components: {},
-   watch: {
-       opened: function(val){
-          if (val) {
-           console.log("customer details modal");
-           this.freshbooks_item_id = this.product.freshbooks_item_id
-           getFreshbooksProducts()
-           .then(res => res.json())
-           .then(res => this.freshbooks_products = res);
-           console.log(this.freshbooks_products)
-          }
-       }
-   },
-   methods: {
-       close: function(event){
-           console.log("show product modal close");
-           this.$emit('show-product-detail-modal');
-           this.freshbooks_item_id = null;
-       },
-       linkProduct: function(event) {
-        const data = {
-          'product_id': this.product.id,
-          'freshbooks_item_id': this.freshbooks_item_id,
-        }
-        linkProduct(data).then(res => res.json()).then(() => this.close())
-       }
-   }
 })
 
 
@@ -322,7 +253,7 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
     <div class="modal" v-bind:class="{ 'active': opened }">
       <div class="modal-container">
         <div class="modal-header">
-          <div class="modal-title h5">Download Invoice Range</div>
+          <div class="modal-title h5">Download Invoice Number Range</div>
           <a href="#close" class="btn btn-clear float-right" aria-label="Close" v-on:click.prevent="close"></a>
         </div>
         <div class="modal-body">
@@ -330,12 +261,12 @@ var DownloadRangeModal = Vue.component('DownloadRangeModal', {
             <!-- content here -->
             <!-- form input control -->
             <div class="form-group">
-              <label class="form-label" for="from-range">From</label>
+              <label class="form-label" for="from-range">From (e.g. 25000001)</label>
               <input class="form-input" type="number" id="from-range" v-model="from">
             </div>
             <!-- form input control -->
             <div class="form-group">
-              <label class="form-label" for="to-range">To</label>
+              <label class="form-label" for="to-range">To (e.g. 25000123)</label>
               <input class="form-input" type="number" id="to-range" v-model="to">
             </div>
             <!--
@@ -536,21 +467,14 @@ var EditQuoteModal = Vue.component('EditQuoteModal', {
             <div class="form-group">
               <label class="form-label">Freshbooks Tax 1</label>
               <select class="form-select column col-12 my-1" v-model="edit_freshbooks_text_1">
-                  <option :value="null"></option>
+                  <option :value="null">No tax</option>
                   <option v-for="t in tax_list" :value="t.id">{{ t.name }} - Tax Amount: {{ t.amount }}%</option>
               </select>
             </div>
         </div>
         <div class="modal-footer">
             <div class="divider"></div>
-            <div class="delete-container">
-              <a class="btn btn-link btn-sm my-2 float-left" 
-              v-if="edit_archived"
-              v-on:click.prevent="toggleArchive">Restore</a>
-              <a class="btn btn-error float-left"
-              v-if="!edit_archived"
-              v-on:click.prevent="toggleArchive">Archive</a>
-            </div>
+            <div class="delete-container"></div>
             <div class="action-container">
               <a class="btn btn-link btn-sm my-2" v-on:click.prevent="close">Cancel</a>
               <a class="btn btn-primary" v-on:click="saveCustomerQuote">Save</a>
@@ -759,11 +683,6 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
             <label class="form-label">Address: {{ customer.address }}</label>
             <label class="form-label">Postal code: {{ customer.postal_code }}</label>
             <div class="form-group">
-              <label class="form-label">GST
-                <input class="form-input" type="number" id="gst" placeholder="GST" v-model="gst">
-              </label>
-            </div>
-            <div class="form-group">
               <label class="form-label form-inline">Prefix
                 <input class="form-input" placeholder="Prefix" v-model="dowlnoad_prefix">
               </label>
@@ -794,10 +713,6 @@ var CustomerDetailModal = Vue.component('CustomerDetailModal', {
               <option :value="null"></option>
               <option v-for="client in freshbooks_clients" :value="client.id">{{ client.organization }}</option>
             </select>
-            <label class="form-checkbox my-2">
-              <input type="checkbox" v-model="invoice_pivot">
-              <i class="form-icon"></i> Pivot Invoice
-            </label>
           </div>
         </div>
         <div class="modal-footer">
@@ -894,23 +809,13 @@ var CreateInvoiceModal = Vue.component('CreateInvoiceModal', {
   		          <input class="form-input" type="date" id="create-date" v-model="create_date">
   		        </div>
   		        <div class="form-group">
-  		          <label class="form-label" for="po-number">PO Number</label>
+  		          <label class="form-label" for="po-number">PO Number (Optional)</label>
   		          <input class="form-input" type="text" id="po-number" v-model="po_number">
   		        </div>
   		        <div class="form-group">
-  		          <label class="form-label" for="invoice-number">Invoice Number</label>
+  		          <label class="form-label" for="invoice-number">Invoice Number (Optional)</label>
   		          <input class="form-input" type="text" id="invoice-number" v-model="invoice_number">
   		        </div>
-            </div>
-            <div class="invoice-form">
-              <div class="form-group">
-                <label class="form-label" for="discount-desc">Discount Description</label>
-                <input class="form-input" type="text" id="discount-desc" v-model="discount_description">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="discount">Discount (Credit Note)</label>
-                <input class="form-input" type="text" id="discount" v-model="discount">
-              </div>
             </div>
     		    <div class="invoice-create-update-table">
     		        <table class="table">
@@ -1204,6 +1109,7 @@ var CreateQuoteModal = Vue.component('CreateQuoteModal', {
             <div class="form-group">
               <label class="form-label" for="tax-1-id">Tax 1</label>
               <select class="form-select column col-12 my-1" id="tax-1-id" v-model="selected_tax_1">
+                  <option :value="null">No tax</option>
                   <option v-for="t in tax_list" :value="t.id">{{ t.name }} - Tax Amount: {{ t.amount }}%</option>
               </select>
             </div>
@@ -1340,12 +1246,7 @@ var CustomerList = Vue.component('CustomerList', {
       </div> 
 
       <div class="form-group d-inline-flex my-1 action-bar" v-if="currentTab === 'quotes'">
-        <div class="flex-1">
-          <label class="form-checkbox">
-            <input type="checkbox" v-model="showArchivedQuotes">
-            <i class="form-icon"></i> Archived
-          </label>
-        </div>
+        <div class="flex-1"></div>
         <div class="flex-1">
           <button class="btn btn-primary float-right flex-1" v-on:click="$emit('show-quote')">Create Quote</button>
         </div>
@@ -1354,7 +1255,6 @@ var CustomerList = Vue.component('CustomerList', {
         <thead>
           <tr>
             <th>{{ group.name }}
-              <button class="btn btn-sm float-right" v-on:click.prevent="$emit('show-bulk-create-modal', group)">Bulk Create</button>
               <button class="btn btn-sm float-right mx-2" v-on:click.prevent="$emit('show-edit-group-modal', group)">Edit Group</button>
             </th>
           </tr>
@@ -1381,7 +1281,7 @@ var CustomerList = Vue.component('CustomerList', {
         <tbody>
           <tr v-for="product in products" :key="product.id">
             <td>
-              <span class="label c-hand" v-on:click.prevent="show_product_details(product)">{{ product.name }}</span>
+              <span class="label">{{ product.name }}</span>
               <span v-if="product.freshbooks_item_id" class="label label-secondary">FreshBooks</span>
             </td>
           </tr>
@@ -1443,7 +1343,6 @@ var CustomerList = Vue.component('CustomerList', {
             <th>Customer Name</th>
             <th>Date Generated</th>
             <th>Invoice Date</th>
-            <th>Total</th>
             <th>PDF</th>
           </tr>
         </thead>
@@ -1461,7 +1360,6 @@ var CustomerList = Vue.component('CustomerList', {
             <td>
               {{ invoice.date_created }}
             </td>
-            <td>{{ invoice.total_incl_gst }}</td>
             <td><a class="btn btn-sm" :href="invoice.download_url">Download</a></td>
           </tr>
         </tbody>
@@ -1714,7 +1612,6 @@ var app = new Vue({
       'create-invoice-modal': CreateInvoiceModal,
       'update-invoice-modal': UpdateInvoiceModal,
       'detail-customer-modal': CustomerDetailModal,
-      'detail-product-modal': ProductDetailModal,
       'edit-orderitem-modal': OrderItemEditModal,
       'delete-invoice-modal': InvoiceDeleteModal,
       'import-client-modal': ImportClientModal,
@@ -1817,17 +1714,6 @@ var app = new Vue({
       if (!this.show_customer_detail_modal){
         this.detail_customer = null;
         getAllCustomers().then(res => res.json()).then(res => this.clients = res)
-      }      
-    },
-    show_product_detail_modal_window: function(product) {
-      console.log("show product detail modal");
-      this.show_product_detail_modal = !this.show_product_detail_modal;
-      if (this.show_product_detail_modal){
-        this.detail_product = product;
-      }
-      if (!this.show_product_detail_modal){
-        this.detail_product = null;
-        getAllProducts().then(res => res.json()).then(res => this.products = res)
       }      
     },
     show_orderitem_edit_modal_window: function(index) {
