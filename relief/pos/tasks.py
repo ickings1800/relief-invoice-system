@@ -112,7 +112,7 @@ def huey_download_invoice_main_task(invoice_number_from, invoice_number_to, user
             filename = invoice_in_database.customer.get_download_file_name(invoice_in_database.invoice_number) + ".pdf"
 
             if invoice_in_database.pivot:
-                pivot_invoice_pdf_buffer = Invoice.download_pivot_invoice(invoice_in_database.pk, io.BytesIO())
+                pivot_invoice_pdf_buffer = Invoice.download_pivot_invoice(company, invoice_in_database.pk, io.BytesIO())
                 zip_file.writestr(filename, pivot_invoice_pdf_buffer.getvalue())
                 pivot_invoice_pdf_buffer.close()
                 continue
