@@ -1,6 +1,8 @@
 # relief (beta): bulk invoicing for freshbooks
 relief is a freshbooks accounting software integration designed to streamline the billing process for companies managing multiple product prices across different clients.
 
+![relief beta feature banner](/Summary.jpg)
+
 ## Features
 
 - **Customer-Specific Pricing**  
@@ -25,7 +27,7 @@ relief is a freshbooks accounting software integration designed to streamline th
 
 ### Login with Freshbooks
 1. Go to the integration’s FreshBooks authorization page:  
-   [Authorize relief with FreshBooks](https://relief.systems/)  
+   [Login and authorize with FreshBooks](https://relief.systems/)  
 2. Log in to your FreshBooks account when prompted.  
 3. Authorize the app to access your FreshBooks data.  
 4. Select the FreshBooks account you want to connect.  
@@ -68,7 +70,7 @@ See the [LICENSE](LICENSE) file for details.
 ## Support
 
 For questions or issues:  
-- [Email me!](limlehao@gmail.com)  
+- Email me (Ray) at limlehao@gmail.com  
 - Or open an issue in this repository  
 
 ---
